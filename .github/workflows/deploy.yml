@@ -17,4 +17,5 @@ jobs:
         server: ftp.tuptudu.cz
         username: libor.tuptudu.cz
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: /
+        server-dir: /public_html/
+        local-dir: ./public/
