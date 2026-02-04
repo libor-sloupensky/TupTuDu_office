@@ -11,6 +11,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Generate last push timestamp
+      run: echo "$(TZ='Europe/Prague' date '+%d.%m.%Y %H:%M:%S')" > ./public/last_push.txt
+
     - name: FTP Deploy
       uses: SamKirkland/FTP-Deploy-Action@4.3.0
       with:
