@@ -9,7 +9,7 @@ $lastPush = file_exists(__DIR__ . '/last_push.txt') ? file_get_contents(__DIR__ 
     <title>TupTuDu</title>
 </head>
 <body>
-    <div style="position: fixed; top: 10px; right: 10px; text-align: right; font-family: monospace; font-size: 12px; color: #888;">
+    <div style="position: fixed; bottom: 10px; right: 10px; text-align: right; font-family: monospace; font-size: 12px; color: #888;">
         <?php echo $version; ?><br>
         Poslední push: <?php echo $lastPush; ?>
     </div>
