@@ -1,3 +1,3 @@
 <?php
-echo "Ahoj světe!";
+echo "test web 1";
 phpinfo();
