@@ -11,10 +11,42 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        extensions: mbstring, xml, curl, zip, openssl
+
+    - name: Install Composer dependencies
+      run: composer install --no-dev --optimize-autoloader --no-interaction
+
     - name: Generate last push timestamp
       run: echo "$(TZ='Europe/Prague' date '+%d.%m.%Y %H:%M:%S')" > ./public/last_push.txt
 
-    - name: FTP Deploy
+    - name: Prepare storage directories
+      run: |
+        mkdir -p storage/framework/sessions
+        mkdir -p storage/framework/views
+        mkdir -p storage/framework/cache/data
+        mkdir -p storage/app/invoices
+
+    - name: Deploy Laravel app (without public/)
+      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      with:
+        server: ftp.tuptudu.cz
+        username: libor.tuptudu.cz
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: /
+        local-dir: ./
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/tests/**
+          **/.env
+          **/public/**
+
+    - name: Deploy public/ to public_html/
       uses: SamKirkland/FTP-Deploy-Action@4.3.0
       with:
         server: ftp.tuptudu.cz

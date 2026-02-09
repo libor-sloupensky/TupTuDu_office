@@ -1,18 +1,20 @@
 <?php
-$version = "V001";
-$lastPush = file_exists(__DIR__ . '/last_push.txt') ? file_get_contents(__DIR__ . '/last_push.txt') : 'N/A';
-?>
-<!DOCTYPE html>
-<html lang="cs">
-<head>
-    <meta charset="UTF-8">
-    <title>TupTuDu</title>
-</head>
-<body>
-    <div style="position: fixed; bottom: 10px; right: 10px; text-align: right; font-family: monospace; font-size: 12px; color: #888;">
-        <?php echo $version; ?><br>
-        Poslední push: <?php echo $lastPush; ?>
-    </div>
-    <?php echo "test web 1 "; ?>
-</body>
-</html>
+
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+// Determine if the application is in maintenance mode...
+if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// Register the Composer autoloader...
+require __DIR__.'/../vendor/autoload.php';
+
+// Bootstrap Laravel and handle the request...
+/** @var Application $app */
+$app = require_once __DIR__.'/../bootstrap/app.php';
+
+$app->handleRequest(Request::capture());

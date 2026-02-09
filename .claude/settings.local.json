@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -v:*)",
+      "Bash(composer --version:*)",
+      "Bash(where:*)",
+      "Bash(php -r \"copy\\(''https://getcomposer.org/installer'', ''composer-setup.php''\\);\")",
+      "Bash(php:*)",
+      "Bash(php -r:*)",
+      "Bash(curl:*)",
+      "Bash(timeout:*)",
+      "Bash(taskkill:*)"
+    ]
+  }
+}
