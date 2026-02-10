@@ -35,14 +35,52 @@ jobs:
           echo "vendor_changed=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Fix permissions on server
+    - name: Fix permissions via PHP
       run: |
-        sudo apt-get install -y sshpass
-        sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p 222 libor.tuptudu.cz@ftp.tuptudu.cz "chmod -R 755 /laravel-office/ /_sub/office/ /public_html/ 2>/dev/null; true"
+        sudo apt-get install -y lftp
+        # Create a temp PHP script that fixes permissions
+        cat > /tmp/fix-perms.php << 'PHPEOF'
+        <?php
+        if ($_GET['key'] ?? '' !== 'deploy-fix-2026') { http_response_code(403); exit; }
+        $dirs = ['../../laravel-office', '.', '../../_sub/office'];
+        foreach ($dirs as $dir) {
+            if (is_dir($dir)) {
+                $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+                foreach ($it as $file) {
+                    @chmod($file->getPathname(), $file->isDir() ? 0755 : 0644);
+                }
+            }
+        }
+        echo 'OK';
+        PHPEOF
+        # Upload fix script to public_html
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          put /tmp/fix-perms.php -o /public_html/fix-perms.php;
+          quit
+        " || true
+        # Also try uploading to _sub/office
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          put /tmp/fix-perms.php -o /_sub/office/fix-perms.php;
+          quit
+        " || true
+        # Call the script via HTTP
+        curl -s "https://tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || true
+        curl -s "https://office.tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || true
+        # Clean up - remove the script
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          rm -f /public_html/fix-perms.php;
+          rm -f /_sub/office/fix-perms.php;
+          quit
+        " || true
 
     - name: Deploy app files via lftp
       run: |
-        sudo apt-get install -y lftp
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
@@ -61,12 +99,12 @@ jobs:
           quit
         "
 
-    - name: Deploy vendor
+    - name: Deploy vendor (only if composer.lock changed)
       if: steps.check_vendor.outputs.vendor_changed == 'true'
       run: |
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          mirror --reverse --parallel=5 --verbose --only-newer vendor/ /laravel-office/vendor/;
+          mirror --reverse --parallel=5 --verbose --only-newer --no-perms vendor/ /laravel-office/vendor/;
           quit
         "
