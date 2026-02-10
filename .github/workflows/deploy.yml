@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
     - uses: actions/checkout@v3
@@ -35,67 +35,31 @@ jobs:
           echo "vendor_changed=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Fix permissions via PHP
+    - name: Clean and deploy via lftp
       run: |
         sudo apt-get install -y lftp
-        # Create a temp PHP script that fixes permissions
-        cat > /tmp/fix-perms.php << 'PHPEOF'
-        <?php
-        if ($_GET['key'] ?? '' !== 'deploy-fix-2026') { http_response_code(403); exit; }
-        $dirs = ['../../laravel-office', '.', '../../_sub/office'];
-        foreach ($dirs as $dir) {
-            if (is_dir($dir)) {
-                $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
-                foreach ($it as $file) {
-                    @chmod($file->getPathname(), $file->isDir() ? 0755 : 0644);
-                }
-            }
-        }
-        echo 'OK';
-        PHPEOF
-        # Upload fix script to public_html
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set xfer:clobber on;
           open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          put /tmp/fix-perms.php -o /public_html/fix-perms.php;
-          quit
-        " || true
-        # Also try uploading to _sub/office
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          put /tmp/fix-perms.php -o /_sub/office/fix-perms.php;
-          quit
-        " || true
-        # Call the script via HTTP
-        curl -s "https://tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || true
-        curl -s "https://office.tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || true
-        # Clean up - remove the script
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          rm -f /public_html/fix-perms.php;
-          rm -f /_sub/office/fix-perms.php;
-          quit
-        " || true
-
-    - name: Deploy app files via lftp
-      run: |
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          mirror --reverse --verbose --only-newer --no-perms app/ /laravel-office/app/;
-          mirror --reverse --verbose --only-newer --no-perms bootstrap/ /laravel-office/bootstrap/;
-          mirror --reverse --verbose --only-newer --no-perms config/ /laravel-office/config/;
-          mirror --reverse --verbose --only-newer --no-perms database/ /laravel-office/database/;
-          mirror --reverse --verbose --only-newer --no-perms resources/ /laravel-office/resources/;
-          mirror --reverse --verbose --only-newer --no-perms routes/ /laravel-office/routes/;
-          mirror --reverse --verbose --only-newer --no-perms storage/ /laravel-office/storage/;
+          rm -rf /laravel-office/app/;
+          rm -rf /laravel-office/bootstrap/;
+          rm -rf /laravel-office/config/;
+          rm -rf /laravel-office/database/;
+          rm -rf /laravel-office/resources/;
+          rm -rf /laravel-office/routes/;
+          mirror --reverse --verbose --no-perms app/ /laravel-office/app/;
+          mirror --reverse --verbose --no-perms bootstrap/ /laravel-office/bootstrap/;
+          mirror --reverse --verbose --no-perms config/ /laravel-office/config/;
+          mirror --reverse --verbose --no-perms database/ /laravel-office/database/;
+          mirror --reverse --verbose --no-perms resources/ /laravel-office/resources/;
+          mirror --reverse --verbose --no-perms routes/ /laravel-office/routes/;
+          mirror --reverse --verbose --no-perms storage/ /laravel-office/storage/;
           put artisan -o /laravel-office/artisan;
           put composer.json -o /laravel-office/composer.json;
           put composer.lock -o /laravel-office/composer.lock;
-          mirror --reverse --verbose --only-newer --no-perms public/ /_sub/office/;
-          mirror --reverse --verbose --only-newer --no-perms landing/ /public_html/;
+          mirror --reverse --verbose --no-perms public/ /_sub/office/;
+          mirror --reverse --verbose --no-perms landing/ /public_html/;
           quit
         "
 
@@ -104,7 +68,8 @@ jobs:
       run: |
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set xfer:clobber on;
           open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          mirror --reverse --parallel=5 --verbose --only-newer --no-perms vendor/ /laravel-office/vendor/;
+          mirror --reverse --parallel=5 --verbose --no-perms vendor/ /laravel-office/vendor/;
           quit
         "
