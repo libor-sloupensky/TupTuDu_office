@@ -31,7 +31,7 @@ jobs:
         cp -r app bootstrap config database resources routes storage vendor deploy/
         cp artisan composer.json composer.lock deploy/
         # Copy public files to public_html
-        cp -r public/* deploy/public_html/
+        cp -r public/. deploy/public_html/
         # Create storage directories
         mkdir -p deploy/storage/framework/sessions
         mkdir -p deploy/storage/framework/views
