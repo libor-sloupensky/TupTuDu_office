@@ -57,7 +57,7 @@ jobs:
         "
 
     - name: Deploy vendor
-      if: steps.check_vendor.outputs.vendor_changed == 'true' || true
+      if: steps.check_vendor.outputs.vendor_changed == 'true'
       run: |
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
