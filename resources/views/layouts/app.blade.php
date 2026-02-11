@@ -22,6 +22,8 @@
         <h1>TupTuDu</h1>
         <div>
             <a href="{{ route('invoices.create') }}">Nahrát doklad</a>
+            <a href="{{ route('doklady.index') }}">Doklady</a>
+            <a href="{{ route('firma.nastaveni') }}">Nastavení</a>
         </div>
     </nav>
 

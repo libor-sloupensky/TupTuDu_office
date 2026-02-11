@@ -94,7 +94,27 @@
                     @endif
                 </td>
             </tr>
+            @if (isset($doklad))
+            <tr>
+                <th>Adresát</th>
+                <td>
+                    @if (!$doklad->adresni)
+                        <span style="color: #95a5a6;">Neadresní doklad</span>
+                    @elseif ($doklad->overeno_adresat)
+                        <span style="color: #27ae60; font-weight: 600;">Adresováno na naši firmu</span>
+                    @else
+                        <span style="color: #e74c3c; font-weight: 600;">Jiný adresát (IČO: {{ $invoiceData['odberatel_ico'] ?? '?' }})</span>
+                    @endif
+                </td>
+            </tr>
+            @endif
         </table>
+
+        @if (isset($doklad))
+        <div style="margin-bottom: 1rem;">
+            <a href="{{ route('doklady.index') }}" style="color: #3498db; text-decoration: none;">Zobrazit všechny doklady</a>
+        </div>
+        @endif
     @endif
 
     <span class="section-toggle" onclick="var el = document.getElementById('extractedText'); el.style.display = el.style.display === 'none' ? 'block' : 'none';">
