@@ -57,6 +57,17 @@ jobs:
           quit
         "
 
+    - name: Temporarily disable .htaccess for diagnostics
+      run: |
+        echo "" > /tmp/empty-htaccess
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set xfer:clobber on;
+          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          put /tmp/empty-htaccess -o /_sub/office/.htaccess;
+          quit
+        "
+
     - name: Deploy vendor
       if: steps.check_vendor.outputs.vendor_changed == 'true'
       run: |
