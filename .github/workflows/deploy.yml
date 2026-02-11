@@ -52,7 +52,7 @@ jobs:
           put artisan -o /laravel-office/artisan;
           put composer.json -o /laravel-office/composer.json;
           put composer.lock -o /laravel-office/composer.lock;
-          mirror --reverse --verbose --no-perms public/ /public_html/;
+          mirror --reverse --delete --verbose --no-perms public/ /public_html/;
           mirror --reverse --verbose --no-perms public/ /_sub/office/;
           quit
         "
