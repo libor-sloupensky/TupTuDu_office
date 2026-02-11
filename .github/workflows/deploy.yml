@@ -96,8 +96,6 @@ jobs:
           ls /tuptudu.cz/_sub/office/;
           echo '--- Verifying laravel-office/ ---';
           ls /tuptudu.cz/laravel-office/;
-          echo '--- Verifying laravel-office/.env ---';
-          ls /tuptudu.cz/laravel-office/.env;
           quit
         "
 
