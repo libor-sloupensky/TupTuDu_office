@@ -6,6 +6,7 @@ use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Webklex\IMAP\ClientManager;
 
 class ProcessEmailDoklady extends Command
@@ -14,12 +15,6 @@ class ProcessEmailDoklady extends Command
                             {--ico= : Zpracovat jen konkrétní firmu podle IČO}';
 
     protected $description = 'Stáhne a zpracuje doklady z emailových schránek firem';
-
-    private const ALLOWED_MIMES = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-    ];
 
     private const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
 
@@ -95,7 +90,7 @@ class ProcessEmailDoklady extends Command
                 $originalName = $attachment->getName();
                 $content = $attachment->getContent();
 
-                // Uložit do temp souboru
+                // Uložit do temp souboru pro OCR
                 $tempPath = tempnam(sys_get_temp_dir(), 'doklad_');
                 file_put_contents($tempPath, $content);
 
@@ -108,25 +103,17 @@ class ProcessEmailDoklady extends Command
                     continue;
                 }
 
-                // Uložit do storage
-                $storageName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
-                $storagePath = 'doklady/' . $firma->ico . '/' . $storageName;
-                $fullStoragePath = storage_path('app/private/' . $storagePath);
-
-                // Zajistit existenci adresáře
-                $dir = dirname($fullStoragePath);
-                if (!is_dir($dir)) {
-                    mkdir($dir, 0755, true);
-                }
-
-                rename($tempPath, $fullStoragePath);
+                // Upload na S3
+                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+                $s3Path = 'doklady/' . $firma->ico . '/' . time() . '_' . $safeName;
+                Storage::disk('s3')->put($s3Path, $content);
 
                 try {
                     $doklad = $processor->process(
-                        $fullStoragePath,
+                        $tempPath,
                         $originalName,
                         $firma,
-                        $storagePath,
+                        $s3Path,
                         $fileHash,
                         'email'
                     );
@@ -140,6 +127,8 @@ class ProcessEmailDoklady extends Command
                         'attachment' => $originalName,
                         'error' => $e->getMessage(),
                     ]);
+                } finally {
+                    @unlink($tempPath);
                 }
             }
 

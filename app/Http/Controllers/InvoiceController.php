@@ -6,6 +6,7 @@ use App\Models\Doklad;
 use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
 {
@@ -31,11 +32,15 @@ class InvoiceController extends Controller
 
     public function download(Doklad $doklad)
     {
-        $path = storage_path('app/private/' . $doklad->cesta_souboru);
-        if (!file_exists($path)) {
+        $disk = Storage::disk('s3');
+
+        if (!$disk->exists($doklad->cesta_souboru)) {
             abort(404, 'Soubor nebyl nalezen.');
         }
-        return response()->download($path, $doklad->nazev_souboru);
+
+        return response()->streamDownload(function () use ($disk, $doklad) {
+            echo $disk->get($doklad->cesta_souboru);
+        }, $doklad->nazev_souboru);
     }
 
     public function store(Request $request)
@@ -50,7 +55,8 @@ class InvoiceController extends Controller
         }
 
         $file = $request->file('document');
-        $fileHash = hash_file('sha256', $file->getRealPath());
+        $tempPath = $file->getRealPath();
+        $fileHash = hash_file('sha256', $tempPath);
 
         $processor = new DokladProcessor();
 
@@ -64,18 +70,15 @@ class InvoiceController extends Controller
             ]);
         }
 
-        $path = $file->storeAs(
-            'doklady/' . $firma->ico,
-            time() . '_' . $file->getClientOriginalName(),
-            'local'
-        );
-        $fullPath = storage_path('app/private/' . $path);
+        // Upload na S3
+        $s3Path = 'doklady/' . $firma->ico . '/' . time() . '_' . $file->getClientOriginalName();
+        Storage::disk('s3')->put($s3Path, file_get_contents($tempPath));
 
         $doklad = $processor->process(
-            $fullPath,
+            $tempPath,
             $file->getClientOriginalName(),
             $firma,
-            $path,
+            $s3Path,
             $fileHash,
             'upload'
         );
