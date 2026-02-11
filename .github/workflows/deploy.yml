@@ -35,19 +35,13 @@ jobs:
           echo "vendor_changed=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Clean and deploy via lftp
+    - name: Deploy app files via lftp
       run: |
         sudo apt-get install -y lftp
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           set xfer:clobber on;
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          rm -rf /laravel-office/app/;
-          rm -rf /laravel-office/bootstrap/;
-          rm -rf /laravel-office/config/;
-          rm -rf /laravel-office/database/;
-          rm -rf /laravel-office/resources/;
-          rm -rf /laravel-office/routes/;
+          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           mirror --reverse --verbose --no-perms app/ /laravel-office/app/;
           mirror --reverse --verbose --no-perms bootstrap/ /laravel-office/bootstrap/;
           mirror --reverse --verbose --no-perms config/ /laravel-office/config/;
@@ -63,13 +57,13 @@ jobs:
           quit
         "
 
-    - name: Deploy vendor (only if composer.lock changed)
-      if: steps.check_vendor.outputs.vendor_changed == 'true'
+    - name: Deploy vendor
+      if: steps.check_vendor.outputs.vendor_changed == 'true' || true
       run: |
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           set xfer:clobber on;
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           mirror --reverse --parallel=5 --verbose --no-perms vendor/ /laravel-office/vendor/;
           quit
         "

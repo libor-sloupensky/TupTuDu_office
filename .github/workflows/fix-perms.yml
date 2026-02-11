@@ -54,7 +54,7 @@ jobs:
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           set xfer:clobber on;
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           put /tmp/fix-perms.php -o /public_html/fix-perms.php;
           quit
         " 2>&1 || echo "Upload to public_html failed"
@@ -63,7 +63,7 @@ jobs:
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           set xfer:clobber on;
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           put /tmp/fix-perms.php -o /_sub/office/fix-perms.php;
           quit
         " 2>&1 || echo "Upload to _sub/office failed"
@@ -78,7 +78,7 @@ jobs:
         # Cleanup
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
-          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           rm -f /public_html/fix-perms.php;
           rm -f /_sub/office/fix-perms.php;
           quit
