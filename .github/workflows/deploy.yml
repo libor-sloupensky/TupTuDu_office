@@ -35,6 +35,44 @@ jobs:
           echo "vendor_changed=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: Prepare .env for upload
+      run: |
+        cat > /tmp/deploy.env << 'ENVEOF'
+        APP_NAME=TupTuDu
+        APP_ENV=production
+        APP_KEY=base64:x9sz+bK9NHPqN/gYkys0Y+3oqy0dkeCk1/oJtfKF/kQ=
+        APP_DEBUG=false
+        APP_URL=https://office.tuptudu.cz
+
+        LOG_CHANNEL=single
+        LOG_LEVEL=error
+
+        DB_CONNECTION=mysql
+        DB_HOST=db.dw328.webglobe.com
+        DB_PORT=3306
+        DB_DATABASE=tuptudu_office
+        DB_USERNAME=tuptudu_office
+        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+        SESSION_DRIVER=file
+        SESSION_LIFETIME=120
+        FILESYSTEM_DISK=local
+        QUEUE_CONNECTION=sync
+        CACHE_STORE=file
+
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION=eu-west-1
+
+        ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+
+        IMAP_HOST=mail.tuptudu.cz
+        IMAP_PORT=993
+        IMAP_ENCRYPTION=ssl
+        ENVEOF
+        # Remove leading spaces (heredoc indentation)
+        sed -i 's/^        //' /tmp/deploy.env
+
     - name: Deploy app files via lftp
       run: |
         sudo apt-get install -y lftp
@@ -52,13 +90,19 @@ jobs:
           put artisan -o /tuptudu.cz/laravel-office/artisan;
           put composer.json -o /tuptudu.cz/laravel-office/composer.json;
           put composer.lock -o /tuptudu.cz/laravel-office/composer.lock;
+          put /tmp/deploy.env -o /tuptudu.cz/laravel-office/.env;
           mirror --reverse --delete --verbose --no-perms public/ /tuptudu.cz/_sub/office/;
+          echo '--- Verifying _sub/office/ ---';
           ls /tuptudu.cz/_sub/office/;
+          echo '--- Verifying laravel-office/ ---';
+          ls /tuptudu.cz/laravel-office/;
+          echo '--- Verifying laravel-office/.env ---';
+          ls /tuptudu.cz/laravel-office/.env;
           quit
         "
 
     - name: Deploy vendor
-      if: true  # Force deploy vendor to new path /tuptudu.cz/laravel-office/
+      if: steps.check_vendor.outputs.vendor_changed == 'true'
       run: |
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
@@ -68,19 +112,17 @@ jobs:
           quit
         "
 
-    - name: Copy .env from old path if missing
+    - name: Verify deployment
       run: |
-        sudo apt-get install -y sshpass 2>/dev/null || true
-        sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p 222 multi_833363@ftp.tuptudu.cz '
-          if [ ! -f /tuptudu.cz/laravel-office/.env ]; then
-            if [ -f /laravel-office/.env ]; then
-              cp /laravel-office/.env /tuptudu.cz/laravel-office/.env
-              echo "Copied .env from old path"
-            else
-              echo "No .env found - needs manual setup"
-            fi
-          else
-            echo ".env already exists"
-          fi
-        '
-      continue-on-error: true
+        echo "Checking office.tuptudu.cz..."
+        HTTP_CODE=$(curl -s -o /tmp/response.html -w "%{http_code}" https://office.tuptudu.cz/ || echo "000")
+        echo "HTTP status: $HTTP_CODE"
+        if [ "$HTTP_CODE" = "200" ]; then
+          echo "Site is up!"
+        else
+          echo "Response body:"
+          head -50 /tmp/response.html
+        fi
+        echo ""
+        echo "Checking last_push.txt..."
+        curl -s https://office.tuptudu.cz/last_push.txt || echo "(not accessible)"
