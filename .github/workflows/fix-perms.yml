@@ -1,0 +1,85 @@
+name: Fix permissions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Upload and run fix-perms script
+      run: |
+        sudo apt-get install -y lftp
+
+        # Create PHP script
+        cat > /tmp/fix-perms.php << 'EOF'
+        <?php
+        $key = isset($_GET['key']) ? $_GET['key'] : '';
+        if ($key !== 'deploy-fix-2026') { http_response_code(403); echo 'Forbidden'; exit; }
+
+        $base = realpath(__DIR__ . '/../..');
+        $results = [];
+
+        $dirs = [
+            $base . '/laravel-office',
+            $base . '/_sub/office',
+            $base . '/public_html'
+        ];
+
+        foreach ($dirs as $dir) {
+            if (!is_dir($dir)) {
+                $results[] = "SKIP: $dir not found";
+                continue;
+            }
+            $count = 0;
+            $it = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($it as $file) {
+                $perm = $file->isDir() ? 0755 : 0644;
+                if (@chmod($file->getPathname(), $perm)) {
+                    $count++;
+                }
+            }
+            $results[] = "OK: $dir - changed $count items";
+        }
+
+        echo implode("\n", $results);
+        EOF
+
+        # Try uploading to public_html
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set xfer:clobber on;
+          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          put /tmp/fix-perms.php -o /public_html/fix-perms.php;
+          quit
+        " 2>&1 || echo "Upload to public_html failed"
+
+        # Try uploading to _sub/office
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set xfer:clobber on;
+          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          put /tmp/fix-perms.php -o /_sub/office/fix-perms.php;
+          quit
+        " 2>&1 || echo "Upload to _sub/office failed"
+
+        # Call script from both URLs
+        echo "=== Calling tuptudu.cz ==="
+        curl -s "https://tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || echo "curl tuptudu.cz failed"
+        echo ""
+        echo "=== Calling office.tuptudu.cz ==="
+        curl -s "https://office.tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || echo "curl office failed"
+
+        # Cleanup
+        lftp -e "
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          open sftp://libor.tuptudu.cz:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+          rm -f /public_html/fix-perms.php;
+          rm -f /_sub/office/fix-perms.php;
+          quit
+        " 2>&1 || true
