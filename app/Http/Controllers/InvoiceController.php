@@ -7,6 +7,7 @@ use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use ZipArchive;
 
 class InvoiceController extends Controller
 {
@@ -34,7 +35,7 @@ class InvoiceController extends Controller
     {
         $disk = Storage::disk('s3');
 
-        if (!$disk->exists($doklad->cesta_souboru)) {
+        if (!$doklad->cesta_souboru || !$disk->exists($doklad->cesta_souboru)) {
             abort(404, 'Soubor nebyl nalezen.');
         }
 
@@ -46,47 +47,103 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'documents' => 'required|array|min:1',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         $firma = Firma::first();
         if (!$firma) {
-            return back()->withErrors(['document' => 'Nejdříve vyplňte nastavení firmy.']);
+            return back()->withErrors(['documents' => 'Nejdříve vyplňte nastavení firmy.']);
         }
-
-        $file = $request->file('document');
-        $tempPath = $file->getRealPath();
-        $fileHash = hash_file('sha256', $tempPath);
 
         $processor = new DokladProcessor();
+        $results = [];
 
-        // Kontrola duplicit
-        $existujici = $processor->isDuplicate($fileHash, $firma->ico);
-        if ($existujici) {
-            return back()->withErrors([
-                'document' => 'Tento doklad byl již nahrán ('
-                    . ($existujici->cislo_dokladu ?: $existujici->nazev_souboru)
-                    . ', ' . $existujici->created_at->format('d.m.Y H:i') . ').',
-            ]);
+        foreach ($request->file('documents') as $file) {
+            $tempPath = $file->getRealPath();
+            $fileHash = hash_file('sha256', $tempPath);
+            $originalName = $file->getClientOriginalName();
+
+            // Kontrola duplicit
+            $existujici = $processor->isDuplicate($fileHash, $firma->ico);
+            if ($existujici) {
+                $results[] = [
+                    'name' => $originalName,
+                    'error' => 'Duplicita (' . ($existujici->cislo_dokladu ?: $existujici->nazev_souboru) . ')',
+                ];
+                continue;
+            }
+
+            $doklad = $processor->process(
+                $tempPath,
+                $originalName,
+                $firma,
+                $fileHash,
+                'upload'
+            );
+
+            $results[] = [
+                'name' => $originalName,
+                'doklad' => $doklad,
+                'error' => $doklad->stav === 'chyba' ? $doklad->chybova_zprava : null,
+            ];
         }
 
-        // Upload na S3
-        $s3Path = 'doklady/' . $firma->ico . '/' . time() . '_' . $file->getClientOriginalName();
-        Storage::disk('s3')->put($s3Path, file_get_contents($tempPath));
-
-        $doklad = $processor->process(
-            $tempPath,
-            $file->getClientOriginalName(),
-            $firma,
-            $s3Path,
-            $fileHash,
-            'upload'
-        );
-
-        if ($doklad->stav === 'chyba') {
-            return back()->withErrors(['document' => 'Chyba při zpracování: ' . $doklad->chybova_zprava]);
+        // Jeden soubor -> redirect na detail
+        if (count($results) === 1 && !empty($results[0]['doklad']) && $results[0]['doklad']->stav !== 'chyba') {
+            return redirect()->route('doklady.show', $results[0]['doklad']);
         }
 
-        return redirect()->route('doklady.show', $doklad);
+        // Více souborů -> redirect na seznam s flash message
+        $ok = collect($results)->filter(fn($r) => empty($r['error']))->count();
+        $errors = collect($results)->filter(fn($r) => !empty($r['error']));
+
+        $message = "Zpracováno {$ok} z " . count($results) . " dokladů.";
+        if ($errors->isNotEmpty()) {
+            $message .= ' Chyby: ' . $errors->map(fn($r) => $r['name'] . ' - ' . $r['error'])->implode('; ');
+        }
+
+        return redirect()->route('doklady.index')->with('flash', $message);
+    }
+
+    public function downloadMonth(Request $request, string $mesic)
+    {
+        // Validate format YYYY-MM
+        if (!preg_match('/^\d{4}-\d{2}$/', $mesic)) {
+            abort(400, 'Neplatný formát měsíce. Použijte YYYY-MM.');
+        }
+
+        $firma = Firma::first();
+        if (!$firma) {
+            abort(404, 'Firma nenalezena.');
+        }
+
+        $doklady = Doklad::where('firma_ico', $firma->ico)
+            ->where('cesta_souboru', 'like', "doklady/{$firma->ico}/{$mesic}/%")
+            ->where('cesta_souboru', '!=', '')
+            ->get();
+
+        if ($doklady->isEmpty()) {
+            abort(404, 'Žádné doklady za tento měsíc.');
+        }
+
+        $zipName = "doklady_{$mesic}.zip";
+        $tempZip = tempnam(sys_get_temp_dir(), 'doklady_') . '.zip';
+        $zip = new ZipArchive();
+
+        if ($zip->open($tempZip, ZipArchive::CREATE) !== true) {
+            abort(500, 'Nepodařilo se vytvořit ZIP archiv.');
+        }
+
+        $disk = Storage::disk('s3');
+        foreach ($doklady as $doklad) {
+            if ($disk->exists($doklad->cesta_souboru)) {
+                $zip->addFromString($doklad->nazev_souboru, $disk->get($doklad->cesta_souboru));
+            }
+        }
+
+        $zip->close();
+
+        return response()->download($tempZip, $zipName)->deleteFileAfterSend(true);
     }
 }

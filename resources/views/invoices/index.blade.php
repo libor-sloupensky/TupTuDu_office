@@ -23,6 +23,12 @@
     .adresat-na { color: #95a5a6; }
     .empty-state { text-align: center; padding: 3rem; color: #999; }
     .warning-msg { background: #fff3cd; color: #856404; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .flash-msg { background: #d4edda; color: #155724; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .month-downloads { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
+    .month-downloads h3 { font-size: 0.95rem; color: #555; margin-bottom: 0.75rem; }
+    .month-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .month-link { display: inline-block; padding: 0.35rem 0.75rem; background: #eaf2f8; border-radius: 6px; color: #2c3e50; text-decoration: none; font-size: 0.85rem; }
+    .month-link:hover { background: #d4e6f1; }
 </style>
 @endsection
 
@@ -32,6 +38,10 @@
         <h2>Doklady</h2>
         <a href="{{ route('invoices.create') }}" class="btn-upload">Nahrát doklad</a>
     </div>
+
+    @if (session('flash'))
+        <div class="flash-msg">{{ session('flash') }}</div>
+    @endif
 
     @if (!$firma)
         <div class="warning-msg">Nejdříve vyplňte <a href="{{ route('firma.nastaveni') }}">nastavení firmy</a>.</div>
@@ -89,6 +99,26 @@
                 @endforeach
             </tbody>
         </table>
+
+        @php
+            $mesice = $doklady
+                ->filter(fn($d) => $d->datum_vystaveni)
+                ->map(fn($d) => $d->datum_vystaveni->format('Y-m'))
+                ->unique()
+                ->sort()
+                ->reverse();
+        @endphp
+
+        @if ($mesice->isNotEmpty())
+        <div class="month-downloads">
+            <h3>Stáhnout doklady za měsíc (ZIP)</h3>
+            <div class="month-list">
+                @foreach ($mesice as $m)
+                    <a href="{{ route('doklady.downloadMonth', $m) }}" class="month-link">{{ \Carbon\Carbon::parse($m . '-01')->translatedFormat('F Y') }}</a>
+                @endforeach
+            </div>
+        </div>
+        @endif
     @endif
 </div>
 @endsection

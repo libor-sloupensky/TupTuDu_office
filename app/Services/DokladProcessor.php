@@ -8,16 +8,19 @@ use App\Models\Firma;
 use Aws\Textract\TextractClient;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class DokladProcessor
 {
     /**
-     * Zpracuje soubor dokladu - OCR + AI extrakce + uložení do DB.
+     * Zpracuje soubor dokladu - OCR + AI extrakce + upload na S3 + uložení do DB.
+     *
+     * S3 cesta: doklady/{ICO}/{YYYY-MM}/{YYYY-MM-DD}_{ID}.{ext}
+     * Upload probíhá AŽ po AI extrakci (potřebujeme datum_vystaveni pro cestu).
      *
      * @param string $filePath Absolutní cesta k souboru
      * @param string $originalName Původní název souboru
      * @param Firma $firma Firma, ke které doklad patří
-     * @param string $storagePath Relativní cesta v storage (pro DB)
      * @param string $fileHash SHA-256 hash souboru
      * @param string $zdroj Zdroj dokladu (upload, email)
      * @return Doklad
@@ -26,14 +29,13 @@ class DokladProcessor
         string $filePath,
         string $originalName,
         Firma $firma,
-        string $storagePath,
         string $fileHash,
         string $zdroj = 'upload'
     ): Doklad {
         $doklad = Doklad::create([
             'firma_ico' => $firma->ico,
             'nazev_souboru' => $originalName,
-            'cesta_souboru' => $storagePath,
+            'cesta_souboru' => '',
             'hash_souboru' => $fileHash,
             'stav' => 'zpracovava_se',
             'zdroj' => $zdroj,
@@ -55,7 +57,12 @@ class DokladProcessor
                 return $doklad;
             }
 
-            // 3. Auto-create/update dodavatel
+            // 3. Upload na S3 s finální cestou (datum_vystaveni + ID)
+            $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $originalName, $invoiceData['datum_vystaveni'] ?? null);
+            Storage::disk('s3')->put($s3Path, file_get_contents($filePath));
+            $doklad->update(['cesta_souboru' => $s3Path]);
+
+            // 4. Auto-create/update dodavatel
             $dodavatelIco = $invoiceData['ico'] ?? null;
             if ($dodavatelIco) {
                 Dodavatel::updateOrCreate(
@@ -67,7 +74,7 @@ class DokladProcessor
                 );
             }
 
-            // 4. Ověření adresáta
+            // 5. Ověření adresáta
             $adresni = !empty($dodavatelIco);
             $overenoAdresat = false;
             if ($adresni) {
@@ -75,7 +82,7 @@ class DokladProcessor
                 $overenoAdresat = $odberatelIco === $firma->ico;
             }
 
-            // 5. Uložit do DB
+            // 6. Uložit do DB
             $doklad->update([
                 'dodavatel_ico' => $dodavatelIco,
                 'dodavatel_nazev' => $invoiceData['dodavatel'] ?? null,
@@ -103,6 +110,18 @@ class DokladProcessor
         }
 
         return $doklad->fresh();
+    }
+
+    /**
+     * Sestaví S3 cestu: doklady/{ICO}/{YYYY-MM}/{YYYY-MM-DD}_{ID}.{ext}
+     */
+    private function buildS3Path(string $ico, int $dokladId, string $originalName, ?string $datumVystaveni): string
+    {
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION)) ?: 'pdf';
+        $datum = $datumVystaveni ?: date('Y-m-d');
+        $mesic = substr($datum, 0, 7); // YYYY-MM
+
+        return "doklady/{$ico}/{$mesic}/{$datum}_{$dokladId}.{$ext}";
     }
 
     /**

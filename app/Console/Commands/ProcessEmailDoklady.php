@@ -6,7 +6,6 @@ use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Webklex\IMAP\ClientManager;
 
 class ProcessEmailDoklady extends Command
@@ -103,17 +102,11 @@ class ProcessEmailDoklady extends Command
                     continue;
                 }
 
-                // Upload na S3
-                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
-                $s3Path = 'doklady/' . $firma->ico . '/' . time() . '_' . $safeName;
-                Storage::disk('s3')->put($s3Path, $content);
-
                 try {
                     $doklad = $processor->process(
                         $tempPath,
                         $originalName,
                         $firma,
-                        $s3Path,
                         $fileHash,
                         'email'
                     );
