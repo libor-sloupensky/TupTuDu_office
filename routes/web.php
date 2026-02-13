@@ -11,6 +11,7 @@ Route::get('/doklady/mesic/{mesic}/zip', [InvoiceController::class, 'downloadMon
 Route::get('/doklady/{doklad}', [InvoiceController::class, 'show'])->name('doklady.show');
 Route::get('/doklady/{doklad}/stahnout', [InvoiceController::class, 'download'])->name('doklady.download');
 Route::get('/doklady/{doklad}/nahled', [InvoiceController::class, 'preview'])->name('doklady.preview');
+Route::patch('/doklady/{doklad}', [InvoiceController::class, 'update'])->name('doklady.update');
 Route::delete('/doklady/{doklad}', [InvoiceController::class, 'destroy'])->name('doklady.destroy');
 
 Route::get('/nastaveni', [FirmaController::class, 'nastaveni'])->name('firma.nastaveni');

@@ -24,7 +24,8 @@ class InvoiceController extends Controller
             return view('invoices.index', ['doklady' => collect(), 'firma' => null, 'sort' => 'created_at', 'dir' => 'desc', 'q' => '']);
         }
 
-        $sort = in_array($request->query('sort'), ['created_at', 'datum_vystaveni']) ? $request->query('sort') : 'created_at';
+        $allowedSort = ['created_at', 'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti'];
+        $sort = in_array($request->query('sort'), $allowedSort) ? $request->query('sort') : 'created_at';
         $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
         $q = trim($request->query('q', ''));
 
@@ -35,7 +36,8 @@ class InvoiceController extends Controller
                 $sub->where('cislo_dokladu', 'like', "%{$q}%")
                     ->orWhere('dodavatel_nazev', 'like', "%{$q}%")
                     ->orWhere('nazev_souboru', 'like', "%{$q}%")
-                    ->orWhere('dodavatel_ico', 'like', "%{$q}%");
+                    ->orWhere('dodavatel_ico', 'like', "%{$q}%")
+                    ->orWhere('raw_text', 'like', "%{$q}%");
             });
         }
 
@@ -155,6 +157,31 @@ class InvoiceController extends Controller
         }
 
         return redirect()->route('doklady.index')->with('flash', $message);
+    }
+
+    public function update(Request $request, Doklad $doklad)
+    {
+        $editableFields = [
+            'datum_prijeti', 'duzp', 'datum_vystaveni', 'datum_splatnosti',
+            'dodavatel_nazev', 'dodavatel_ico', 'cislo_dokladu',
+            'castka_celkem', 'mena', 'castka_dph', 'kategorie',
+        ];
+
+        $field = $request->input('field');
+        $value = $request->input('value');
+
+        if (!in_array($field, $editableFields)) {
+            return response()->json(['ok' => false, 'error' => 'Pole nelze upravit.'], 422);
+        }
+
+        // Prázdný string -> null pro nullable pole
+        if ($value === '' || $value === null) {
+            $value = null;
+        }
+
+        $doklad->update([$field => $value]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function downloadMonth(Request $request, string $mesic)

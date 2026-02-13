@@ -12,7 +12,8 @@ class Doklad extends Model
 
     protected $fillable = [
         'firma_ico', 'dodavatel_ico', 'nazev_souboru', 'cesta_souboru', 'hash_souboru',
-        'dodavatel_nazev', 'cislo_dokladu', 'datum_vystaveni', 'datum_splatnosti',
+        'dodavatel_nazev', 'cislo_dokladu',
+        'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti',
         'castka_celkem', 'mena', 'castka_dph', 'kategorie',
         'adresni', 'overeno_adresat', 'raw_text', 'raw_ai_odpoved',
         'stav', 'chybova_zprava', 'zdroj', 'duplicita_id',
@@ -20,6 +21,8 @@ class Doklad extends Model
 
     protected $casts = [
         'datum_vystaveni' => 'date',
+        'datum_prijeti' => 'date',
+        'duzp' => 'date',
         'datum_splatnosti' => 'date',
         'castka_celkem' => 'decimal:2',
         'castka_dph' => 'decimal:2',
