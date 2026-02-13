@@ -250,7 +250,7 @@
             setTimeout(function() {
                 toast.style.opacity = '0';
                 setTimeout(function() { toast.remove(); }, 500);
-            }, 6000);
+            }, 12000);
         });
     }
     autoHideToasts();
@@ -265,7 +265,7 @@
         setTimeout(function() {
             div.style.opacity = '0';
             setTimeout(function() { div.remove(); }, 500);
-        }, 6000);
+        }, 12000);
     }
 
     // Upload
