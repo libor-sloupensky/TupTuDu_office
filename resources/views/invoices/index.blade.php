@@ -39,19 +39,46 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    .toast-container { margin-bottom: 1rem; }
+    .toast {
+        padding: 0.6rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.4rem;
+        font-size: 0.85rem;
+        transition: opacity 0.5s;
+    }
+    .toast-ok { background: #d4edda; color: #155724; }
+    .toast-error { background: #f8d7da; color: #721c24; }
+    .toast-duplicate { background: #fff3cd; color: #856404; }
+    .toast-info { background: #d4edda; color: #155724; }
+
+    .toolbar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
+    .search-input {
+        flex: 1;
+        padding: 0.4rem 0.75rem;
+        border: 1px solid #d0d8e0;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        outline: none;
+    }
+    .search-input:focus { border-color: #3498db; }
+
     .doklady-table { width: 100%; border-collapse: collapse; }
-    .doklady-table th { text-align: left; padding: 0.6rem 0.75rem; background: #f0f4f8; border-bottom: 2px solid #d0d8e0; font-size: 0.8rem; color: #555; font-weight: 600; }
+    .doklady-table th { text-align: left; padding: 0.6rem 0.75rem; background: #f0f4f8; border-bottom: 2px solid #d0d8e0; font-size: 0.8rem; color: #555; font-weight: 600; white-space: nowrap; }
     .doklady-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #e8ecf0; font-size: 0.9rem; }
     .doklady-table tr:hover { background: #f8fafb; }
     .doklady-table a { color: #3498db; text-decoration: none; }
     .doklady-table a:hover { text-decoration: underline; }
+    .sort-link { color: #555; text-decoration: none; }
+    .sort-link:hover { color: #2c3e50; text-decoration: none; }
+    .sort-arrow { font-size: 0.7rem; margin-left: 0.2rem; }
     .stav-dokonceno { color: #27ae60; }
     .stav-chyba { color: #e74c3c; font-weight: 600; }
     .stav-zpracovava { color: #f39c12; font-weight: 600; }
     .amount { text-align: right; font-weight: 600; }
+    .date-sub { display: block; font-size: 0.75rem; color: #95a5a6; }
     .empty-state { text-align: center; padding: 2rem; color: #999; }
     .warning-msg { background: #fff3cd; color: #856404; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-    .flash-msg { background: #d4edda; color: #155724; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
     .month-downloads { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
     .month-downloads h3 { font-size: 0.95rem; color: #555; margin-bottom: 0.75rem; }
     .month-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -80,9 +107,11 @@
         <h2>Doklady</h2>
     </div>
 
-    @if (session('flash'))
-        <div class="flash-msg">{{ session('flash') }}</div>
-    @endif
+    <div class="toast-container" id="toastContainer">
+        @if (session('flash'))
+            <div class="toast toast-info" data-auto-hide>{{ session('flash') }}</div>
+        @endif
+    </div>
 
     @if (!$firma)
         <div class="warning-msg">Nejdříve vyplňte <a href="{{ route('firma.nastaveni') }}">nastavení firmy</a>.</div>
@@ -97,16 +126,41 @@
         </div>
     @endif
 
-    @if ($doklady->isEmpty())
+    @if ($doklady->isEmpty() && empty($q))
         <div class="empty-state">
             <p>Zatím žádné doklady.</p>
         </div>
     @else
+        <div class="toolbar">
+            <form method="GET" action="{{ route('doklady.index') }}" style="flex:1; display:flex;">
+                <input type="hidden" name="sort" value="{{ $sort }}">
+                <input type="hidden" name="dir" value="{{ $dir }}">
+                <input type="text" name="q" value="{{ $q }}" class="search-input" placeholder="Hledat (dodavatel, IČO, číslo dokladu...)">
+            </form>
+        </div>
+
+        @if ($doklady->isEmpty())
+            <div class="empty-state">
+                <p>Žádné doklady neodpovídají hledání.</p>
+            </div>
+        @else
+        @php
+            $sortUrl = function($col) use ($sort, $dir, $q) {
+                $newDir = ($sort === $col && $dir === 'desc') ? 'asc' : 'desc';
+                $params = ['sort' => $col, 'dir' => $newDir];
+                if ($q) $params['q'] = $q;
+                return route('doklady.index', $params);
+            };
+            $arrow = function($col) use ($sort, $dir) {
+                if ($sort !== $col) return '';
+                return '<span class="sort-arrow">' . ($dir === 'asc' ? '&#9650;' : '&#9660;') . '</span>';
+            };
+        @endphp
         <table class="doklady-table">
             <thead>
                 <tr>
-                    <th>Nahráno</th>
-                    <th>Datum vystavení</th>
+                    <th><a href="{{ $sortUrl('created_at') }}" class="sort-link">Nahráno{!! $arrow('created_at') !!}</a></th>
+                    <th><a href="{{ $sortUrl('datum_vystaveni') }}" class="sort-link">Vystavení{!! $arrow('datum_vystaveni') !!}</a></th>
                     <th>Číslo</th>
                     <th>Dodavatel</th>
                     <th style="text-align: right">Částka</th>
@@ -117,7 +171,7 @@
             <tbody>
                 @foreach ($doklady as $d)
                 <tr>
-                    <td>{{ $d->created_at->format('d.m.Y') }}</td>
+                    <td>{{ $d->created_at->format('d.m.Y') }}<span class="date-sub">{{ $d->created_at->format('H:i') }}</span></td>
                     <td>{{ $d->datum_vystaveni ? $d->datum_vystaveni->format('d.m.Y') : '-' }}</td>
                     <td>
                         @if ($d->cesta_souboru)
@@ -174,6 +228,7 @@
             </div>
         </div>
         @endif
+        @endif
     @endif
 </div>
 
@@ -187,6 +242,30 @@
 
 @section('scripts')
 <script>
+    // Auto-hide toasts after 6 seconds
+    function autoHideToasts() {
+        document.querySelectorAll('.toast[data-auto-hide]').forEach(function(toast) {
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                setTimeout(function() { toast.remove(); }, 500);
+            }, 6000);
+        });
+    }
+    autoHideToasts();
+
+    function addToast(message, type) {
+        const container = document.getElementById('toastContainer');
+        const div = document.createElement('div');
+        div.className = 'toast toast-' + type;
+        div.setAttribute('data-auto-hide', '');
+        div.textContent = message;
+        container.appendChild(div);
+        setTimeout(function() {
+            div.style.opacity = '0';
+            setTimeout(function() { div.remove(); }, 500);
+        }, 6000);
+    }
+
     // Upload
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
@@ -228,7 +307,6 @@
 
         if (validFiles.length === 0) return;
 
-        // Show processing
         dropZone.style.display = 'none';
         uploadProcessing.style.display = 'block';
         const noun = validFiles.length === 1 ? 'doklad' : (validFiles.length < 5 ? 'doklady' : 'dokladů');
@@ -241,20 +319,29 @@
         fetch('{{ route("invoices.store") }}', {
             method: 'POST',
             body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            redirect: 'follow',
-        }).then(response => {
-            if (response.redirected) {
-                window.location.href = response.url;
-            } else {
-                window.location.reload();
-            }
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+        }).then(response => response.json()).then(results => {
+            uploadProcessing.style.display = 'none';
+            dropZone.style.display = 'block';
+
+            results.forEach(r => addToast(r.message, r.status));
+
+            // Reload table after short delay so toasts are visible
+            setTimeout(() => window.location.href = '{{ route("doklady.index") }}', 1500);
         }).catch(() => {
             dropZone.style.display = 'block';
             uploadProcessing.style.display = 'none';
-            alert('Chyba při odesílání. Zkuste to znovu.');
+            addToast('Chyba při odesílání. Zkuste to znovu.', 'error');
         });
     }
+
+    // Search on Enter
+    document.querySelector('.search-input')?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') this.closest('form').submit();
+    });
 
     // Preview
     function openPreview(url, ext) {

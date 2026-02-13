@@ -16,14 +16,32 @@ class InvoiceController extends Controller
         return redirect()->route('doklady.index');
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $firma = Firma::first();
-        $doklady = $firma
-            ? Doklad::where('firma_ico', $firma->ico)->orderByDesc('created_at')->get()
-            : collect();
 
-        return view('invoices.index', compact('doklady', 'firma'));
+        if (!$firma) {
+            return view('invoices.index', ['doklady' => collect(), 'firma' => null, 'sort' => 'created_at', 'dir' => 'desc', 'q' => '']);
+        }
+
+        $sort = in_array($request->query('sort'), ['created_at', 'datum_vystaveni']) ? $request->query('sort') : 'created_at';
+        $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
+        $q = trim($request->query('q', ''));
+
+        $query = Doklad::where('firma_ico', $firma->ico);
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('cislo_dokladu', 'like', "%{$q}%")
+                    ->orWhere('dodavatel_nazev', 'like', "%{$q}%")
+                    ->orWhere('nazev_souboru', 'like', "%{$q}%")
+                    ->orWhere('dodavatel_ico', 'like', "%{$q}%");
+            });
+        }
+
+        $doklady = $query->orderBy($sort, $dir)->get();
+
+        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q'));
     }
 
     public function show(Doklad $doklad)
@@ -109,6 +127,17 @@ class InvoiceController extends Controller
                 'doklad' => $doklad,
                 'error' => $doklad->stav === 'chyba' ? $doklad->chybova_zprava : null,
             ];
+        }
+
+        // AJAX - vrátit JSON s výsledky pro každý soubor
+        if ($request->ajax()) {
+            return response()->json(collect($results)->map(fn($r) => [
+                'name' => $r['name'],
+                'status' => empty($r['error']) ? 'ok' : (str_starts_with($r['error'] ?? '', 'Duplicita') ? 'duplicate' : 'error'),
+                'message' => empty($r['error'])
+                    ? ($r['name'] . ' - zpracováno')
+                    : ($r['name'] . ' - ' . $r['error']),
+            ])->values());
         }
 
         // Jeden soubor -> redirect na detail
