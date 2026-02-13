@@ -33,7 +33,11 @@
 
     <div class="version-info">
         V001<br>
-        Poslední push: {{ file_exists(public_path('last_push.txt')) ? file_get_contents(public_path('last_push.txt')) : 'N/A' }}
+        @php
+            $lpPath = $_SERVER['DOCUMENT_ROOT'] . '/last_push.txt';
+            $lastPush = file_exists($lpPath) ? trim(file_get_contents($lpPath)) : null;
+        @endphp
+        Poslední push: {{ $lastPush ?: 'N/A' }}
     </div>
 
     @yield('scripts')
