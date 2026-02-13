@@ -32,6 +32,15 @@
     .badge-dup { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; background: #fff3cd; color: #856404; font-size: 0.7rem; font-weight: 600; margin-left: 0.3rem; vertical-align: middle; }
     .btn-del-sm { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.4rem; line-height: 1; }
     .btn-del-sm:hover { color: #e74c3c; }
+    .btn-preview { color: #95a5a6; text-decoration: none; margin-left: 0.4rem; font-size: 0.85rem; vertical-align: middle; }
+    .btn-preview:hover { color: #3498db; text-decoration: none; }
+
+    .preview-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+    .preview-overlay.active { display: flex; }
+    .preview-container { position: relative; width: 90vw; height: 90vh; max-width: 1000px; background: white; border-radius: 8px; overflow: hidden; }
+    .preview-container iframe, .preview-container img { width: 100%; height: 100%; border: none; object-fit: contain; }
+    .preview-close { position: absolute; top: 8px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; z-index: 1001; line-height: 1; }
+    .preview-close:hover { background: rgba(0,0,0,0.8); }
 </style>
 @endsection
 
@@ -74,6 +83,9 @@
                     <td>{{ $d->datum_vystaveni ? $d->datum_vystaveni->format('d.m.Y') : '-' }}</td>
                     <td>
                         <a href="{{ route('doklady.show', $d) }}">{{ $d->cislo_dokladu ?: $d->nazev_souboru }}</a>
+                        @if ($d->cesta_souboru)
+                            <a href="#" class="btn-preview" title="Náhled" onclick="openPreview('{{ route('doklady.preview', $d) }}', '{{ strtolower(pathinfo($d->nazev_souboru, PATHINFO_EXTENSION)) }}'); return false;">&#128065;</a>
+                        @endif
                         @if ($d->duplicita_id)<span class="badge-dup" title="Možná duplicita">DUP</span>@endif
                     </td>
                     <td>{{ $d->dodavatel_nazev ?: '-' }}</td>
@@ -135,4 +147,43 @@
         @endif
     @endif
 </div>
+
+<div class="preview-overlay" id="previewOverlay">
+    <div class="preview-container">
+        <button class="preview-close" onclick="closePreview()">&times;</button>
+        <div id="previewContent"></div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+    function openPreview(url, ext) {
+        const content = document.getElementById('previewContent');
+        const overlay = document.getElementById('previewOverlay');
+
+        if (ext === 'pdf') {
+            content.innerHTML = '<iframe src="' + url + '"></iframe>';
+        } else {
+            content.innerHTML = '<img src="' + url + '" alt="Náhled dokladu">';
+        }
+
+        overlay.classList.add('active');
+    }
+
+    function closePreview() {
+        const overlay = document.getElementById('previewOverlay');
+        const content = document.getElementById('previewContent');
+        overlay.classList.remove('active');
+        content.innerHTML = '';
+    }
+
+    document.getElementById('previewOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closePreview();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closePreview();
+    });
+</script>
 @endsection

@@ -44,6 +44,28 @@ class InvoiceController extends Controller
         }, $doklad->nazev_souboru);
     }
 
+    public function preview(Doklad $doklad)
+    {
+        $disk = Storage::disk('s3');
+
+        if (!$doklad->cesta_souboru || !$disk->exists($doklad->cesta_souboru)) {
+            abort(404, 'Soubor nebyl nalezen.');
+        }
+
+        $ext = strtolower(pathinfo($doklad->nazev_souboru, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'pdf' => 'application/pdf',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+        ];
+        $mime = $mimeTypes[$ext] ?? 'application/octet-stream';
+
+        return response($disk->get($doklad->cesta_souboru))
+            ->header('Content-Type', $mime)
+            ->header('Content-Disposition', 'inline; filename="' . $doklad->nazev_souboru . '"');
+    }
+
     public function store(Request $request)
     {
         $request->validate([

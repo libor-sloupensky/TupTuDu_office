@@ -36,6 +36,11 @@
     .ai-data-table td { padding: 0.4rem 0.75rem; font-size: 0.85rem; border-bottom: 1px solid #e8ecf0; font-family: monospace; }
     .section-toggle { cursor: pointer; color: #3498db; font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block; }
     .raw-json { background: #2c3e50; color: #ecf0f1; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; max-height: 400px; overflow: auto; white-space: pre-wrap; display: none; }
+    .btn-preview-show { background: #8e44ad; color: white; text-decoration: none; padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; }
+    .btn-preview-show:hover { background: #7d3c98; color: white; }
+    .preview-embed { margin-bottom: 1.5rem; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #f8f8f8; }
+    .preview-embed iframe { width: 100%; height: 700px; border: none; }
+    .preview-embed img { max-width: 100%; display: block; margin: 0 auto; }
 </style>
 @endsection
 
@@ -45,7 +50,8 @@
         <h2>{{ $doklad->cislo_dokladu ?: $doklad->nazev_souboru }}</h2>
         <div class="header-actions">
             @if ($doklad->cesta_souboru)
-                <a href="{{ route('doklady.download', $doklad) }}" class="btn-download">Stáhnout soubor</a>
+                <a href="{{ route('doklady.preview', $doklad) }}" class="btn-preview-show" target="_blank">Náhled</a>
+                <a href="{{ route('doklady.download', $doklad) }}" class="btn-download">Stáhnout</a>
             @endif
             <form action="{{ route('doklady.destroy', $doklad) }}" method="POST" style="display: inline;" onsubmit="return confirm('Opravdu smazat tento doklad? Soubor bude odstraněn i z cloudu.')">
                 @csrf
@@ -166,6 +172,20 @@
             <td>{{ $doklad->created_at->format('d.m.Y H:i') }}</td>
         </tr>
     </table>
+
+    @if ($doklad->cesta_souboru)
+    <div class="metadata-section">
+        <h3>Náhled dokladu</h3>
+        @php $ext = strtolower(pathinfo($doklad->nazev_souboru, PATHINFO_EXTENSION)); @endphp
+        <div class="preview-embed">
+            @if ($ext === 'pdf')
+                <iframe src="{{ route('doklady.preview', $doklad) }}"></iframe>
+            @else
+                <img src="{{ route('doklady.preview', $doklad) }}" alt="{{ $doklad->nazev_souboru }}">
+            @endif
+        </div>
+    </div>
+    @endif
 
     @if ($doklad->raw_ai_odpoved)
     <div class="metadata-section">
