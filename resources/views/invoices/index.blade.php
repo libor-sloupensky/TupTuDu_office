@@ -209,6 +209,8 @@
             </tbody>
         </table>
 
+        <div style="font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem;">{{ $doklady->count() }} {{ $doklady->count() === 1 ? 'doklad' : ($doklady->count() < 5 ? 'doklady' : 'dokladů') }}</div>
+
         @php
             $mesice = $doklady
                 ->filter(fn($d) => $d->datum_vystaveni)
