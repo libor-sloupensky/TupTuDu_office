@@ -38,9 +38,9 @@
     .raw-json { background: #2c3e50; color: #ecf0f1; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; max-height: 400px; overflow: auto; white-space: pre-wrap; display: none; }
     .btn-preview-show { background: #8e44ad; color: white; text-decoration: none; padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; }
     .btn-preview-show:hover { background: #7d3c98; color: white; }
-    .preview-embed { margin-bottom: 1.5rem; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #f8f8f8; }
+    .preview-embed { margin-bottom: 1.5rem; border: 1px solid #e0e0e0; border-radius: 8px; overflow: auto; background: #f8f8f8; max-height: 80vh; }
     .preview-embed iframe { width: 100%; height: 700px; border: none; }
-    .preview-embed img { max-width: 100%; display: block; margin: 0 auto; }
+    .preview-embed img { width: 100%; height: auto; display: block; }
 </style>
 @endsection
 

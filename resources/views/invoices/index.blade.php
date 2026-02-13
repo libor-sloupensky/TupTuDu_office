@@ -37,8 +37,10 @@
 
     .preview-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
     .preview-overlay.active { display: flex; }
-    .preview-container { position: relative; width: 90vw; height: 90vh; max-width: 1000px; background: white; border-radius: 8px; overflow: hidden; }
-    .preview-container iframe, .preview-container img { width: 100%; height: 100%; border: none; object-fit: contain; }
+    .preview-container { position: relative; width: 90vw; height: 90vh; max-width: 1000px; background: white; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .preview-container #previewContent { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
+    .preview-container iframe { width: 100%; height: 100%; border: none; }
+    .preview-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .preview-close { position: absolute; top: 8px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; z-index: 1001; line-height: 1; }
     .preview-close:hover { background: rgba(0,0,0,0.8); }
 </style>
