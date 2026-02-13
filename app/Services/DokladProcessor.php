@@ -206,18 +206,21 @@ class DokladProcessor
         $base64 = base64_encode($fileBytes);
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
+        // Detekce PDF podle obsahu souboru (magic bytes), ne jen podle přípony
+        // PHP upload temp soubory nemají příponu, proto kontrolujeme obsah
+        $isPdf = $ext === 'pdf' || str_starts_with($fileBytes, '%PDF');
+
         $mediaTypes = [
-            'pdf' => 'application/pdf',
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
             'png' => 'image/png',
             'webp' => 'image/webp',
             'gif' => 'image/gif',
         ];
-        $mediaType = $mediaTypes[$ext] ?? 'application/pdf';
+        $mediaType = $isPdf ? 'application/pdf' : ($mediaTypes[$ext] ?? 'image/jpeg');
 
         // PDF se posílá jako document, obrázky jako image
-        if ($ext === 'pdf') {
+        if ($isPdf) {
             $contentBlock = [
                 'type' => 'document',
                 'source' => [
@@ -240,7 +243,6 @@ class DokladProcessor
         $response = Http::timeout(120)->withHeaders([
             'x-api-key' => $apiKey,
             'anthropic-version' => '2023-06-01',
-            'anthropic-beta' => 'pdfs-2024-09-25',
             'content-type' => 'application/json',
         ])->post('https://api.anthropic.com/v1/messages', [
             'model' => 'claude-haiku-4-5-20251001',
