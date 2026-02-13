@@ -4,7 +4,7 @@ use App\Http\Controllers\FirmaController;
 use App\Http\Controllers\InvoiceController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [InvoiceController::class, 'create'])->name('invoices.create');
+Route::get('/', fn() => redirect()->route('doklady.index'))->name('invoices.create');
 Route::post('/upload', [InvoiceController::class, 'store'])->name('invoices.store');
 Route::get('/doklady', [InvoiceController::class, 'index'])->name('doklady.index');
 Route::get('/doklady/mesic/{mesic}/zip', [InvoiceController::class, 'downloadMonth'])->name('doklady.downloadMonth');

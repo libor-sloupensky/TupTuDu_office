@@ -13,7 +13,7 @@ class InvoiceController extends Controller
 {
     public function create()
     {
-        return view('invoices.upload');
+        return redirect()->route('doklady.index');
     }
 
     public function index()
