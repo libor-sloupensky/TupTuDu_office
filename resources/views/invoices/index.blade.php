@@ -30,6 +30,8 @@
     .month-link { display: inline-block; padding: 0.35rem 0.75rem; background: #eaf2f8; border-radius: 6px; color: #2c3e50; text-decoration: none; font-size: 0.85rem; }
     .month-link:hover { background: #d4e6f1; }
     .badge-dup { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; background: #fff3cd; color: #856404; font-size: 0.7rem; font-weight: 600; margin-left: 0.3rem; vertical-align: middle; }
+    .btn-del-sm { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.4rem; line-height: 1; }
+    .btn-del-sm:hover { color: #e74c3c; }
 </style>
 @endsection
 
@@ -63,6 +65,7 @@
                     <th style="text-align: right">Částka</th>
                     <th>Adresát</th>
                     <th>Stav</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -98,6 +101,13 @@
                         @else
                             <span class="stav-zpracovava">{{ $d->stav }}</span>
                         @endif
+                    </td>
+                    <td>
+                        <form action="{{ route('doklady.destroy', $d) }}" method="POST" style="display:inline" onsubmit="return confirm('Smazat doklad {{ $d->cislo_dokladu ?: $d->nazev_souboru }}?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn-del-sm" title="Smazat">&times;</button>
+                        </form>
                     </td>
                 </tr>
                 @endforeach
