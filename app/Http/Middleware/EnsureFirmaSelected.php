@@ -13,6 +13,9 @@ class EnsureFirmaSelected
         $user = $request->user();
 
         if (!$user || $user->firmy()->count() === 0) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Nemáte přiřazenou žádnou firmu.'], 403);
+            }
             return redirect()->route('firma.pridat');
         }
 

@@ -170,6 +170,10 @@ class DokladProcessor
                     'key' => config('services.aws.key'),
                     'secret' => config('services.aws.secret'),
                 ],
+                'http' => [
+                    'connect_timeout' => 10,
+                    'timeout' => 60,
+                ],
             ]);
 
             $fileBytes = file_get_contents($filePath);
@@ -281,7 +285,7 @@ class DokladProcessor
 
         $firmaInfo = "IČO odběratele (naše firma): {$firma->ico}, DIČ: {$firma->dic}";
 
-        $response = Http::withHeaders([
+        $response = Http::timeout(60)->withHeaders([
             'x-api-key' => $apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',

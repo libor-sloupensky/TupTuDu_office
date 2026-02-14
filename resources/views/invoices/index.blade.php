@@ -558,15 +558,25 @@ function uploadFiles(files) {
     fetch('{{ route("invoices.store") }}', {
         method: 'POST', body: formData,
         headers: {'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},
-    }).then(r => r.json()).then(results => {
+    }).then(r => {
+        const contentType = r.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error('Server vrátil neočekávanou odpověď (HTTP ' + r.status + ')');
+        }
+        return r.json();
+    }).then(results => {
         uploadProcessing.style.display = 'none';
         dropZone.style.display = 'block';
-        results.forEach(r => addToast(r.message, r.status));
+        if (Array.isArray(results)) {
+            results.forEach(r => addToast(r.message, r.status));
+        } else {
+            addToast('Neočekávaná odpověď ze serveru.', 'error');
+        }
         setTimeout(() => window.location.href = '{{ route("doklady.index") }}', 1500);
-    }).catch(() => {
+    }).catch(err => {
         dropZone.style.display = 'block';
         uploadProcessing.style.display = 'none';
-        addToast('Chyba při odesílání. Zkuste to znovu.', 'error');
+        addToast(err.message || 'Chyba při odesílání. Zkuste to znovu.', 'error');
     });
 }
 

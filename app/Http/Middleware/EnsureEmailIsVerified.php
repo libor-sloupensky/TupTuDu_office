@@ -11,6 +11,9 @@ class EnsureEmailIsVerified
     public function handle(Request $request, Closure $next): Response
     {
         if (!$request->user() || !$request->user()->hasVerifiedEmail()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Email není ověřen.'], 403);
+            }
             return redirect()->route('verification.notice');
         }
 

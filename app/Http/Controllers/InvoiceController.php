@@ -6,6 +6,7 @@ use App\Models\Doklad;
 use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
@@ -95,68 +96,85 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'documents' => 'required|array|min:1',
-            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
-        ]);
+        try {
+            $request->validate([
+                'documents' => 'required|array|min:1',
+                'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            ]);
 
-        $firma = $this->aktivniFirma();
+            $firma = $this->aktivniFirma();
 
-        $processor = new DokladProcessor();
-        $results = [];
+            $processor = new DokladProcessor();
+            $results = [];
 
-        foreach ($request->file('documents') as $file) {
-            $tempPath = $file->getRealPath();
-            $fileHash = hash_file('sha256', $tempPath);
-            $originalName = $file->getClientOriginalName();
+            foreach ($request->file('documents') as $file) {
+                $tempPath = $file->getRealPath();
+                $fileHash = hash_file('sha256', $tempPath);
+                $originalName = $file->getClientOriginalName();
 
-            $existujici = $processor->isDuplicate($fileHash, $firma->ico);
-            if ($existujici) {
+                $existujici = $processor->isDuplicate($fileHash, $firma->ico);
+                if ($existujici) {
+                    $results[] = [
+                        'name' => $originalName,
+                        'error' => 'Duplicita (' . ($existujici->cislo_dokladu ?: $existujici->nazev_souboru) . ')',
+                    ];
+                    continue;
+                }
+
+                $doklad = $processor->process(
+                    $tempPath,
+                    $originalName,
+                    $firma,
+                    $fileHash,
+                    'upload'
+                );
+
                 $results[] = [
                     'name' => $originalName,
-                    'error' => 'Duplicita (' . ($existujici->cislo_dokladu ?: $existujici->nazev_souboru) . ')',
+                    'doklad' => $doklad,
+                    'error' => $doklad->stav === 'chyba' ? $doklad->chybova_zprava : null,
                 ];
-                continue;
             }
 
-            $doklad = $processor->process(
-                $tempPath,
-                $originalName,
-                $firma,
-                $fileHash,
-                'upload'
-            );
+            if ($request->ajax()) {
+                return response()->json(collect($results)->map(fn($r) => [
+                    'name' => $r['name'],
+                    'status' => empty($r['error']) ? 'ok' : (str_starts_with($r['error'] ?? '', 'Duplicita') ? 'duplicate' : 'error'),
+                    'message' => empty($r['error'])
+                        ? ($r['name'] . ' - zpracováno')
+                        : ($r['name'] . ' - ' . $r['error']),
+                ])->values());
+            }
 
-            $results[] = [
-                'name' => $originalName,
-                'doklad' => $doklad,
-                'error' => $doklad->stav === 'chyba' ? $doklad->chybova_zprava : null,
-            ];
+            if (count($results) === 1 && !empty($results[0]['doklad']) && $results[0]['doklad']->stav !== 'chyba') {
+                return redirect()->route('doklady.show', $results[0]['doklad']);
+            }
+
+            $ok = collect($results)->filter(fn($r) => empty($r['error']))->count();
+            $errors = collect($results)->filter(fn($r) => !empty($r['error']));
+
+            $message = "Zpracováno {$ok} z " . count($results) . " dokladů.";
+            if ($errors->isNotEmpty()) {
+                $message .= ' Chyby: ' . $errors->map(fn($r) => $r['name'] . ' - ' . $r['error'])->implode('; ');
+            }
+
+            return redirect()->route('doklady.index')->with('flash', $message);
+
+        } catch (\Throwable $e) {
+            Log::error('InvoiceController::store error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    ['name' => 'Chyba', 'status' => 'error', 'message' => 'Chyba serveru: ' . $e->getMessage()]
+                ], 500);
+            }
+
+            return redirect()->route('doklady.index')->with('flash', 'Chyba při zpracování: ' . $e->getMessage());
         }
-
-        if ($request->ajax()) {
-            return response()->json(collect($results)->map(fn($r) => [
-                'name' => $r['name'],
-                'status' => empty($r['error']) ? 'ok' : (str_starts_with($r['error'] ?? '', 'Duplicita') ? 'duplicate' : 'error'),
-                'message' => empty($r['error'])
-                    ? ($r['name'] . ' - zpracováno')
-                    : ($r['name'] . ' - ' . $r['error']),
-            ])->values());
-        }
-
-        if (count($results) === 1 && !empty($results[0]['doklad']) && $results[0]['doklad']->stav !== 'chyba') {
-            return redirect()->route('doklady.show', $results[0]['doklad']);
-        }
-
-        $ok = collect($results)->filter(fn($r) => empty($r['error']))->count();
-        $errors = collect($results)->filter(fn($r) => !empty($r['error']));
-
-        $message = "Zpracováno {$ok} z " . count($results) . " dokladů.";
-        if ($errors->isNotEmpty()) {
-            $message .= ' Chyby: ' . $errors->map(fn($r) => $r['name'] . ' - ' . $r['error'])->implode('; ');
-        }
-
-        return redirect()->route('doklady.index')->with('flash', $message);
     }
 
     public function update(Request $request, Doklad $doklad)
