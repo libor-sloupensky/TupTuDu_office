@@ -586,13 +586,21 @@ function uploadFiles(files) {
     formData.append('_token', csrfToken);
     validFiles.forEach(f => formData.append('documents[]', f));
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
     fetch('{{ route("invoices.store") }}', {
         method: 'POST', body: formData,
         headers: {'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},
+        signal: controller.signal,
     }).then(r => {
+        clearTimeout(timeoutId);
+        uploadStatus.textContent = 'Zpracovávám odpověď (HTTP ' + r.status + ')...';
         const contentType = r.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-            throw new Error('Server vrátil neočekávanou odpověď (HTTP ' + r.status + ')');
+            return r.text().then(body => {
+                throw new Error('Server vrátil HTTP ' + r.status + ' (' + contentType + '): ' + body.substring(0, 200));
+            });
         }
         return r.json();
     }).then(results => {
@@ -605,9 +613,13 @@ function uploadFiles(files) {
         }
         setTimeout(() => window.location.href = '{{ route("doklady.index") }}', 1500);
     }).catch(err => {
+        clearTimeout(timeoutId);
         dropZone.style.display = 'block';
         uploadProcessing.style.display = 'none';
-        addToast(err.message || 'Chyba při odesílání. Zkuste to znovu.', 'error');
+        const msg = err.name === 'AbortError'
+            ? 'Časový limit vypršel (90s). Zkontrolujte diagnose.php?mode=log pro detaily.'
+            : (err.message || 'Chyba při odesílání. Zkuste to znovu.');
+        addToast(msg, 'error');
     });
 }
 

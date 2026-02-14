@@ -22,6 +22,30 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 $mode = $_GET['mode'] ?? 'info';
 
+// === LOG MODE - čtení upload debug logu ===
+if ($mode === 'log') {
+    header('Content-Type: text/plain; charset=utf-8');
+    $logFile = $basePath . '/storage/logs/upload_debug.log';
+    if (file_exists($logFile)) {
+        echo file_get_contents($logFile);
+    } else {
+        echo "(žádný log - upload_debug.log neexistuje)";
+    }
+    exit;
+}
+
+// === CLEAR LOG MODE ===
+if ($mode === 'clearlog') {
+    $logFile = $basePath . '/storage/logs/upload_debug.log';
+    if (file_exists($logFile)) {
+        unlink($logFile);
+        echo "Log smazán.";
+    } else {
+        echo "Log neexistuje.";
+    }
+    exit;
+}
+
 // === PROCESSOR TEST MODE - volá DokladProcessor přímo ===
 if ($mode === 'processor' && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES['testfile'])) {
     header('Content-Type: application/json; charset=utf-8');

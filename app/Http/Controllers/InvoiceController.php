@@ -94,26 +94,44 @@ class InvoiceController extends Controller
             ->header('Content-Disposition', 'inline; filename="' . $doklad->nazev_souboru . '"');
     }
 
+    private function debugLog(string $msg): void
+    {
+        $logFile = storage_path('logs/upload_debug.log');
+        file_put_contents($logFile, date('H:i:s') . " {$msg}\n", FILE_APPEND);
+    }
+
     public function store(Request $request)
     {
+        $this->debugLog('=== START store() ===');
+        $this->debugLog('Method: ' . $request->method());
+        $this->debugLog('Ajax: ' . ($request->ajax() ? 'YES' : 'NO'));
+        $this->debugLog('Accept: ' . $request->header('Accept'));
+        $this->debugLog('Content-Type: ' . $request->header('Content-Type'));
+        $this->debugLog('Files: ' . ($request->hasFile('documents') ? count($request->file('documents')) : 'NONE'));
+
         try {
+            $this->debugLog('Validating...');
             $request->validate([
                 'documents' => 'required|array|min:1',
                 'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
             ]);
+            $this->debugLog('Validation OK');
 
             $firma = $this->aktivniFirma();
+            $this->debugLog("Firma: {$firma->nazev} (ICO: {$firma->ico})");
 
             $processor = new DokladProcessor();
             $results = [];
 
-            foreach ($request->file('documents') as $file) {
+            foreach ($request->file('documents') as $i => $file) {
                 $tempPath = $file->getRealPath();
                 $fileHash = hash_file('sha256', $tempPath);
                 $originalName = $file->getClientOriginalName();
+                $this->debugLog("File [{$i}]: {$originalName} ({$file->getSize()} bytes, hash: " . substr($fileHash, 0, 12) . ')');
 
                 $existujici = $processor->isDuplicate($fileHash, $firma->ico);
                 if ($existujici) {
+                    $this->debugLog("File [{$i}]: DUPLICITA #{$existujici->id}");
                     $results[] = [
                         'name' => $originalName,
                         'error' => 'Duplicita (' . ($existujici->cislo_dokladu ?: $existujici->nazev_souboru) . ')',
@@ -121,6 +139,8 @@ class InvoiceController extends Controller
                     continue;
                 }
 
+                $this->debugLog("File [{$i}]: Calling DokladProcessor::process()...");
+                $start = microtime(true);
                 $doklady = $processor->process(
                     $tempPath,
                     $originalName,
@@ -128,8 +148,11 @@ class InvoiceController extends Controller
                     $fileHash,
                     'upload'
                 );
+                $elapsed = round(microtime(true) - $start, 2);
+                $this->debugLog("File [{$i}]: DokladProcessor done ({$elapsed}s), " . count($doklady) . ' dokladů');
 
                 foreach ($doklady as $doklad) {
+                    $this->debugLog("  Doklad #{$doklad->id}: stav={$doklad->stav}, typ={$doklad->typ_dokladu}");
                     $warning = null;
                     if ($doklad->kvalita === 'nizka') {
                         $warning = $doklad->kvalita_poznamka ?: 'Nízká kvalita dokladu';
@@ -146,8 +169,10 @@ class InvoiceController extends Controller
                 }
             }
 
+            $this->debugLog('All files processed. Results: ' . count($results));
+
             if ($request->ajax()) {
-                return response()->json(collect($results)->map(fn($r) => [
+                $jsonResponse = collect($results)->map(fn($r) => [
                     'name' => $r['name'],
                     'status' => !empty($r['error'])
                         ? (str_starts_with($r['error'] ?? '', 'Duplicita') ? 'duplicate' : 'error')
@@ -155,9 +180,12 @@ class InvoiceController extends Controller
                     'message' => !empty($r['error'])
                         ? ($r['name'] . ' - ' . $r['error'])
                         : ($r['name'] . ' - zpracováno' . (!empty($r['warning']) ? ' | ' . $r['warning'] : '')),
-                ])->values());
+                ])->values();
+                $this->debugLog('Returning JSON: ' . json_encode($jsonResponse, JSON_UNESCAPED_UNICODE));
+                return response()->json($jsonResponse);
             }
 
+            $this->debugLog('Non-AJAX request, redirecting...');
             $allDoklady = collect($results)->filter(fn($r) => !empty($r['doklad']) && $r['doklad']->stav !== 'chyba');
 
             if ($allDoklady->count() === 1) {
@@ -179,6 +207,10 @@ class InvoiceController extends Controller
             return redirect()->route('doklady.index')->with('flash', $message);
 
         } catch (\Throwable $e) {
+            $this->debugLog('EXCEPTION: ' . $e->getMessage());
+            $this->debugLog('  File: ' . $e->getFile() . ':' . $e->getLine());
+            $this->debugLog('  Trace: ' . substr($e->getTraceAsString(), 0, 500));
+
             Log::error('InvoiceController::store error', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
