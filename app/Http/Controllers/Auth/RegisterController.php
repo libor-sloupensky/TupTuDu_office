@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\AresController;
 use App\Http\Controllers\Controller;
 use App\Mail\OvereniEmailu;
 use App\Models\Firma;
@@ -28,12 +29,13 @@ class RegisterController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'ico' => 'required|string|regex:/^\d{8}$/',
             'role' => 'required|in:ucetni,firma,dodavatel',
-            'nazev' => 'required|string|max:255',
-            'dic' => 'nullable|string|max:20',
-            'ulice' => 'nullable|string|max:255',
-            'mesto' => 'nullable|string|max:255',
-            'psc' => 'nullable|string|max:10',
         ]);
+
+        $ares = AresController::fetchAres($request->ico);
+
+        if (!$ares || !$ares['nazev']) {
+            return back()->withErrors(['ico' => 'IČO nebylo nalezeno v ARES.'])->withInput();
+        }
 
         $user = User::create([
             'jmeno' => $request->jmeno,
@@ -46,11 +48,11 @@ class RegisterController extends Controller
         $firma = Firma::firstOrCreate(
             ['ico' => $request->ico],
             [
-                'nazev' => $request->nazev,
-                'dic' => $request->dic,
-                'ulice' => $request->ulice,
-                'mesto' => $request->mesto,
-                'psc' => $request->psc,
+                'nazev' => $ares['nazev'],
+                'dic' => $ares['dic'],
+                'ulice' => $ares['ulice'],
+                'mesto' => $ares['mesto'],
+                'psc' => $ares['psc'],
             ]
         );
 

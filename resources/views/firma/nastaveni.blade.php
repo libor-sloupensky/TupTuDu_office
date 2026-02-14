@@ -40,29 +40,28 @@
             </div>
             <div class="form-group">
                 <label for="dic">DIČ</label>
-                <input type="text" id="dic" name="dic" value="{{ old('dic', $firma->dic ?? '') }}">
+                <input type="text" id="dic" name="dic" value="{{ old('dic', $firma->dic ?? '') }}" readonly style="background: #f0f0f0;">
             </div>
         </div>
 
         <div class="form-group">
-            <label for="nazev">Název firmy *</label>
-            <input type="text" id="nazev" name="nazev" value="{{ old('nazev', $firma->nazev ?? '') }}" required>
-            @error('nazev') <div class="error-msg">{{ $message }}</div> @enderror
+            <label for="nazev">Název firmy</label>
+            <input type="text" id="nazev" name="nazev" value="{{ old('nazev', $firma->nazev ?? '') }}" readonly style="background: #f0f0f0;">
         </div>
 
         <div class="form-group">
             <label for="ulice">Ulice</label>
-            <input type="text" id="ulice" name="ulice" value="{{ old('ulice', $firma->ulice ?? '') }}">
+            <input type="text" id="ulice" name="ulice" value="{{ old('ulice', $firma->ulice ?? '') }}" readonly style="background: #f0f0f0;">
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 <label for="mesto">Město</label>
-                <input type="text" id="mesto" name="mesto" value="{{ old('mesto', $firma->mesto ?? '') }}">
+                <input type="text" id="mesto" name="mesto" value="{{ old('mesto', $firma->mesto ?? '') }}" readonly style="background: #f0f0f0;">
             </div>
             <div class="form-group">
                 <label for="psc">PSČ</label>
-                <input type="text" id="psc" name="psc" value="{{ old('psc', $firma->psc ?? '') }}">
+                <input type="text" id="psc" name="psc" value="{{ old('psc', $firma->psc ?? '') }}" readonly style="background: #f0f0f0;">
             </div>
         </div>
 

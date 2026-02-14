@@ -131,30 +131,32 @@
             </div>
             <div id="aresStatus" class="ares-status"></div>
 
-            <div class="form-group">
-                <label for="nazev">Název firmy *</label>
-                <input type="text" name="nazev" id="nazev" value="{{ old('nazev') }}" required>
-            </div>
-
-            <div class="form-row">
+            <div id="firmaFields" style="opacity: 0.5; pointer-events: none;">
                 <div class="form-group">
-                    <label for="dic">DIČ</label>
-                    <input type="text" name="dic" id="dic" value="{{ old('dic') }}">
+                    <label for="nazev">Název firmy</label>
+                    <input type="text" name="nazev" id="nazev" value="{{ old('nazev') }}" readonly>
                 </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dic">DIČ</label>
+                        <input type="text" name="dic" id="dic" value="{{ old('dic') }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="psc">PSČ</label>
+                        <input type="text" name="psc" id="psc" value="{{ old('psc') }}" readonly>
+                    </div>
+                </div>
+
                 <div class="form-group">
-                    <label for="psc">PSČ</label>
-                    <input type="text" name="psc" id="psc" value="{{ old('psc') }}">
+                    <label for="ulice">Ulice</label>
+                    <input type="text" name="ulice" id="ulice" value="{{ old('ulice') }}" readonly>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="ulice">Ulice</label>
-                <input type="text" name="ulice" id="ulice" value="{{ old('ulice') }}">
-            </div>
-
-            <div class="form-group">
-                <label for="mesto">Město</label>
-                <input type="text" name="mesto" id="mesto" value="{{ old('mesto') }}">
+                <div class="form-group">
+                    <label for="mesto">Město</label>
+                    <input type="text" name="mesto" id="mesto" value="{{ old('mesto') }}" readonly>
+                </div>
             </div>
 
             <div class="step-nav">
@@ -208,11 +210,12 @@ function lookupAres() {
         .then(function(r){ return r.json(); })
         .then(function(data){
             if (data.error) { st.textContent = data.error; st.style.color = '#e74c3c'; return; }
-            if (data.nazev) document.getElementById('nazev').value = data.nazev;
-            if (data.dic) document.getElementById('dic').value = data.dic;
-            if (data.ulice) document.getElementById('ulice').value = data.ulice;
-            if (data.mesto) document.getElementById('mesto').value = data.mesto;
-            if (data.psc) document.getElementById('psc').value = data.psc;
+            document.getElementById('nazev').value = data.nazev || '';
+            document.getElementById('dic').value = data.dic || '';
+            document.getElementById('ulice').value = data.ulice || '';
+            document.getElementById('mesto').value = data.mesto || '';
+            document.getElementById('psc').value = data.psc || '';
+            document.getElementById('firmaFields').style.opacity = '1';
             st.textContent = 'Nalezeno: ' + (data.nazev || ico);
             st.style.color = '#27ae60';
         })

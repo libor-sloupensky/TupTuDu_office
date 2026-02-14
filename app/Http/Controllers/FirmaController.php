@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Firma;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 class FirmaController extends Controller
 {
@@ -23,17 +22,12 @@ class FirmaController extends Controller
         }
 
         $request->validate([
-            'nazev' => 'required|string|max:255',
-            'dic' => 'nullable|string|max:20',
-            'ulice' => 'nullable|string|max:255',
-            'mesto' => 'nullable|string|max:255',
-            'psc' => 'nullable|string|max:10',
             'email' => 'nullable|email|max:255',
             'telefon' => 'nullable|string|max:20',
             'email_doklady_heslo' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['nazev', 'dic', 'ulice', 'mesto', 'psc', 'email', 'telefon']);
+        $data = $request->only(['email', 'telefon']);
 
         if ($request->filled('email_doklady_heslo')) {
             $data['email_doklady_heslo'] = $request->email_doklady_heslo;
@@ -54,11 +48,6 @@ class FirmaController extends Controller
         $request->validate([
             'ico' => 'required|string|regex:/^\d{8}$/',
             'role' => 'required|in:ucetni,firma,dodavatel',
-            'nazev' => 'required|string|max:255',
-            'dic' => 'nullable|string|max:20',
-            'ulice' => 'nullable|string|max:255',
-            'mesto' => 'nullable|string|max:255',
-            'psc' => 'nullable|string|max:10',
         ]);
 
         $user = auth()->user();
@@ -67,14 +56,20 @@ class FirmaController extends Controller
             return back()->withErrors(['ico' => 'Tuto firmu již máte přiřazenou.'])->withInput();
         }
 
+        $ares = AresController::fetchAres($request->ico);
+
+        if (!$ares || !$ares['nazev']) {
+            return back()->withErrors(['ico' => 'IČO nebylo nalezeno v ARES.'])->withInput();
+        }
+
         $firma = Firma::firstOrCreate(
             ['ico' => $request->ico],
             [
-                'nazev' => $request->nazev,
-                'dic' => $request->dic,
-                'ulice' => $request->ulice,
-                'mesto' => $request->mesto,
-                'psc' => $request->psc,
+                'nazev' => $ares['nazev'],
+                'dic' => $ares['dic'],
+                'ulice' => $ares['ulice'],
+                'mesto' => $ares['mesto'],
+                'psc' => $ares['psc'],
             ]
         );
 
@@ -114,36 +109,18 @@ class FirmaController extends Controller
             return back()->withErrors(['ico' => 'Žádná aktivní firma.']);
         }
 
-        $response = Http::timeout(10)->get(
-            "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{$firma->ico}"
-        );
+        $ares = AresController::fetchAres($firma->ico);
 
-        if ($response->failed()) {
+        if (!$ares) {
             return back()->withErrors(['ico' => 'Subjekt nenalezen v ARES.']);
         }
 
-        $data = $response->json();
-        $sidlo = $data['sidlo'] ?? [];
-
-        $ulice = null;
-        if (isset($sidlo['nazevUlice'])) {
-            $ulice = $sidlo['nazevUlice'];
-            if (isset($sidlo['cisloDomovni'])) {
-                $ulice .= ' ' . $sidlo['cisloDomovni'];
-                if (isset($sidlo['cisloOrientacni'])) {
-                    $ulice .= '/' . $sidlo['cisloOrientacni'];
-                }
-            }
-        } elseif (isset($sidlo['textovaAdresa'])) {
-            $ulice = $sidlo['textovaAdresa'];
-        }
-
         $firma->update([
-            'nazev' => $data['obchodniJmeno'] ?? $firma->nazev,
-            'dic' => $data['dic'] ?? $firma->dic,
-            'ulice' => $ulice ?? $firma->ulice,
-            'mesto' => $sidlo['nazevObce'] ?? $firma->mesto,
-            'psc' => isset($sidlo['psc']) ? (string) $sidlo['psc'] : $firma->psc,
+            'nazev' => $ares['nazev'] ?? $firma->nazev,
+            'dic' => $ares['dic'] ?? $firma->dic,
+            'ulice' => $ares['ulice'] ?? $firma->ulice,
+            'mesto' => $ares['mesto'] ?? $firma->mesto,
+            'psc' => $ares['psc'] ?? $firma->psc,
         ]);
 
         return redirect()->route('firma.nastaveni')->with('success', 'Data obnovena z ARES.');
