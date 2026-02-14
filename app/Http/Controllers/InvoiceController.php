@@ -11,18 +11,22 @@ use ZipArchive;
 
 class InvoiceController extends Controller
 {
-    public function create()
+    private function aktivniFirma(): Firma
     {
-        return redirect()->route('doklady.index');
+        return auth()->user()->aktivniFirma();
+    }
+
+    private function autorizujDoklad(Doklad $doklad): void
+    {
+        $dostupne = auth()->user()->dostupneIco();
+        if (!in_array($doklad->firma_ico, $dostupne)) {
+            abort(403, 'Nemáte přístup k tomuto dokladu.');
+        }
     }
 
     public function index(Request $request)
     {
-        $firma = Firma::first();
-
-        if (!$firma) {
-            return view('invoices.index', ['doklady' => collect(), 'firma' => null, 'sort' => 'created_at', 'dir' => 'desc', 'q' => '']);
-        }
+        $firma = $this->aktivniFirma();
 
         $allowedSort = ['created_at', 'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti'];
         $sort = in_array($request->query('sort'), $allowedSort) ? $request->query('sort') : 'created_at';
@@ -48,11 +52,13 @@ class InvoiceController extends Controller
 
     public function show(Doklad $doklad)
     {
+        $this->autorizujDoklad($doklad);
         return view('invoices.show', compact('doklad'));
     }
 
     public function download(Doklad $doklad)
     {
+        $this->autorizujDoklad($doklad);
         $disk = Storage::disk('s3');
 
         if (!$doklad->cesta_souboru || !$disk->exists($doklad->cesta_souboru)) {
@@ -66,6 +72,7 @@ class InvoiceController extends Controller
 
     public function preview(Doklad $doklad)
     {
+        $this->autorizujDoklad($doklad);
         $disk = Storage::disk('s3');
 
         if (!$doklad->cesta_souboru || !$disk->exists($doklad->cesta_souboru)) {
@@ -93,10 +100,7 @@ class InvoiceController extends Controller
             'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
-        $firma = Firma::first();
-        if (!$firma) {
-            return back()->withErrors(['documents' => 'Nejdříve vyplňte nastavení firmy.']);
-        }
+        $firma = $this->aktivniFirma();
 
         $processor = new DokladProcessor();
         $results = [];
@@ -106,7 +110,6 @@ class InvoiceController extends Controller
             $fileHash = hash_file('sha256', $tempPath);
             $originalName = $file->getClientOriginalName();
 
-            // Kontrola duplicit
             $existujici = $processor->isDuplicate($fileHash, $firma->ico);
             if ($existujici) {
                 $results[] = [
@@ -131,7 +134,6 @@ class InvoiceController extends Controller
             ];
         }
 
-        // AJAX - vrátit JSON s výsledky pro každý soubor
         if ($request->ajax()) {
             return response()->json(collect($results)->map(fn($r) => [
                 'name' => $r['name'],
@@ -142,12 +144,10 @@ class InvoiceController extends Controller
             ])->values());
         }
 
-        // Jeden soubor -> redirect na detail
         if (count($results) === 1 && !empty($results[0]['doklad']) && $results[0]['doklad']->stav !== 'chyba') {
             return redirect()->route('doklady.show', $results[0]['doklad']);
         }
 
-        // Více souborů -> redirect na seznam s flash message
         $ok = collect($results)->filter(fn($r) => empty($r['error']))->count();
         $errors = collect($results)->filter(fn($r) => !empty($r['error']));
 
@@ -161,6 +161,8 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Doklad $doklad)
     {
+        $this->autorizujDoklad($doklad);
+
         $editableFields = [
             'datum_prijeti', 'duzp', 'datum_vystaveni', 'datum_splatnosti',
             'dodavatel_nazev', 'dodavatel_ico', 'cislo_dokladu',
@@ -174,7 +176,6 @@ class InvoiceController extends Controller
             return response()->json(['ok' => false, 'error' => 'Pole nelze upravit.'], 422);
         }
 
-        // Prázdný string -> null pro nullable pole
         if ($value === '' || $value === null) {
             $value = null;
         }
@@ -186,15 +187,11 @@ class InvoiceController extends Controller
 
     public function downloadMonth(Request $request, string $mesic)
     {
-        // Validate format YYYY-MM
         if (!preg_match('/^\d{4}-\d{2}$/', $mesic)) {
             abort(400, 'Neplatný formát měsíce. Použijte YYYY-MM.');
         }
 
-        $firma = Firma::first();
-        if (!$firma) {
-            abort(404, 'Firma nenalezena.');
-        }
+        $firma = $this->aktivniFirma();
 
         $doklady = Doklad::where('firma_ico', $firma->ico)
             ->where('cesta_souboru', 'like', "doklady/{$firma->ico}/{$mesic}/%")
@@ -227,12 +224,12 @@ class InvoiceController extends Controller
 
     public function destroy(Doklad $doklad)
     {
-        // Smazat soubor z S3
+        $this->autorizujDoklad($doklad);
+
         if ($doklad->cesta_souboru) {
             Storage::disk('s3')->delete($doklad->cesta_souboru);
         }
 
-        // Odpojit duplicity které na tento doklad odkazují
         Doklad::where('duplicita_id', $doklad->id)->update(['duplicita_id' => null]);
 
         $nazev = $doklad->cislo_dokladu ?: $doklad->nazev_souboru;

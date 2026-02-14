@@ -29,9 +29,14 @@
 
         <div class="form-row">
             <div class="form-group">
-                <label for="ico">IČO *</label>
-                <input type="text" id="ico" name="ico" value="{{ old('ico', $firma->ico ?? '') }}" required {{ $firma ? 'readonly' : '' }}>
-                @error('ico') <div class="error-msg">{{ $message }}</div> @enderror
+                <label for="ico">IČO</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="ico" value="{{ $firma->ico ?? '' }}" readonly style="background: #f0f0f0; flex: 1;">
+                    <form method="POST" action="{{ route('firma.obnovitAres') }}" style="margin: 0;">
+                        @csrf
+                        <button type="submit" style="padding: 0.5rem 0.75rem; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 6px; cursor: pointer; font-size: 0.8rem; white-space: nowrap;">ARES</button>
+                    </form>
+                </div>
             </div>
             <div class="form-group">
                 <label for="dic">DIČ</label>
@@ -89,7 +94,6 @@
 
         <form method="POST" action="{{ route('firma.ulozit') }}" style="margin-top: 1rem;">
             @csrf
-            <input type="hidden" name="ico" value="{{ $firma->ico }}">
             <input type="hidden" name="nazev" value="{{ $firma->nazev }}">
             <div class="form-group">
                 <label for="email_doklady_heslo">IMAP heslo (pro automatické stahování)</label>

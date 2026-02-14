@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Firma extends Model
@@ -36,5 +37,12 @@ class Firma extends Model
     {
         return $this->belongsToMany(Firma::class, 'sys_ucetni_vazby', 'klient_ico', 'ucetni_ico')
             ->wherePivot('stav', 'schvaleno');
+    }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'sys_user_firma', 'firma_ico', 'user_id')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 }
