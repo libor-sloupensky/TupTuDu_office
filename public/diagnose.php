@@ -2,49 +2,79 @@
 /**
  * Diagnostika uploadu dokladů - dočasný soubor, po otestování smazat!
  */
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
 header('Content-Type: text/plain; charset=utf-8');
-echo "=== TupTuDu Diagnostika ===\n\n";
+
+function out($msg) { echo $msg; ob_flush(); flush(); }
+
+out("=== TupTuDu Diagnostika ===\n\n");
 
 // 1. PHP limity
-echo "--- PHP Limity ---\n";
-echo "max_execution_time: " . ini_get('max_execution_time') . "s\n";
-echo "upload_max_filesize: " . ini_get('upload_max_filesize') . "\n";
-echo "post_max_size: " . ini_get('post_max_size') . "\n";
-echo "memory_limit: " . ini_get('memory_limit') . "\n";
-echo "PHP verze: " . phpversion() . "\n\n";
+out("--- PHP Limity ---\n");
+out("max_execution_time: " . ini_get('max_execution_time') . "s\n");
+out("upload_max_filesize: " . ini_get('upload_max_filesize') . "\n");
+out("post_max_size: " . ini_get('post_max_size') . "\n");
+out("memory_limit: " . ini_get('memory_limit') . "\n");
+out("PHP verze: " . phpversion() . "\n\n");
 
 // Bootstrap Laravel
-require __DIR__ . '/../vendor/autoload.php';
-$app = require_once __DIR__ . '/../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-
-// 2. Test S3
-echo "--- Test S3 ---\n";
+out("Bootstrap Laravel...\n");
 try {
-    $disk = Illuminate\Support\Facades\Storage::disk('s3');
-    $testPath = '_diagnostika/test_' . time() . '.txt';
-    $disk->put($testPath, 'TupTuDu test ' . date('Y-m-d H:i:s'));
-    echo "S3 PUT: OK ($testPath)\n";
-
-    $exists = $disk->exists($testPath);
-    echo "S3 EXISTS: " . ($exists ? 'OK' : 'FAIL') . "\n";
-
-    $disk->delete($testPath);
-    echo "S3 DELETE: OK\n";
+    require __DIR__ . '/../vendor/autoload.php';
+    $app = require_once __DIR__ . '/../bootstrap/app.php';
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    out("Bootstrap: OK\n\n");
 } catch (\Throwable $e) {
-    echo "S3 CHYBA: " . $e->getMessage() . "\n";
-    echo "Třída: " . get_class($e) . "\n";
+    out("Bootstrap CHYBA: " . $e->getMessage() . "\n");
+    exit;
 }
-echo "\n";
 
-// 3. Test Claude API
-echo "--- Test Claude API ---\n";
+// 2. Konfigurace (před testy, aby bylo vidět i při pádu)
+out("--- Konfigurace ---\n");
+out("FILESYSTEM_DISK: " . config('filesystems.default') . "\n");
+out("AWS_BUCKET: " . config('filesystems.disks.s3.bucket') . "\n");
+out("AWS_REGION: " . config('filesystems.disks.s3.region') . "\n");
+out("AWS_KEY: " . (config('filesystems.disks.s3.key') ? substr(config('filesystems.disks.s3.key'), 0, 8) . '...' : 'CHYBÍ') . "\n");
+out("AWS_SECRET: " . (config('filesystems.disks.s3.secret') ? 'nastaveno' : 'CHYBÍ') . "\n");
+out("S3 throw: " . (config('filesystems.disks.s3.throw') ? 'true' : 'false') . "\n");
+out("ANTHROPIC_KEY: " . (config('services.anthropic.key') ? substr(config('services.anthropic.key'), 0, 10) . '...' : 'CHYBÍ') . "\n\n");
+
+// 3. Test S3
+out("--- Test S3 ---\n");
+try {
+    out("Vytvářím S3 disk...\n");
+    $disk = Illuminate\Support\Facades\Storage::disk('s3');
+    out("S3 disk vytvořen.\n");
+
+    $testPath = '_diagnostika/test_' . time() . '.txt';
+    out("Zkouším PUT: $testPath ...\n");
+    $disk->put($testPath, 'TupTuDu test ' . date('Y-m-d H:i:s'));
+    out("S3 PUT: OK\n");
+
+    out("Zkouším EXISTS...\n");
+    $exists = $disk->exists($testPath);
+    out("S3 EXISTS: " . ($exists ? 'OK' : 'FAIL') . "\n");
+
+    out("Zkouším DELETE...\n");
+    $disk->delete($testPath);
+    out("S3 DELETE: OK\n");
+} catch (\Throwable $e) {
+    out("S3 CHYBA: " . $e->getMessage() . "\n");
+    out("Třída: " . get_class($e) . "\n");
+    out("Trace: " . substr($e->getTraceAsString(), 0, 500) . "\n");
+}
+out("\n");
+
+// 4. Test Claude API
+out("--- Test Claude API ---\n");
 $apiKey = config('services.anthropic.key');
 if (empty($apiKey)) {
-    echo "CHYBA: Anthropic API klíč není nastaven!\n";
+    out("CHYBA: Anthropic API klíč není nastaven!\n");
 } else {
-    echo "API klíč: " . substr($apiKey, 0, 10) . "...\n";
+    out("API klíč: " . substr($apiKey, 0, 10) . "...\n");
     try {
+        out("Odesílám testovací request...\n");
         $start = microtime(true);
         $response = Illuminate\Support\Facades\Http::timeout(30)->withHeaders([
             'x-api-key' => $apiKey,
@@ -54,7 +84,7 @@ if (empty($apiKey)) {
             'model' => 'claude-haiku-4-5-20251001',
             'max_tokens' => 50,
             'messages' => [
-                ['role' => 'user', 'content' => 'Odpověz jedním slovem: funguje?'],
+                ['role' => 'user', 'content' => 'Řekni jedním slovem: funguje?'],
             ],
         ]);
         $elapsed = round(microtime(true) - $start, 2);
@@ -62,31 +92,28 @@ if (empty($apiKey)) {
         if ($response->successful()) {
             $body = $response->json();
             $text = $body['content'][0]['text'] ?? '(prázdná odpověď)';
-            echo "Claude API: OK ({$elapsed}s) - '{$text}'\n";
+            out("Claude API: OK ({$elapsed}s) - '{$text}'\n");
         } else {
-            echo "Claude API CHYBA: HTTP " . $response->status() . "\n";
-            echo "Body: " . substr($response->body(), 0, 500) . "\n";
+            out("Claude API CHYBA: HTTP " . $response->status() . "\n");
+            out("Body: " . substr($response->body(), 0, 500) . "\n");
         }
     } catch (\Throwable $e) {
-        echo "Claude API VÝJIMKA: " . $e->getMessage() . "\n";
+        out("Claude API VÝJIMKA: " . $e->getMessage() . "\n");
     }
 }
-echo "\n";
-
-// 4. Test .env hodnoty
-echo "--- Konfigurace ---\n";
-echo "FILESYSTEM_DISK: " . config('filesystems.default') . "\n";
-echo "AWS_BUCKET: " . config('filesystems.disks.s3.bucket') . "\n";
-echo "AWS_REGION: " . config('filesystems.disks.s3.region') . "\n";
-echo "AWS_KEY: " . (config('filesystems.disks.s3.key') ? substr(config('filesystems.disks.s3.key'), 0, 8) . '...' : 'CHYBÍ') . "\n";
-echo "S3 throw: " . (config('filesystems.disks.s3.throw') ? 'true' : 'false') . "\n";
-echo "\n";
+out("\n");
 
 // 5. Poslední doklady
-echo "--- Poslední doklady ---\n";
-$posledni = App\Models\Doklad::orderBy('id', 'desc')->take(5)->get(['id', 'nazev_souboru', 'stav', 'chybova_zprava', 'created_at']);
-foreach ($posledni as $d) {
-    echo "#{$d->id} | {$d->stav} | {$d->nazev_souboru} | {$d->created_at}\n";
-    if ($d->chybova_zprava) echo "  Chyba: " . substr($d->chybova_zprava, 0, 200) . "\n";
+out("--- Poslední doklady ---\n");
+try {
+    $posledni = App\Models\Doklad::orderBy('id', 'desc')->take(5)->get(['id', 'nazev_souboru', 'stav', 'chybova_zprava', 'kvalita', 'typ_dokladu', 'created_at']);
+    foreach ($posledni as $d) {
+        out("#{$d->id} | {$d->stav} | {$d->typ_dokladu} | {$d->kvalita} | {$d->nazev_souboru} | {$d->created_at}\n");
+        if ($d->chybova_zprava) out("  Chyba: " . substr($d->chybova_zprava, 0, 200) . "\n");
+    }
+    out("\nCelkem dokladů: " . App\Models\Doklad::count() . "\n");
+} catch (\Throwable $e) {
+    out("DB CHYBA: " . $e->getMessage() . "\n");
 }
-echo "\nCelkem dokladů: " . App\Models\Doklad::count() . "\n";
+
+out("\n=== HOTOVO ===\n");
