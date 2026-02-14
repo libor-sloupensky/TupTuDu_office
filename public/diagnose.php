@@ -22,6 +22,112 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 $mode = $_GET['mode'] ?? 'info';
 
+// === PROCESSOR TEST MODE - volá DokladProcessor přímo ===
+if ($mode === 'processor' && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES['testfile'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $log = [];
+    $log[] = 'Start: ' . date('H:i:s');
+
+    try {
+        $file = $_FILES['testfile'];
+        $log[] = "Soubor: {$file['name']} ({$file['size']} bytes)";
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['ok' => false, 'log' => $log, 'error' => 'Upload error: ' . $file['error']]);
+            exit;
+        }
+
+        // Potřebujeme firmu - vezmeme první existující
+        $firma = App\Models\Firma::first();
+        if (!$firma) {
+            echo json_encode(['ok' => false, 'log' => $log, 'error' => 'Žádná firma v DB']);
+            exit;
+        }
+        $log[] = "Firma: {$firma->nazev} (IČO: {$firma->ico})";
+
+        $tempPath = $file['tmp_name'];
+        $fileHash = hash_file('sha256', $tempPath);
+        $originalName = $file['name'];
+        $log[] = "Hash: " . substr($fileHash, 0, 16) . '...';
+
+        $processor = new App\Services\DokladProcessor();
+
+        // Kontrola duplicity
+        $existujici = $processor->isDuplicate($fileHash, $firma->ico);
+        if ($existujici) {
+            $log[] = "DUPLICITA: #{$existujici->id} ({$existujici->cislo_dokladu})";
+            echo json_encode(['ok' => false, 'log' => $log, 'error' => 'Duplicita'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $log[] = 'Duplicita: ne';
+
+        // Volání DokladProcessor::process()
+        $log[] = 'Volám DokladProcessor::process()...';
+        $start = microtime(true);
+        $doklady = $processor->process($tempPath, $originalName, $firma, $fileHash, 'upload');
+        $elapsed = round(microtime(true) - $start, 2);
+
+        $log[] = "DokladProcessor::process() OK ({$elapsed}s)";
+        $log[] = "Počet dokladů: " . count($doklady);
+
+        foreach ($doklady as $i => $doklad) {
+            $log[] = "--- Doklad #{$doklad->id} ---";
+            $log[] = "  Stav: {$doklad->stav}";
+            $log[] = "  Typ: {$doklad->typ_dokladu}";
+            $log[] = "  Kvalita: {$doklad->kvalita}";
+            $log[] = "  Dodavatel: {$doklad->dodavatel_nazev} ({$doklad->dodavatel_ico})";
+            $log[] = "  Číslo: {$doklad->cislo_dokladu}";
+            $log[] = "  Částka: {$doklad->castka_celkem} {$doklad->mena}";
+            $log[] = "  S3: {$doklad->cesta_souboru}";
+            if ($doklad->chybova_zprava) {
+                $log[] = "  CHYBA: {$doklad->chybova_zprava}";
+            }
+        }
+
+        $log[] = 'Konec: ' . date('H:i:s');
+        echo json_encode(['ok' => true, 'log' => $log], JSON_UNESCAPED_UNICODE);
+
+    } catch (\Throwable $e) {
+        $log[] = 'VÝJIMKA: ' . $e->getMessage();
+        $log[] = 'Soubor: ' . $e->getFile() . ':' . $e->getLine();
+        $log[] = 'Trace: ' . substr($e->getTraceAsString(), 0, 500);
+        echo json_encode(['ok' => false, 'log' => $log, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
+if ($mode === 'processor') {
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html><head><title>Processor Test</title></head><body>';
+    echo '<h2>Test DokladProcessor (kompletní pipeline)</h2>';
+    echo '<p>Tento test volá DokladProcessor::process() přímo - stejný kód jako InvoiceController.</p>';
+    echo '<form method="POST" enctype="multipart/form-data">';
+    echo '<input type="file" name="testfile" accept=".pdf,.jpg,.jpeg,.png" required>';
+    echo '<button type="submit">Zpracovat doklad</button>';
+    echo '</form>';
+    echo '<div id="result" style="margin-top:1rem; white-space:pre-wrap; font-family:monospace;"></div>';
+    echo '<script>
+    document.querySelector("form").addEventListener("submit", function(e) {
+        e.preventDefault();
+        var fd = new FormData(this);
+        var result = document.getElementById("result");
+        result.textContent = "Zpracovávám přes DokladProcessor...";
+        var start = Date.now();
+        fetch("?mode=processor", {method:"POST", body:fd})
+            .then(r => {
+                result.textContent += "\\nHTTP " + r.status + " (" + ((Date.now()-start)/1000).toFixed(1) + "s)\\n";
+                return r.text();
+            })
+            .then(t => {
+                try { var j = JSON.parse(t); result.textContent = JSON.stringify(j, null, 2); } catch(e) { result.textContent += t; }
+            })
+            .catch(err => { result.textContent += "\\nFetch error: " + err.message; });
+    });
+    </script>';
+    echo '</body></html>';
+    exit;
+}
+
 // === UPLOAD TEST MODE ===
 if ($mode === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES['testfile'])) {
     header('Content-Type: application/json; charset=utf-8');
