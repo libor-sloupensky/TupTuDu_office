@@ -276,13 +276,13 @@ class DokladProcessor
 
         $systemPrompt = $this->buildSystemPrompt($firma);
 
-        $response = Http::timeout(60)->withHeaders([
+        $response = Http::timeout(90)->withHeaders([
             'x-api-key' => $apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
         ])->post('https://api.anthropic.com/v1/messages', [
             'model' => 'claude-haiku-4-5-20251001',
-            'max_tokens' => 4096,
+            'max_tokens' => 16384,
             'messages' => [
                 [
                     'role' => 'user',
@@ -304,6 +304,15 @@ class DokladProcessor
 
         $body = $response->json();
         $content = $body['content'][0]['text'] ?? '';
+        $stopReason = $body['stop_reason'] ?? 'end_turn';
+
+        // Pokud odpověď oříznutá (max_tokens), zkusit opravit neúplný JSON
+        if ($stopReason === 'max_tokens') {
+            Log::warning('AI odpověď oříznutá (max_tokens), pokus o opravu JSON', [
+                'content_length' => strlen($content),
+            ]);
+            $content = $this->repairTruncatedJson($content);
+        }
 
         // Parse JSON z odpovědi
         if (preg_match('/\{[\s\S]*\}/s', $content, $matches)) {
@@ -400,7 +409,7 @@ DŮLEŽITÁ PRAVIDLA:
 - DIČ dodavatele: včetně prefixu země (CZ, SK, PT atd.)
 - Pokud je kvalita "nizka", vyplň kvalita_poznamka s krátkým popisem problému
 - Pokud je kvalita "necitelna", přesto vyplň co lze rozpoznat
-- raw_text: věrný přepis veškerého textu z dokladu, zachovej rozložení řádků
+- raw_text: přepis klíčového textu z dokladu (max 500 znaků na doklad). U účtenek stačí hlavička, položky a součet.
 - Doklad může být v jakémkoliv jazyce - zpracuj ho bez ohledu na jazyk
 PROMPT;
 
@@ -413,6 +422,58 @@ PROMPT;
         }
 
         return $prompt;
+    }
+
+    /**
+     * Pokusí se opravit oříznutý JSON z AI odpovědi.
+     * Uzavře otevřené stringy, pole a objekty, aby JSON šel parsovat.
+     */
+    private function repairTruncatedJson(string $content): string
+    {
+        // Najdi začátek JSON objektu
+        $start = strpos($content, '{');
+        if ($start === false) {
+            return $content;
+        }
+
+        $json = substr($content, $start);
+
+        // Odstraň neúplný poslední objekt v poli dokumenty
+        // Hledáme poslední kompletní objekt (uzavřený })
+        if (preg_match_all('/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/s', $json, $objects)) {
+            // Zkusíme najít pole dokumenty a uzavřít ho
+            $lastComplete = strrpos($json, '}');
+            if ($lastComplete !== false) {
+                $trimmed = substr($json, 0, $lastComplete + 1);
+                // Spočítej otevřené závorky
+                $openBraces = substr_count($trimmed, '{') - substr_count($trimmed, '}');
+                $openBrackets = substr_count($trimmed, '[') - substr_count($trimmed, ']');
+
+                // Uzavři otevřené závorky
+                $trimmed .= str_repeat(']', max(0, $openBrackets));
+                $trimmed .= str_repeat('}', max(0, $openBraces));
+
+                $test = json_decode($trimmed, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return $trimmed;
+                }
+            }
+        }
+
+        // Fallback: jednoduchý přístup - uzavři vše
+        $openBraces = substr_count($json, '{') - substr_count($json, '}');
+        $openBrackets = substr_count($json, '[') - substr_count($json, ']');
+        // Zkusíme ořezat od posledního kompletního elementu
+        $lastCloseBrace = strrpos($json, '}');
+        if ($lastCloseBrace !== false) {
+            $json = substr($json, 0, $lastCloseBrace + 1);
+            $openBraces = substr_count($json, '{') - substr_count($json, '}');
+            $openBrackets = substr_count($json, '[') - substr_count($json, ']');
+            $json .= str_repeat(']', max(0, $openBrackets));
+            $json .= str_repeat('}', max(0, $openBraces));
+        }
+
+        return substr($content, 0, $start) . $json;
     }
 
     /**
