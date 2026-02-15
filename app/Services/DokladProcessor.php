@@ -374,8 +374,7 @@ KVALITA:
 
 KATEGORIE NÁKLADŮ:
 služby, materiál, energie, telekomunikace, nájem, pojištění, doprava, pohonné_hmoty, stravování,
-kancelářské_potřeby, software, opravy_a_údržba, reklama, cestovné, školení, reprezentace,
-právní_služby, bankovní_poplatky, členské_příspěvky, bozp, dokumenty, ostatní
+kancelářské_potřeby, software, opravy_a_údržba, reklama, školení, dokumenty, ostatní
 
 FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
 {

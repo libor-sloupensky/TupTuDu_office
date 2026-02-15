@@ -140,38 +140,31 @@
     (function() {
         const DEFAULT_PRAVIDLA = `KATEGORIE NÁKLADŮ
 - Pohonné hmoty: benzín, natural, nafta, CNG, LPG, AdBlue → "pohonné_hmoty"
-- Stravování: potraviny, restaurace, kantýna, občerstvení → "stravování"
-- Telekomunikace: telefon, internet, data, hosting, domény → "telekomunikace"
+- Stravování: potraviny, restaurace, občerstvení → "stravování"
+- Telekomunikace: telefon, internet, hosting → "telekomunikace"
 - Energie: elektřina, plyn, voda, teplo → "energie"
-- Doprava: jízdenky, parkování, mýtné, taxi, kurýr, poštovné → "doprava"
-- Kancelářské potřeby: tonery, papír, obálky, drobný materiál → "kancelářské_potřeby"
-- Software a licence: předplatné, SaaS, cloudové služby, antivirus → "software"
-- Opravy a údržba: servis, náhradní díly, revize, technická kontrola → "opravy_a_údržba"
-- Reklama: inzerce, propagace, tiskoviny, PPC, SEO, sociální sítě → "reklama"
-- Cestovné: ubytování, letenky, jízdenky na služební cestu → "cestovné"
-- Školení: kurzy, semináře, konference, e-learning, certifikace → "školení"
-- Pojištění: vozidla, majetek, odpovědnost, havarijní → "pojištění"
-- Nájem a leasing: pronájem prostor, operativní leasing, coworking → "nájem"
-- Reprezentace: dárky klientům, pohoštění, květiny → "reprezentace"
-- Právní a účetní služby: advokát, notář, daňový poradce, audit → "právní_služby"
-- Bankovní poplatky: vedení účtu, transakční poplatky, terminál → "bankovní_poplatky"
-- Členské příspěvky: komory, asociace, profesní organizace → "členské_příspěvky"
-- BOZP a PO: ochranné pomůcky, hasicí přístroje, revize → "bozp"
-- Dokumenty: smlouvy, objednávky, upomínky, výzvy, protokoly → "dokumenty"
-- Pokuty a penále zařaď do "ostatní" (daňově neuznatelné)
+- Doprava a cestovné: jízdenky, parkování, mýtné, taxi, poštovné, ubytování → "doprava"
+- Kancelářské potřeby: tonery, papír, drobný materiál → "kancelářské_potřeby"
+- Software a licence: předplatné, cloudové služby → "software"
+- Opravy a údržba: servis, náhradní díly, revize → "opravy_a_údržba"
+- Reklama: inzerce, propagace, marketing → "reklama"
+- Školení: kurzy, semináře, konference → "školení"
+- Pojištění: vozidla, majetek, odpovědnost → "pojištění"
+- Nájem: pronájem prostor, leasing → "nájem"
+- Dokumenty: smlouvy, objednávky, upomínky, protokoly → "dokumenty"
+- Pokuty a penále → "ostatní"
 
 KVALITA A STAVY
 - Čitelný doklad (i mírně rozmazaný) → stav "dokončeno"
-- Některá data nečitelná → stav "nekvalitní" + poznámka co konkrétně chybí
+- Některá data nečitelná → stav "nekvalitní" + poznámka co chybí
 - Klíčová data nečitelná (částka, dodavatel) → kvalita "nečitelná"
 - Příjemce/odběratel odlišný od naší firmy → kvalita_poznamka "Chybný příjemce"
 - U účtenek bez IČO odběratele nastav odberatel_ico na null
 
 TIPY PRO ZPRACOVÁNÍ
-- Doklady v cizí měně zpracuj normálně s odpovídající měnou (EUR, USD, GBP...)
+- Doklady v cizí měně zpracuj s odpovídající měnou
 - Vícestránkovou fakturu vlož jako jeden doklad
 - Více dokladů na jednom skenu rozděl na samostatné záznamy
-- Zálohovou fakturu rozpoznej i bez slova "záloha" (pokud chybí DUZP, bývá záloha)
 - Dobropisy mají zápornou částku — zachovej znaménko`;
 
         const textarea = document.getElementById('pravidlaText');
