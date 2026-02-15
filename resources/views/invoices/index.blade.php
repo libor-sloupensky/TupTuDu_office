@@ -605,7 +605,7 @@ function formatSize(bytes) {
 const uploadQueue = [];     // {file, item} objects waiting or in progress
 let uploadCompleted = 0;
 let uploadActive = 0;
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 1;   // Shared hosting: serialize requests
 let autoHideTimer = null;
 
 function enqueueFiles(files) {
@@ -662,10 +662,19 @@ function processNextInQueue() {
     const { file, item } = entry;
 
     item.className = 'upload-item status-processing';
-    item.querySelector('.upload-item-status').textContent = 'Zpracovavam...';
+    const statusEl = item.querySelector('.upload-item-status');
+    statusEl.textContent = 'Zpracovavam... 0s';
     updateUploadHeader();
 
+    // Elapsed timer
+    const startTime = Date.now();
+    const timerInterval = setInterval(() => {
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        statusEl.textContent = 'Zpracovavam... ' + elapsed + 's';
+    }, 1000);
+
     uploadSingleFile(file).then(result => {
+        clearInterval(timerInterval);
         uploadActive--;
         uploadCompleted++;
 
@@ -694,6 +703,9 @@ function processNextInQueue() {
 
         updateUploadHeader();
 
+        // Refresh table data after each completed file
+        refreshTableData();
+
         // Try next in queue
         if (!processNextInQueue()) {
             // No more waiting items - check if everything is done
@@ -714,18 +726,19 @@ function addDismissBtn(item) {
     item.appendChild(btn);
 }
 
-function onAllUploadsComplete() {
-    updateUploadHeader();
-    dropZone.classList.remove('compact');
-    dropZone.querySelector('p:first-child').textContent = 'Pretahnete soubory sem nebo kliknete pro vyber';
-
-    // Fetch fresh doklady data and update table (no page reload)
+function refreshTableData() {
     fetch(window.location.pathname + (window.location.search || ''), {
         headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
     }).then(r => r.json()).then(data => {
         dokladyData = data;
         renderTable();
     }).catch(() => {});
+}
+
+function onAllUploadsComplete() {
+    updateUploadHeader();
+    dropZone.classList.remove('compact');
+    dropZone.querySelector('p:first-child').textContent = 'Pretahnete soubory sem nebo kliknete pro vyber';
 
     // Auto-hide success and duplicate items after 10s
     autoHideTimer = setTimeout(() => {
