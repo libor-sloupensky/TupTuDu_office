@@ -113,11 +113,16 @@
     .preview-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
     .preview-overlay.active { display: flex; }
     .preview-container { position: relative; width: 90vw; height: 90vh; max-width: 1000px; background: white; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-    .preview-container #previewContent { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
+    .preview-container #previewContent { flex: 1; min-height: 0; overflow: hidden; position: relative; cursor: grab; }
+    .preview-container #previewContent.dragging { cursor: grabbing; }
     .preview-container iframe { width: 100%; height: 100%; border: none; }
-    .preview-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .preview-container #previewContent img { position: absolute; top: 50%; left: 50%; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; }
     .preview-close { position: absolute; top: 8px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; z-index: 1001; line-height: 1; }
     .preview-close:hover { background: rgba(0,0,0,0.8); }
+    .preview-toolbar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 1001; background: rgba(0,0,0,0.6); border-radius: 20px; padding: 4px 8px; }
+    .preview-toolbar button { background: none; border: none; color: white; font-size: 1.2rem; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; line-height: 1; }
+    .preview-toolbar button:hover { background: rgba(255,255,255,0.2); }
+    .preview-toolbar .zoom-level { color: rgba(255,255,255,0.8); font-size: 0.75rem; display: flex; align-items: center; padding: 0 4px; min-width: 40px; justify-content: center; }
 </style>
 @endsection
 
@@ -233,6 +238,13 @@
     <div class="preview-container">
         <button class="preview-close" onclick="closePreview()">&times;</button>
         <div id="previewContent"></div>
+        <div class="preview-toolbar" id="previewToolbar" style="display:none;">
+            <button onclick="previewZoom(-1)" title="Oddálit">&#8722;</button>
+            <span class="zoom-level" id="zoomLevel">100%</span>
+            <button onclick="previewZoom(1)" title="Přiblížit">&#43;</button>
+            <button onclick="previewZoomFit()" title="Přizpůsobit">&#8596;</button>
+            <button onclick="previewZoomReal()" title="Skutečná velikost">1:1</button>
+        </div>
     </div>
 </div>
 @endsection
@@ -286,7 +298,7 @@ const COLUMNS = [
     { id: 'nahrano',   label: 'Nahráno',    tip: 'Datum a čas vložení do systému', sortable: 'created_at', editable: false, fixed: false, field: null },
     { id: 'cas_nahrani', label: 'Čas',      tip: 'Čas nahrání dokladu', sortable: false, editable: false, fixed: false, field: null },
     { id: 'datum_prijeti', label: 'Příjetí', tip: 'Datum příjetí dokladu do účetnictví', sortable: 'datum_prijeti', editable: 'date', fixed: false, field: 'datum_prijeti' },
-    { id: 'duzp',      label: 'DÚZP',       tip: 'Datum uskutečnění zdanitelného plnění', sortable: 'duzp', editable: 'date', fixed: false, field: 'duzp' },
+    { id: 'duzp',      label: 'DUZP',       tip: 'Datum uskutečnění zdanitelného plnění', sortable: 'duzp', editable: 'date', fixed: false, field: 'duzp' },
     { id: 'vystaveni', label: 'Vystavení',  tip: 'Datum vystavení dokladu dodavatelem', sortable: 'datum_vystaveni', editable: 'date', fixed: false, field: 'datum_vystaveni' },
     { id: 'splatnost', label: 'Splatnost',  tip: 'Datum splatnosti', sortable: 'datum_splatnosti', editable: 'date', fixed: false, field: 'datum_splatnosti' },
     { id: 'cislo',     label: 'Číslo',      tip: 'Číslo/variabilní symbol dokladu', sortable: false, editable: 'text', fixed: false, field: 'cislo_dokladu' },
@@ -477,7 +489,7 @@ function toggleDetail(id, btn) {
         kvalita_poznamka: 'Poznámka ke kvalitě',
         dodavatel_nazev: 'Dodavatel', dodavatel_ico: 'IČO dodavatele',
         cislo_dokladu: 'Číslo dokladu', datum_vystaveni: 'Datum vystavení', datum_prijeti: 'Datum příjetí',
-        duzp: 'DÚZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celková částka', mena: 'Měna',
+        duzp: 'DUZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celková částka', mena: 'Měna',
         castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', created_at_full: 'Nahráno',
         chybova_zprava: 'Chyba'
     };
@@ -832,17 +844,105 @@ document.querySelector('.search-input')?.addEventListener('keydown', function(e)
     if (e.key === 'Enter') this.closest('form').submit();
 });
 
-// ===== Preview =====
+// ===== Preview with zoom/pan =====
+let pvScale = 1, pvX = 0, pvY = 0, pvDrag = false, pvStartX = 0, pvStartY = 0, pvImg = null;
+
+function pvApply() {
+    if (!pvImg) return;
+    pvImg.style.transform = 'translate(-50%,-50%) translate('+pvX+'px,'+pvY+'px) scale('+pvScale+')';
+    document.getElementById('zoomLevel').textContent = Math.round(pvScale*100)+'%';
+}
+
 function openPreview(url, ext) {
     const content = document.getElementById('previewContent');
     const overlay = document.getElementById('previewOverlay');
-    content.innerHTML = ext === 'pdf' ? '<iframe src="'+url+'"></iframe>' : '<img src="'+url+'" alt="Náhled dokladu">';
+    const toolbar = document.getElementById('previewToolbar');
+    if (ext === 'pdf') {
+        content.innerHTML = '<iframe src="'+url+'"></iframe>';
+        toolbar.style.display = 'none';
+        content.style.cursor = 'default';
+    } else {
+        content.innerHTML = '';
+        const img = new Image();
+        img.alt = 'Náhled dokladu';
+        img.onload = function() {
+            content.appendChild(img);
+            pvImg = img;
+            pvScale = 1; pvX = 0; pvY = 0;
+            previewZoomFit();
+            toolbar.style.display = 'flex';
+        };
+        img.src = url;
+        content.style.cursor = 'grab';
+    }
     overlay.classList.add('active');
 }
+
 function closePreview() {
     document.getElementById('previewOverlay').classList.remove('active');
     document.getElementById('previewContent').innerHTML = '';
+    document.getElementById('previewToolbar').style.display = 'none';
+    pvImg = null;
 }
+
+function previewZoom(dir) {
+    if (!pvImg) return;
+    const steps = [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5];
+    let idx = steps.findIndex(s => s >= pvScale - 0.01);
+    if (idx === -1) idx = steps.length - 1;
+    idx = Math.max(0, Math.min(steps.length - 1, idx + dir));
+    pvScale = steps[idx];
+    pvApply();
+}
+
+function previewZoomFit() {
+    if (!pvImg) return;
+    const cont = document.getElementById('previewContent');
+    const sw = cont.clientWidth / pvImg.naturalWidth;
+    const sh = cont.clientHeight / pvImg.naturalHeight;
+    pvScale = Math.min(sw, sh, 1);
+    pvX = 0; pvY = 0;
+    pvApply();
+}
+
+function previewZoomReal() {
+    if (!pvImg) return;
+    pvScale = 1; pvX = 0; pvY = 0;
+    pvApply();
+}
+
+// Mouse wheel zoom
+document.getElementById('previewContent')?.addEventListener('wheel', function(e) {
+    if (!pvImg) return;
+    e.preventDefault();
+    previewZoom(e.deltaY < 0 ? 1 : -1);
+}, {passive: false});
+
+// Drag to pan
+document.getElementById('previewContent')?.addEventListener('mousedown', function(e) {
+    if (!pvImg || e.button !== 0) return;
+    pvDrag = true; pvStartX = e.clientX - pvX; pvStartY = e.clientY - pvY;
+    this.classList.add('dragging');
+    e.preventDefault();
+});
+document.addEventListener('mousemove', function(e) {
+    if (!pvDrag) return;
+    pvX = e.clientX - pvStartX; pvY = e.clientY - pvStartY;
+    pvApply();
+});
+document.addEventListener('mouseup', function() {
+    if (pvDrag) {
+        pvDrag = false;
+        document.getElementById('previewContent')?.classList.remove('dragging');
+    }
+});
+
+// Double-click to toggle fit/100%
+document.getElementById('previewContent')?.addEventListener('dblclick', function() {
+    if (!pvImg) return;
+    if (pvScale < 0.99) { previewZoomReal(); } else { previewZoomFit(); }
+});
+
 document.getElementById('previewOverlay')?.addEventListener('click', function(e) { if (e.target === this) closePreview(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
 
