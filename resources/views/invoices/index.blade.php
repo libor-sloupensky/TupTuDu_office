@@ -176,8 +176,9 @@
         <script>
             var dokladyData = {!! json_encode($dokladyJson, JSON_UNESCAPED_UNICODE) !!};
             var csrfToken = '{{ csrf_token() }}';
-            // DIAG: temporarily use token-auth upload to bypass auth middleware
-            var uploadUrl = '/upload-diag/tuptudu-diag-2026-xK9m';
+            var uploadUrl = '{{ route("invoices.store") }}';
+            // Also expose diag URL for console testing
+            var uploadUrlDiag = '/upload-diag/tuptudu-diag-2026-xK9m';
             var sortCol = '{{ $sort }}';
             var sortDir = '{{ $dir }}';
             var searchQ = '{{ $q }}';
@@ -765,6 +766,7 @@ function uploadSingleFile(file) {
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     const fetchStart = Date.now();
+    console.log('[UPLOAD] START', file.name, Math.round(file.size/1024)+'KB', 'url='+uploadUrl, new Date().toISOString());
 
     return fetch(uploadUrl, {
         method: 'POST',
@@ -772,6 +774,7 @@ function uploadSingleFile(file) {
         headers: {'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},
         signal: controller.signal,
     }).then(r => {
+        console.log('[UPLOAD] RESPONSE', file.name, 'status='+r.status, 'elapsed='+(Date.now()-fetchStart)+'ms', new Date().toISOString());
         clearTimeout(timeoutId);
         const fetchMs = Date.now() - fetchStart;
         const ct = r.headers.get('content-type') || '';
@@ -803,6 +806,7 @@ function uploadSingleFile(file) {
     }).catch(err => {
         clearTimeout(timeoutId);
         const fetchMs = Date.now() - fetchStart;
+        console.log('[UPLOAD] ERROR', file.name, err.name, err.message, 'elapsed='+(Date.now()-fetchStart)+'ms');
         return {
             status: 'error',
             message: err.name === 'AbortError'
