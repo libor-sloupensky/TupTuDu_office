@@ -92,26 +92,6 @@
     </div>
 
     <div class="version-info">
-        @auth
-        @php
-            $aiToday = \App\Models\Doklad::whereNotNull('ai_input_tokens')
-                ->whereDate('created_at', today())
-                ->selectRaw('COALESCE(SUM(ai_input_tokens),0) as input_sum, COALESCE(SUM(ai_output_tokens),0) as output_sum, COUNT(*) as pocet')
-                ->first();
-            $aiWeek = \App\Models\Doklad::whereNotNull('ai_input_tokens')
-                ->where('created_at', '>=', now()->subDays(7))
-                ->selectRaw('COALESCE(SUM(ai_input_tokens),0) as input_sum, COALESCE(SUM(ai_output_tokens),0) as output_sum, COUNT(*) as pocet')
-                ->first();
-            // Haiku 4.5: $1/MTok input, $5/MTok output
-            $usdToday = ($aiToday->input_sum / 1000000) * 1 + ($aiToday->output_sum / 1000000) * 5;
-            $usdWeek = ($aiWeek->input_sum / 1000000) * 1 + ($aiWeek->output_sum / 1000000) * 5;
-            $czkRate = 23.5;
-        @endphp
-        <span title="Dnes: {{ number_format($aiToday->input_sum) }} in + {{ number_format($aiToday->output_sum) }} out ({{ $aiToday->pocet }} dokladů) | Týden: {{ number_format($aiWeek->input_sum) }} in + {{ number_format($aiWeek->output_sum) }} out ({{ $aiWeek->pocet }} dokladů)">
-            AI dnes: ${{ number_format($usdToday, 3) }} ({{ number_format($usdToday * $czkRate, 1) }} Kč)
-            · 7d: ${{ number_format($usdWeek, 3) }} ({{ number_format($usdWeek * $czkRate, 1) }} Kč)
-        </span><br>
-        @endauth
         V003<br>
         @php
             $lpPath = $_SERVER['DOCUMENT_ROOT'] . '/last_push.txt';
