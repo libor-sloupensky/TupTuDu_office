@@ -6,6 +6,7 @@ use App\Models\Doklad;
 use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
@@ -386,6 +387,233 @@ class InvoiceController extends Controller
         $zip->close();
 
         return response()->download($tempZip, $zipName)->deleteFileAfterSend(true);
+    }
+
+    public function aiSearch(Request $request)
+    {
+        $request->validate(['q' => 'required|string|max:500']);
+        $q = trim($request->input('q'));
+        $firma = $this->aktivniFirma();
+
+        try {
+            $parsed = $this->parseSearchWithAI($q);
+            $filters = $parsed['filters'] ?? [];
+            $description = $parsed['description'] ?? 'Výsledky hledání';
+
+            $query = $this->buildFilteredQuery($filters, $firma->ico);
+            $doklady = $query->get();
+            $data = $doklady->map(fn($d) => $this->dokladToArray($d))->values();
+
+            return response()->json([
+                'description' => $description,
+                'data' => $data,
+                'count' => $data->count(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('AI search failed, falling back to LIKE', ['error' => $e->getMessage()]);
+
+            // Fallback: simple LIKE search
+            $query = Doklad::where('firma_ico', $firma->ico)
+                ->where(function ($sub) use ($q) {
+                    $sub->where('cislo_dokladu', 'like', "%{$q}%")
+                        ->orWhere('dodavatel_nazev', 'like', "%{$q}%")
+                        ->orWhere('nazev_souboru', 'like', "%{$q}%")
+                        ->orWhere('dodavatel_ico', 'like', "%{$q}%")
+                        ->orWhere('raw_text', 'like', "%{$q}%");
+                })
+                ->orderBy('created_at', 'desc');
+
+            $doklady = $query->get();
+            $data = $doklady->map(fn($d) => $this->dokladToArray($d))->values();
+
+            return response()->json([
+                'description' => "AI nedostupné — textové hledání \"{$q}\"",
+                'data' => $data,
+                'count' => $data->count(),
+            ]);
+        }
+    }
+
+    private function parseSearchWithAI(string $query): array
+    {
+        $apiKey = config('services.anthropic.key');
+        if (empty($apiKey)) {
+            throw new \RuntimeException('Anthropic API key not configured');
+        }
+
+        $today = now()->format('Y-m-d');
+        $currentYear = now()->year;
+        $currentMonth = now()->month;
+
+        $system = <<<PROMPT
+Jsi asistent pro vyhledávání účetních dokladů. Uživatel napíše dotaz přirozeně česky a ty ho převedeš na strukturované filtry pro databázi.
+
+Dnešní datum: {$today}
+
+DOSTUPNÉ FILTRY (vrať POUZE tyto klíče):
+- kategorie: pohonné_hmoty, stravování, telekomunikace, energie, doprava, kancelářské_potřeby, software, opravy_a_údržba, reklama, školení, pojištění, nájem, dokumenty, ostatní
+- typ_dokladu: faktura, uctenka, pokladni_doklad, dobropis, zalohova_faktura, pokuta, jine
+- stav: ok, chyba, nekvalitni
+- kvalita: ok, nizka, necitelna
+- mena: CZK, EUR, USD (vždy velkými)
+- zdroj: upload, email
+- dodavatel_nazev: textový řetězec (hledá se částečně)
+- dodavatel_ico: přesné IČO
+- cislo_dokladu: textový řetězec (hledá se částečně)
+- castka_min: minimální částka (číslo)
+- castka_max: maximální částka (číslo)
+- duzp_od, duzp_do: datum DUZP od/do (YYYY-MM-DD)
+- datum_vystaveni_od, datum_vystaveni_do: datum vystavení od/do (YYYY-MM-DD)
+- datum_prijeti_od, datum_prijeti_do: datum přijetí od/do (YYYY-MM-DD)
+- datum_splatnosti_od, datum_splatnosti_do: datum splatnosti od/do (YYYY-MM-DD)
+- text: fulltext v raw_text dokladu
+- sort_by: created_at, datum_vystaveni, datum_prijeti, duzp, datum_splatnosti, castka_celkem
+- sort_dir: asc, desc
+
+PRAVIDLA:
+- "květen 2025" = duzp_od: 2025-05-01, duzp_do: 2025-05-31
+- "nad 5000" = castka_min: 5000
+- "pod 1000" = castka_max: 1000
+- "od Alza" = dodavatel_nazev: "Alza"
+- "s chybou" = stav: chyba
+- "nekvalitní" = kvalita: nizka NEBO necitelna (použij kvalita: nizka)
+- "minulý měsíc" = vypočítej z dnešního data
+- Pokud uživatel nespecifikuje typ data, použij DUZP (duzp_od, duzp_do)
+- Vrať POUZE filtry, které odpovídají dotazu. Nepoužité filtry nevkládej.
+
+Odpověz POUZE validním JSON:
+{"description": "Stručný český popis co se hledá", "filters": {"klíč": "hodnota", ...}}
+PROMPT;
+
+        $response = Http::timeout(15)->withHeaders([
+            'x-api-key' => $apiKey,
+            'anthropic-version' => '2023-06-01',
+            'content-type' => 'application/json',
+        ])->post('https://api.anthropic.com/v1/messages', [
+            'model' => 'claude-haiku-4-5-20251001',
+            'max_tokens' => 1024,
+            'system' => $system,
+            'messages' => [
+                ['role' => 'user', 'content' => $query],
+            ],
+        ]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('AI API request failed: ' . $response->status());
+        }
+
+        $body = $response->json();
+        $content = $body['content'][0]['text'] ?? '';
+
+        if (preg_match('/\{[\s\S]*\}/s', $content, $matches)) {
+            $result = json_decode($matches[0], true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return [
+                    'description' => $result['description'] ?? 'Výsledky hledání',
+                    'filters' => $result['filters'] ?? [],
+                ];
+            }
+        }
+
+        throw new \RuntimeException('Failed to parse AI response');
+    }
+
+    private function buildFilteredQuery(array $filters, string $firmaIco)
+    {
+        $query = Doklad::where('firma_ico', $firmaIco);
+
+        // Enum whitelists
+        $kategorieEnum = ['pohonné_hmoty', 'stravování', 'telekomunikace', 'energie', 'doprava', 'kancelářské_potřeby', 'software', 'opravy_a_údržba', 'reklama', 'školení', 'pojištění', 'nájem', 'dokumenty', 'ostatní'];
+        $typEnum = ['faktura', 'uctenka', 'pokladni_doklad', 'dobropis', 'zalohova_faktura', 'pokuta', 'jine'];
+        $stavEnum = ['ok', 'chyba', 'nekvalitni'];
+        $kvalitaEnum = ['ok', 'nizka', 'necitelna'];
+        $menaEnum = ['CZK', 'EUR', 'USD', 'GBP', 'PLN', 'CHF'];
+        $zdrojEnum = ['upload', 'email'];
+        $sortEnum = ['created_at', 'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti', 'castka_celkem'];
+        $dirEnum = ['asc', 'desc'];
+
+        $dateRegex = '/^\d{4}-\d{2}-\d{2}$/';
+
+        foreach ($filters as $key => $value) {
+            if ($value === null || $value === '') continue;
+            $value = is_string($value) ? trim($value) : $value;
+
+            switch ($key) {
+                case 'kategorie':
+                    if (in_array($value, $kategorieEnum)) $query->where('kategorie', $value);
+                    break;
+                case 'typ_dokladu':
+                    if (in_array($value, $typEnum)) $query->where('typ_dokladu', $value);
+                    break;
+                case 'stav':
+                    if (in_array($value, $stavEnum)) $query->where('stav', $value);
+                    break;
+                case 'kvalita':
+                    if (in_array($value, $kvalitaEnum)) $query->where('kvalita', $value);
+                    break;
+                case 'mena':
+                    $v = strtoupper($value);
+                    if (in_array($v, $menaEnum)) $query->where('mena', $v);
+                    break;
+                case 'zdroj':
+                    if (in_array($value, $zdrojEnum)) $query->where('zdroj', $value);
+                    break;
+                case 'dodavatel_nazev':
+                    $query->where('dodavatel_nazev', 'like', '%' . $value . '%');
+                    break;
+                case 'dodavatel_ico':
+                    if (preg_match('/^\d{6,8}$/', $value)) $query->where('dodavatel_ico', $value);
+                    break;
+                case 'cislo_dokladu':
+                    $query->where('cislo_dokladu', 'like', '%' . $value . '%');
+                    break;
+                case 'castka_min':
+                    if (is_numeric($value)) $query->where('castka_celkem', '>=', (float)$value);
+                    break;
+                case 'castka_max':
+                    if (is_numeric($value)) $query->where('castka_celkem', '<=', (float)$value);
+                    break;
+                case 'duzp_od':
+                    if (preg_match($dateRegex, $value)) $query->where('duzp', '>=', $value);
+                    break;
+                case 'duzp_do':
+                    if (preg_match($dateRegex, $value)) $query->where('duzp', '<=', $value);
+                    break;
+                case 'datum_vystaveni_od':
+                    if (preg_match($dateRegex, $value)) $query->where('datum_vystaveni', '>=', $value);
+                    break;
+                case 'datum_vystaveni_do':
+                    if (preg_match($dateRegex, $value)) $query->where('datum_vystaveni', '<=', $value);
+                    break;
+                case 'datum_prijeti_od':
+                    if (preg_match($dateRegex, $value)) $query->where('datum_prijeti', '>=', $value);
+                    break;
+                case 'datum_prijeti_do':
+                    if (preg_match($dateRegex, $value)) $query->where('datum_prijeti', '<=', $value);
+                    break;
+                case 'datum_splatnosti_od':
+                    if (preg_match($dateRegex, $value)) $query->where('datum_splatnosti', '>=', $value);
+                    break;
+                case 'datum_splatnosti_do':
+                    if (preg_match($dateRegex, $value)) $query->where('datum_splatnosti', '<=', $value);
+                    break;
+                case 'text':
+                    $query->where('raw_text', 'like', '%' . $value . '%');
+                    break;
+                case 'sort_by':
+                    $dir = isset($filters['sort_dir']) && in_array($filters['sort_dir'], $dirEnum) ? $filters['sort_dir'] : 'desc';
+                    if (in_array($value, $sortEnum)) $query->orderBy($value, $dir);
+                    break;
+                // Unknown keys are silently ignored
+            }
+        }
+
+        // Default sort if none specified
+        if (!isset($filters['sort_by'])) {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        return $query;
     }
 
     public function destroy(Doklad $doklad)

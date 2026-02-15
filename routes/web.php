@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     // Doklady
     Route::post('/upload', [InvoiceController::class, 'store'])->name('invoices.store');
     Route::get('/doklady', [InvoiceController::class, 'index'])->name('doklady.index');
+    Route::post('/doklady/ai-search', [InvoiceController::class, 'aiSearch'])->name('doklady.aiSearch');
     Route::get('/doklady/mesic/{mesic}/zip', [InvoiceController::class, 'downloadMonth'])->name('doklady.downloadMonth');
     Route::get('/doklady/{doklad}', [InvoiceController::class, 'show'])->name('doklady.show');
     Route::get('/doklady/{doklad}/stahnout', [InvoiceController::class, 'download'])->name('doklady.download');

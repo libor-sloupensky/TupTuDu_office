@@ -45,9 +45,18 @@
     .alert-history { display: none; border: 1px solid #e8ecf0; border-radius: 6px; margin-bottom: 1rem; }
     .alert-history.open { display: block; }
 
-    .toolbar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; }
-    .search-input { flex: 1; padding: 0.4rem 0.75rem; border: 1px solid #d0d8e0; border-radius: 6px; font-size: 0.85rem; outline: none; }
-    .search-input:focus { border-color: #3498db; }
+    .ai-search-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.5rem 1rem; background: #f0f4f8; border: 1px solid #d0d8e0; border-radius: 8px; }
+    .ai-search-label { font-size: 0.78rem; font-weight: 600; color: #555; white-space: nowrap; }
+    .ai-search-input-wrap { flex: 1; display: flex; }
+    .ai-search-input { flex: 1; padding: 0.45rem 0.75rem; border: 1px solid #d0d8e0; border-radius: 6px 0 0 6px; font-size: 0.85rem; outline: none; }
+    .ai-search-input:focus { border-color: #3498db; }
+    .ai-search-btn { padding: 0.45rem 0.75rem; background: #3498db; color: white; border: 1px solid #2980b9; border-left: none; border-radius: 0 6px 6px 0; cursor: pointer; font-size: 0.9rem; }
+    .ai-search-btn:hover { background: #2980b9; }
+    .ai-search-btn:disabled { background: #95a5a6; cursor: wait; }
+    .ai-search-help { width: 20px; height: 20px; background: #bdc3c7; color: white; border-radius: 50%; font-size: 0.7rem; font-weight: bold; cursor: help; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ai-search-result { background: #eaf6ff; border: 1px solid #bee0f7; border-radius: 6px; padding: 0.5rem 1rem; margin-bottom: 0.75rem; font-size: 0.85rem; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
+    .ai-search-clear { background: none; border: 1px solid #bee0f7; border-radius: 4px; color: #3498db; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.8rem; }
+    .ai-search-clear:hover { background: #d6eeff; }
 
     .col-toggle { font-size: 0.8rem; color: #777; cursor: pointer; user-select: none; }
     .col-toggle:hover { color: #2c3e50; }
@@ -143,6 +152,7 @@
         <script>
             var csrfToken = '{{ csrf_token() }}';
             var uploadUrl = '{{ route("invoices.store") }}';
+            var aiSearchUrl = '{{ route("doklady.aiSearch") }}';
         </script>
         <div class="upload-zone" id="dropZone">
             <p>Přetáhněte soubory sem nebo klikněte pro výběr</p>
@@ -185,12 +195,20 @@
     @if ($doklady->isEmpty() && empty($q))
         <div class="empty-state"><p>Zatím žádné doklady.</p></div>
     @else
-        <div class="toolbar">
-            <form method="GET" action="{{ route('doklady.index') }}" style="flex:1; display:flex;">
-                <input type="hidden" name="sort" value="{{ $sort }}">
-                <input type="hidden" name="dir" value="{{ $dir }}">
-                <input type="text" name="q" value="{{ $q }}" class="search-input" placeholder="Hledat v dokladech...">
-            </form>
+        <div class="ai-search-bar">
+            <span class="ai-search-label">AI hledání</span>
+            <div class="ai-search-input-wrap">
+                <input type="text" id="aiSearchInput" class="ai-search-input"
+                       placeholder="Napište co hledáte, např: pohonné hmoty, květen 2025..."
+                       value="{{ $q }}">
+                <button type="button" id="aiSearchBtn" class="ai-search-btn"
+                        title="Hledat">&#128269;</button>
+            </div>
+            <span class="ai-search-help" title="Pište přirozeně česky:&#10;&#8226; 'pohonné hmoty za květen 2025'&#10;&#8226; 'faktury od Alza nad 5000 Kč'&#10;&#8226; 'doklady s chybou'&#10;&#8226; 'účtenky z minulého měsíce'&#10;AI převede dotaz na filtry automaticky.">?</span>
+        </div>
+        <div id="aiSearchResult" class="ai-search-result" style="display:none;">
+            <span id="aiSearchDesc"></span>
+            <button type="button" id="aiSearchClear" class="ai-search-clear">Zrušit filtr</button>
         </div>
 
         <div class="col-toggle" id="colToggle" onclick="document.getElementById('colPanel').classList.toggle('open'); this.querySelector('span').textContent = document.getElementById('colPanel').classList.contains('open') ? '\u25BC' : '\u25B6';"><span>&#9654;</span> Přidat/ubrat sloupce</div>
@@ -839,9 +857,56 @@ function uploadSingleFile(file) {
     });
 }
 
-// ===== Search on Enter =====
-document.querySelector('.search-input')?.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') this.closest('form').submit();
+// ===== AI Search =====
+function doAiSearch() {
+    const input = document.getElementById('aiSearchInput');
+    const btn = document.getElementById('aiSearchBtn');
+    const resultBar = document.getElementById('aiSearchResult');
+    const descEl = document.getElementById('aiSearchDesc');
+    const q = (input ? input.value.trim() : '');
+    if (!q) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-sm" style="width:12px;height:12px;border-width:1.5px;vertical-align:middle;"></span>';
+
+    fetch(aiSearchUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ q: q })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '&#128269;';
+
+        const count = data.count || 0;
+        const countLabel = count === 1 ? '1 doklad' : (count < 5 ? count + ' doklady' : count + ' dokladů');
+        descEl.textContent = (data.description || 'Výsledky') + ' (' + countLabel + ')';
+        resultBar.style.display = 'flex';
+
+        dokladyData = data.data || [];
+        renderTable();
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '&#128269;';
+        console.error('AI search error:', err);
+    });
+}
+
+document.getElementById('aiSearchBtn')?.addEventListener('click', doAiSearch);
+document.getElementById('aiSearchInput')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); doAiSearch(); }
+});
+document.getElementById('aiSearchClear')?.addEventListener('click', function() {
+    document.getElementById('aiSearchResult').style.display = 'none';
+    document.getElementById('aiSearchInput').value = '';
+    refreshTableData();
 });
 
 // ===== Preview with zoom/pan =====
