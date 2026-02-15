@@ -646,7 +646,7 @@ function formatSize(bytes) {
 const uploadQueue = [];     // {file, item} objects waiting or in progress
 let uploadCompleted = 0;
 let uploadActive = 0;
-const MAX_CONCURRENT = 1;   // Shared hosting: serialize requests
+const MAX_CONCURRENT = 3;   // Parallel uploads: while file 1 is processed by AI, files 2+3 upload
 let autoHideTimer = null;
 
 function enqueueFiles(files) {
