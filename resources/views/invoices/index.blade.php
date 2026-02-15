@@ -283,25 +283,25 @@ function checkUploadPanelEmpty() {
 // ===== Column definitions =====
 const COLUMNS = [
     { id: 'expand',    label: '',           tip: null, sortable: false, editable: false, fixed: true,  field: null },
-    { id: 'nahrano',   label: 'Nahrano',    tip: 'Datum a cas vlozeni do systemu', sortable: 'created_at', editable: false, fixed: false, field: null },
-    { id: 'cas_nahrani', label: 'Cas',      tip: 'Cas nahrani dokladu', sortable: false, editable: false, fixed: false, field: null },
-    { id: 'datum_prijeti', label: 'Prijeti', tip: 'Datum prijeti dokladu do ucetnictvi', sortable: 'datum_prijeti', editable: 'date', fixed: false, field: 'datum_prijeti' },
-    { id: 'duzp',      label: 'DUZP',       tip: 'Datum uskutecneni zdanitelneho plneni', sortable: 'duzp', editable: 'date', fixed: false, field: 'duzp' },
-    { id: 'vystaveni', label: 'Vystaveni',  tip: 'Datum vystaveni dokladu dodavatelem', sortable: 'datum_vystaveni', editable: 'date', fixed: false, field: 'datum_vystaveni' },
+    { id: 'nahrano',   label: 'Nahráno',    tip: 'Datum a čas vložení do systému', sortable: 'created_at', editable: false, fixed: false, field: null },
+    { id: 'cas_nahrani', label: 'Čas',      tip: 'Čas nahrání dokladu', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'datum_prijeti', label: 'Příjetí', tip: 'Datum příjetí dokladu do účetnictví', sortable: 'datum_prijeti', editable: 'date', fixed: false, field: 'datum_prijeti' },
+    { id: 'duzp',      label: 'DÚZP',       tip: 'Datum uskutečnění zdanitelného plnění', sortable: 'duzp', editable: 'date', fixed: false, field: 'duzp' },
+    { id: 'vystaveni', label: 'Vystavení',  tip: 'Datum vystavení dokladu dodavatelem', sortable: 'datum_vystaveni', editable: 'date', fixed: false, field: 'datum_vystaveni' },
     { id: 'splatnost', label: 'Splatnost',  tip: 'Datum splatnosti', sortable: 'datum_splatnosti', editable: 'date', fixed: false, field: 'datum_splatnosti' },
-    { id: 'cislo',     label: 'Cislo',      tip: 'Cislo/variabilni symbol dokladu', sortable: false, editable: 'text', fixed: false, field: 'cislo_dokladu' },
+    { id: 'cislo',     label: 'Číslo',      tip: 'Číslo/variabilní symbol dokladu', sortable: false, editable: 'text', fixed: false, field: 'cislo_dokladu' },
     { id: 'nahled',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
-    { id: 'dodavatel', label: 'Dodavatel',  tip: 'Nazev dodavatele/vystavitele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_nazev' },
-    { id: 'ico',       label: 'IC',         tip: 'ICO dodavatele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_ico' },
-    { id: 'castka',    label: 'Castka',      tip: 'Celkova castka s DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_celkem' },
-    { id: 'mena',      label: 'Mena',       tip: 'Mena dokladu', sortable: false, editable: 'text', fixed: false, field: 'mena' },
-    { id: 'dph',       label: 'DPH',        tip: 'Castka DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_dph' },
-    { id: 'kategorie', label: 'Kategorie',  tip: 'Ucetni kategorie nakladu', sortable: false, editable: 'text', fixed: false, field: 'kategorie' },
-    { id: 'stav',      label: 'Stav',       tip: 'Stav zpracovani', sortable: false, editable: false, fixed: false, field: null },
-    { id: 'typ',       label: 'Typ',        tip: 'Typ dokladu (faktura, uctenka, ...)', sortable: false, editable: false, fixed: false, field: null },
-    { id: 'kvalita',   label: 'Kvalita',    tip: 'Kvalita citelnosti dokladu', sortable: false, editable: false, fixed: false, field: null },
-    { id: 'zdroj',     label: 'Zdroj',      tip: 'Zpusob vlozeni (rucni/email)', sortable: false, editable: false, fixed: false, field: null },
-    { id: 'soubor',    label: 'Soubor',     tip: 'Nazev nahraneho souboru', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'dodavatel', label: 'Dodavatel',  tip: 'Název dodavatele/vystavitele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_nazev' },
+    { id: 'ico',       label: 'IČ',         tip: 'IČO dodavatele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_ico' },
+    { id: 'castka',    label: 'Částka',      tip: 'Celková částka s DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_celkem' },
+    { id: 'mena',      label: 'Měna',       tip: 'Měna dokladu', sortable: false, editable: 'text', fixed: false, field: 'mena' },
+    { id: 'dph',       label: 'DPH',        tip: 'Částka DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_dph' },
+    { id: 'kategorie', label: 'Kategorie',  tip: 'Účetní kategorie nákladů', sortable: false, editable: 'text', fixed: false, field: 'kategorie' },
+    { id: 'stav',      label: 'Stav',       tip: 'Stav zpracování', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'typ',       label: 'Typ',        tip: 'Typ dokladu (faktura, účtenka, ...)', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'kvalita',   label: 'Kvalita',    tip: 'Kvalita čitelnosti dokladu', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'zdroj',     label: 'Zdroj',      tip: 'Způsob vložení (ruční/email)', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'soubor',    label: 'Soubor',     tip: 'Název nahraného souboru', sortable: false, editable: false, fixed: false, field: null },
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
 
@@ -369,8 +369,8 @@ function cellValue(d, colId) {
         case 'duzp': return d.duzp || '-';
         case 'vystaveni': return d.datum_vystaveni || '-';
         case 'splatnost': return d.datum_splatnosti || '-';
-        case 'cislo': return '<a href="'+d.show_url+'">'+(d.cislo_dokladu || d.nazev_souboru)+'</a>' + (d.duplicita_id ? '<span class="badge-dup" title="Mozna duplicita">DUP</span>' : '');
-        case 'nahled': return d.preview_url ? '<a href="#" class="btn-preview" title="Nahled" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>' : '';
+        case 'cislo': return '<a href="'+d.show_url+'">'+(d.cislo_dokladu || d.nazev_souboru)+'</a>' + (d.duplicita_id ? '<span class="badge-dup" title="Možná duplicita">DUP</span>' : '');
+        case 'nahled': return d.preview_url ? '<a href="#" class="btn-preview" title="Náhled" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>' : '';
         case 'dodavatel': return d.dodavatel_nazev || '-';
         case 'ico': return d.dodavatel_ico || '-';
         case 'castka': return d.castka_celkem ? Number(d.castka_celkem).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
@@ -378,18 +378,18 @@ function cellValue(d, colId) {
         case 'dph': return d.castka_dph ? Number(d.castka_dph).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
         case 'kategorie': return d.kategorie || '-';
         case 'stav':
-            if (d.stav === 'dokonceno') return '<span class="stav-dokonceno" title="Dokonceno">&#10003;</span>';
-            if (d.stav === 'nekvalitni') return '<span class="stav-nekvalitni" title="'+(d.kvalita_poznamka||'Nizka kvalita')+'">&#9888;</span>';
+            if (d.stav === 'dokonceno') return '<span class="stav-dokonceno" title="V pořádku">&#10003;</span>';
+            if (d.stav === 'nekvalitni') return '<span class="stav-nekvalitni" title="'+(d.kvalita_poznamka||'Nízká kvalita')+'">&#9888;</span>';
             if (d.stav === 'chyba') return '<span class="stav-chyba" title="'+(d.chybova_zprava||'Chyba zpracování').replace(/"/g,'&quot;')+'">Chyba</span>';
             return '<span class="stav-zpracovava">'+d.stav+'</span>';
         case 'typ':
-            const typLabels = {faktura:'Faktura', uctenka:'Uctenka', pokladni_doklad:'Pokl. dokl.', dobropis:'Dobropis', zalohova_faktura:'Zal. faktura', pokuta:'Pokuta', jine:'Jine'};
+            const typLabels = {faktura:'Faktura', uctenka:'Účtenka', pokladni_doklad:'Pokl. dokl.', dobropis:'Dobropis', zalohova_faktura:'Zál. faktura', pokuta:'Pokuta', jine:'Jiné'};
             return typLabels[d.typ_dokladu] || d.typ_dokladu || '-';
         case 'kvalita':
-            if (d.kvalita === 'nizka') return '<span class="badge-kvalita kvalita-nizka" title="'+(d.kvalita_poznamka||'')+'">Nizka</span>';
-            if (d.kvalita === 'necitelna') return '<span class="badge-kvalita kvalita-necitelna" title="'+(d.kvalita_poznamka||'')+'">Necitelna</span>';
+            if (d.kvalita === 'nizka') return '<span class="badge-kvalita kvalita-nizka" title="'+(d.kvalita_poznamka||'')+'">Nízká</span>';
+            if (d.kvalita === 'necitelna') return '<span class="badge-kvalita kvalita-necitelna" title="'+(d.kvalita_poznamka||'')+'">Nečitelná</span>';
             return '';
-        case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Rucni';
+        case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
         case 'soubor': return d.nazev_souboru || '-';
         case 'smazat': return '<form action="'+d.destroy_url+'" method="POST" style="display:inline" onsubmit="return confirm(\'Smazat doklad '+(d.cislo_dokladu||d.nazev_souboru)+'?\')"><input type="hidden" name="_token" value="'+csrfToken+'"><input type="hidden" name="_method" value="DELETE"><button type="submit" class="btn-del-sm" title="Smazat">&times;</button></form>';
         default: return '-';
@@ -474,11 +474,11 @@ function toggleDetail(id, btn) {
 
     const labels = {
         nazev_souboru: 'Soubor', stav: 'Stav', typ_dokladu: 'Typ dokladu', kvalita: 'Kvalita',
-        kvalita_poznamka: 'Poznamka ke kvalite',
-        dodavatel_nazev: 'Dodavatel', dodavatel_ico: 'ICO dodavatele',
-        cislo_dokladu: 'Cislo dokladu', datum_vystaveni: 'Datum vystaveni', datum_prijeti: 'Datum prijeti',
-        duzp: 'DUZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celkova castka', mena: 'Mena',
-        castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', created_at_full: 'Nahrano',
+        kvalita_poznamka: 'Poznámka ke kvalitě',
+        dodavatel_nazev: 'Dodavatel', dodavatel_ico: 'IČO dodavatele',
+        cislo_dokladu: 'Číslo dokladu', datum_vystaveni: 'Datum vystavení', datum_prijeti: 'Datum příjetí',
+        duzp: 'DÚZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celková částka', mena: 'Měna',
+        castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', created_at_full: 'Nahráno',
         chybova_zprava: 'Chyba'
     };
     const fields = ['nazev_souboru','stav','typ_dokladu','kvalita','kvalita_poznamka',
@@ -491,20 +491,20 @@ function toggleDetail(id, btn) {
         let val = d[f];
         if (val === null || val === undefined || val === '') val = '-';
         if (f === 'stav') {
-            if (val === 'dokonceno') val = '<span class="stav-dokonceno">Dokonceno</span>';
-            else if (val === 'nekvalitni') val = '<span class="stav-nekvalitni">Nekvalitni</span>';
+            if (val === 'dokonceno') val = '<span class="stav-dokonceno">V pořádku</span>';
+            else if (val === 'nekvalitni') val = '<span class="stav-nekvalitni">Nekvalitní</span>';
             else if (val === 'chyba') val = '<span class="stav-chyba">Chyba</span>';
         }
         if (f === 'typ_dokladu') {
-            const typL = {faktura:'Faktura', uctenka:'Uctenka', pokladni_doklad:'Pokladni doklad', dobropis:'Dobropis', zalohova_faktura:'Zalohova faktura', pokuta:'Pokuta', jine:'Jine'};
+            const typL = {faktura:'Faktura', uctenka:'Účtenka', pokladni_doklad:'Pokladní doklad', dobropis:'Dobropis', zalohova_faktura:'Zálohová faktura', pokuta:'Pokuta', jine:'Jiné'};
             val = typL[val] || val || '-';
         }
         if (f === 'kvalita') {
-            if (val === 'dobra') val = 'Dobra';
-            else if (val === 'nizka') val = '<span class="stav-nekvalitni">Nizka</span>';
-            else if (val === 'necitelna') val = '<span class="stav-chyba">Necitelna</span>';
+            if (val === 'dobra') val = 'Dobrá';
+            else if (val === 'nizka') val = '<span class="stav-nekvalitni">Nízká</span>';
+            else if (val === 'necitelna') val = '<span class="stav-chyba">Nečitelná</span>';
         }
-        if (f === 'zdroj') val = val === 'email' ? 'Email' : 'Rucni nahrani';
+        if (f === 'zdroj') val = val === 'email' ? 'Email' : 'Ruční nahrání';
         if ((f === 'castka_celkem' || f === 'castka_dph') && val !== '-') {
             val = Number(val).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + (d.mena || '');
         }
@@ -635,7 +635,7 @@ function enqueueFiles(files) {
             '<span class="upload-item-icon"><span class="spinner-sm"></span></span>' +
             '<span class="upload-item-name">' + file.name + '</span>' +
             '<span class="upload-item-size">' + formatSize(file.size) + '</span>' +
-            '<span class="upload-item-status">Ceka...</span>';
+            '<span class="upload-item-status">Čeká...</span>';
         uploadList.appendChild(item);
         uploadQueue.push({ file, item });
         added++;
@@ -648,7 +648,7 @@ function enqueueFiles(files) {
     // Show panel, shrink drop zone but keep it active
     uploadPanel.classList.add('active');
     dropZone.classList.add('compact');
-    dropZone.querySelector('p:first-child').textContent = 'Pridat dalsi soubory';
+    dropZone.querySelector('p:first-child').textContent = 'Přidat další soubory';
     updateUploadHeader();
 
     // Kick workers
@@ -661,9 +661,9 @@ function updateUploadHeader() {
     const total = uploadQueue.length;
     const pending = total - uploadCompleted - uploadActive;
     if (pending > 0 || uploadActive > 0) {
-        document.getElementById('uploadPanelTitle').textContent = 'Nahravani souboru...';
+        document.getElementById('uploadPanelTitle').textContent = 'Nahrávání souborů...';
     } else {
-        document.getElementById('uploadPanelTitle').textContent = 'Nahravani dokonceno';
+        document.getElementById('uploadPanelTitle').textContent = 'Nahrávání dokončeno';
     }
     document.getElementById('uploadPanelProgress').textContent = uploadCompleted + ' / ' + total;
 }
@@ -678,14 +678,14 @@ function processNextInQueue() {
 
     item.className = 'upload-item status-processing';
     const statusEl = item.querySelector('.upload-item-status');
-    statusEl.textContent = 'Zpracovavam... 0s';
+    statusEl.textContent = 'Zpracovávám... 0s';
     updateUploadHeader();
 
     // Elapsed timer
     const startTime = Date.now();
     const timerInterval = setInterval(() => {
         const elapsed = Math.round((Date.now() - startTime) / 1000);
-        statusEl.textContent = 'Zpracovavam... ' + elapsed + 's';
+        statusEl.textContent = 'Zpracovávám... ' + elapsed + 's';
     }, 1000);
 
     uploadSingleFile(file).then(result => {
@@ -699,16 +699,16 @@ function processNextInQueue() {
         if (result.status === 'ok') {
             item.className = 'upload-item status-ok';
             icon.innerHTML = '&#10003;';
-            status.textContent = result.message || 'Nahrano';
+            status.textContent = result.message || 'Nahráno';
         } else if (result.status === 'warning') {
             item.className = 'upload-item status-warning';
             icon.innerHTML = '&#9888;';
-            status.textContent = result.message || 'Nahrano s upozornenim';
+            status.textContent = result.message || 'Nahráno s upozorněním';
             addDismissBtn(item);
         } else if (result.status === 'duplicate') {
             item.className = 'upload-item status-duplicate';
             icon.innerHTML = '&#8212;';
-            status.textContent = result.message || 'Jiz existuje';
+            status.textContent = result.message || 'Již existuje';
         } else {
             item.className = 'upload-item status-error';
             icon.innerHTML = '&#10007;';
@@ -757,7 +757,7 @@ function refreshTableData() {
 function onAllUploadsComplete() {
     updateUploadHeader();
     dropZone.classList.remove('compact');
-    dropZone.querySelector('p:first-child').textContent = 'Pretahnete soubory sem nebo kliknete pro vyber';
+    dropZone.querySelector('p:first-child').textContent = 'Přetáhněte soubory sem nebo klikněte pro výběr';
 
     // Auto-hide success and duplicate items after 10s
     autoHideTimer = setTimeout(() => {
@@ -804,7 +804,7 @@ function uploadSingleFile(file) {
         return r.json().then(data => {
             const results = data.results || data;
             const firstResult = Array.isArray(results) && results.length > 0 ? results[0] : null;
-            if (!firstResult) return { status: 'error', message: file.name + ' - prazdna odpoved' };
+            if (!firstResult) return { status: 'error', message: file.name + ' - prázdná odpověď' };
 
             const secs = Math.round(fetchMs / 1000);
             const timingStr = secs > 3 ? ' (' + secs + 's)' : '';
@@ -821,8 +821,8 @@ function uploadSingleFile(file) {
         return {
             status: 'error',
             message: err.name === 'AbortError'
-                ? file.name + ' - Casovy limit (' + Math.round(fetchMs/1000) + 's)'
-                : (err.message || 'Chyba site') + ' (' + Math.round(fetchMs/1000) + 's)'
+                ? file.name + ' - Časový limit (' + Math.round(fetchMs/1000) + 's)'
+                : (err.message || 'Chyba sítě') + ' (' + Math.round(fetchMs/1000) + 's)'
         };
     });
 }
@@ -836,7 +836,7 @@ document.querySelector('.search-input')?.addEventListener('keydown', function(e)
 function openPreview(url, ext) {
     const content = document.getElementById('previewContent');
     const overlay = document.getElementById('previewOverlay');
-    content.innerHTML = ext === 'pdf' ? '<iframe src="'+url+'"></iframe>' : '<img src="'+url+'" alt="Nahled dokladu">';
+    content.innerHTML = ext === 'pdf' ? '<iframe src="'+url+'"></iframe>' : '<img src="'+url+'" alt="Náhled dokladu">';
     overlay.classList.add('active');
 }
 function closePreview() {
