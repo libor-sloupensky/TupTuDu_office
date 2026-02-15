@@ -466,7 +466,7 @@ class DokladProcessor
                         $contentBlock,
                         [
                             'type' => 'text',
-                            'text' => 'Analyzuj tento doklad/dokument podle instrukcí. Vrať POUZE validní JSON objekt.',
+                            'text' => 'Analyzuj tento sken. POZOR: stránka může obsahovat VÍCE samostatných dokladů (účtenek/paragonů nalepených na papíře). Každý fyzicky oddělený doklad vrať jako samostatný objekt v poli "dokumenty". Vrať POUZE validní JSON.',
                         ],
                     ],
                 ],
@@ -524,8 +524,8 @@ Jsi expert na zpracování účetních dokladů. Analyzuj přiložený dokument 
 KONTEXT: {$firmaInfo}
 
 POSTUP:
-1. Zjisti kolik SAMOSTATNÝCH dokladů je na stránce/obrázku
-2. Pro KAŽDÝ doklad extrahuj data
+1. NEJDŘÍVE zjisti kolik SAMOSTATNÝCH dokladů je na stránce/obrázku. Pozorně se podívej - naskenovaná stránka A4 často obsahuje 2-4 menší doklady (účtenky, paragony) nalepené nebo položené vedle sebe či nad sebou. Každý fyzicky oddělený doklad = samostatný záznam.
+2. Pro KAŽDÝ doklad extrahuj data SAMOSTATNĚ do vlastního objektu v poli "dokumenty"
 3. Zhodnoť kvalitu čitelnosti
 4. Klasifikuj typ dokladu
 
@@ -572,7 +572,7 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
 }
 
 DŮLEŽITÁ PRAVIDLA:
-- Pokud na stránce/skenu vidíš VÍCE samostatných dokladů (např. 2 účtenky vedle sebe), vrať je jako samostatné záznamy v poli "dokumenty"
+- KRITICKÉ: Na naskenované stránce bývá VÍCE samostatných dokladů! Pokud vidíš 2 nebo více účtenek, paragonů nebo faktur na jedné stránce (vedle sebe, nad sebou, nalepené na papíru), MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Typický sken A4 obsahuje 2-4 účtenky. Nestačí je sloučit do jednoho záznamu!
 - U neadresních dokladů (účtenky, paragony bez IČO odběratele) bude odberatel_ico null
 - Pokud je doklad v cizí měně, uveď správnou měnu (EUR, USD, GBP, PLN atd.)
 - Pokud údaj nelze z dokumentu zjistit, použij null - nikdy nevymýšlej data

@@ -105,6 +105,58 @@
     </div>
     @endif
 
+    @if ($vazby->isNotEmpty())
+    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
+        <h3 style="margin-bottom: 1rem;">Účetní vazby</h3>
+
+        @if (session('flash'))
+            <div class="success-msg">{{ session('flash') }}</div>
+        @endif
+
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.9rem;">Účetní firma</th>
+                    <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.9rem;">IČO</th>
+                    <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.9rem;">Stav</th>
+                    <th style="padding: 0.6rem 0.8rem; border-bottom: 2px solid #eee; background: #f8f9fa;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($vazby as $vazba)
+                    <tr>
+                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $vazba->ucetniFirma?->nazev ?? '—' }}</td>
+                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $vazba->ucetni_ico }}</td>
+                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">
+                            @if ($vazba->stav === 'schvaleno')
+                                <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#d4edda; color:#155724;">Schváleno</span>
+                            @elseif ($vazba->stav === 'ceka_na_firmu')
+                                <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#fff3cd; color:#856404;">Čeká na schválení</span>
+                            @elseif ($vazba->stav === 'zamitnuto')
+                                <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#f8d7da; color:#721c24;">Zamítnuto</span>
+                            @endif
+                        </td>
+                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee;">
+                            @if ($vazba->stav === 'ceka_na_firmu')
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <form method="POST" action="{{ route('vazby.approve', $vazba->id) }}">
+                                        @csrf
+                                        <button type="submit" style="padding:0.3rem 0.7rem; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600; background:#27ae60; color:white;">Schválit</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('vazby.reject', $vazba->id) }}">
+                                        @csrf
+                                        <button type="submit" style="padding:0.3rem 0.7rem; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600; background:#e74c3c; color:white;">Zamítnout</button>
+                                    </form>
+                                </div>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
+
     @if ($firma)
     <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
         <h3 style="margin-bottom: 0.5rem;">Pravidla zpracování dokladů</h3>

@@ -44,9 +44,6 @@
                     @if (auth()->user()->maRoli('ucetni'))
                         <a href="{{ route('klienti.index') }}">Klienti</a>
                     @endif
-                    @if (auth()->user()->maRoli('firma') || auth()->user()->maRoli('dodavatel'))
-                        <a href="{{ route('vazby.index') }}">Účetní</a>
-                    @endif
                 @endif
 
                 @php

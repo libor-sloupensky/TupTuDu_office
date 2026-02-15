@@ -72,9 +72,8 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
         Route::delete('/klienti/{klientIco}', [KlientiController::class, 'destroy'])->name('klienti.destroy');
     });
 
-    // Vazby (firma, dodavatel)
+    // Vazby (firma, dodavatel) - approve/reject actions
     Route::middleware('role:firma,dodavatel')->group(function () {
-        Route::get('/vazby', [VazbyController::class, 'index'])->name('vazby.index');
         Route::post('/vazby/{id}/schvalit', [VazbyController::class, 'approve'])->name('vazby.approve');
         Route::post('/vazby/{id}/zamitnout', [VazbyController::class, 'reject'])->name('vazby.reject');
     });

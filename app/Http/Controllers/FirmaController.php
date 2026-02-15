@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Firma;
+use App\Models\UcetniVazba;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -12,7 +13,17 @@ class FirmaController extends Controller
     public function nastaveni()
     {
         $firma = auth()->user()->aktivniFirma();
-        return view('firma.nastaveni', compact('firma'));
+
+        $vazby = collect();
+        $user = auth()->user();
+        if ($firma && ($user->maRoli('firma') || $user->maRoli('dodavatel'))) {
+            $vazby = UcetniVazba::where('klient_ico', $firma->ico)
+                ->with('ucetniFirma')
+                ->orderByRaw("FIELD(stav, 'ceka_na_firmu', 'schvaleno', 'zamitnuto')")
+                ->get();
+        }
+
+        return view('firma.nastaveni', compact('firma', 'vazby'));
     }
 
     public function ulozit(Request $request)
