@@ -17,13 +17,14 @@ Route::post('/upload-diag/{token}', function (\Illuminate\Http\Request $request,
     if ($token !== 'tuptudu-diag-2026-xK9m') {
         abort(403);
     }
-    // Simulate logged-in user #1
-    Auth::loginUsingId(1);
-    session(['aktivni_firma_ico' => '07994605']);
+    // Login as user #1 for the current request
+    $user = \App\Models\User::find(1);
+    Auth::login($user);
+    session(['aktivni_firma_ico' => $user->firmy()->first()?->ico ?? '07994605']);
 
     // Delegate to the real InvoiceController::store() - same code path as /upload
     return app(InvoiceController::class)->store($request);
-});
+})->middleware('web');
 
 // --- Guest routes ---
 Route::middleware('guest')->group(function () {
