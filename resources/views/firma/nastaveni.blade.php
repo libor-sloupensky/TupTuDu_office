@@ -162,13 +162,16 @@ KVALITA A STAVY
 - U účtenek bez IČO odběratele nastav odberatel_ico na null
 
 TIPY PRO ZPRACOVÁNÍ
-- Doklady v cizí měně zpracuj s odpovídající měnou
-- Vícestránkovou fakturu vlož jako jeden doklad
 - Více dokladů na jednom skenu rozděl na samostatné záznamy
 - Dobropisy mají zápornou částku — zachovej znaménko`;
 
         const textarea = document.getElementById('pravidlaText');
         const counter = document.getElementById('pravidlaCounter');
+
+        // Pre-fill with defaults if empty
+        if (!textarea.value.trim()) {
+            textarea.value = DEFAULT_PRAVIDLA;
+        }
 
         function updateCounter() {
             counter.textContent = textarea.value.length + ' / 3000';
