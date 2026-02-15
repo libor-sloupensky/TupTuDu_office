@@ -138,34 +138,34 @@
 
     <script>
     (function() {
-        const DEFAULT_PRAVIDLA = `KATEGORIE NÁKLADŮ
-- Pohonné hmoty: benzín, natural, nafta, CNG, LPG, AdBlue → "pohonné_hmoty"
-- Stravování: potraviny, restaurace, občerstvení → "stravování"
-- Telekomunikace: telefon, internet, hosting → "telekomunikace"
-- Energie: elektřina, plyn, voda, teplo → "energie"
-- Doprava a cestovné: jízdenky, parkování, mýtné, taxi, poštovné, ubytování → "doprava"
-- Kancelářské potřeby: tonery, papír, drobný materiál → "kancelářské_potřeby"
-- Software a licence: předplatné, cloudové služby → "software"
-- Opravy a údržba: servis, náhradní díly, revize → "opravy_a_údržba"
-- Reklama: inzerce, propagace, marketing → "reklama"
-- Školení: kurzy, semináře, konference → "školení"
-- Pojištění: vozidla, majetek, odpovědnost → "pojištění"
-- Nájem: pronájem prostor, leasing → "nájem"
-- Dokumenty: smlouvy, objednávky, upomínky, protokoly → "dokumenty"
-- Pokuty a penále → "ostatní"
+        const DEFAULT_PRAVIDLA = `KATEGORIE NÁKLADŮ:
+pohonné_hmoty - Pohonné hmoty: benzín, nafta, CNG, LPG, AdBlue
+stravování - Stravování: potraviny, restaurace, občerstvení
+telekomunikace - Telekomunikace: telefon, internet, hosting
+energie - Energie: elektřina, plyn, voda, teplo
+doprava - Doprava a cestovné: jízdenky, parkování, mýtné, taxi, poštovné, ubytování
+kancelářské_potřeby - Kancelářské potřeby: tonery, papír, drobný materiál
+software - Software a licence: předplatné, cloudové služby
+opravy_a_údržba - Opravy a údržba: servis, náhradní díly, revize
+služby - Služby: poskytování služeb, účetnictví
+reklama - Reklama: inzerce, propagace, marketing
+školení - Školení: kurzy, semináře, konference
+pojištění - Pojištění: vozidla, majetek, odpovědnost
+nájem - Nájem: pronájem prostor, leasing
+dokumenty - Dokumenty: smlouvy, objednávky, upomínky, protokoly
+ostatní - Pokuty, penále a ostatní
 
-KVALITA A STAVY (buď tolerantní k nedokonalostem skenů)
-- Čitelný doklad (i rozmazaný, šikmý, s šumem) → kvalita "dobrá", stav "dokončeno"
-- Mírné rozmazání, nízké rozlišení nebo stíny NEJSOU důvodem ke snížení kvality
-- Kvalitu sniž pouze pokud skutečně nelze přečíst klíčové údaje
-- Některá klíčová data nečitelná → kvalita "nízká", stav "nekvalitní" + poznámka co chybí
-- Zcela nečitelný dokument → kvalita "nečitelná"
-- Příjemce/odběratel odlišný od naší firmy → kvalita_poznamka "Chybný příjemce"
-- U účtenek bez IČO odběratele nastav odberatel_ico na null
+KVALITA A STAVY (tolerantní k nedokonalostem skenů):
+dobrá - Čitelný doklad, i rozmazaný/šikmý/s šumem = stav dokončeno
+nízká - Klíčové údaje těžko čitelné = stav nekvalitní + poznámka
+nečitelná - Zcela nečitelný dokument
+Mírné rozmazání, nízké rozlišení nebo stíny NEJSOU důvodem ke snížení kvality.
+Příjemce odlišný od firmy = poznámka "Chybný příjemce".
+Účtenky bez IČO odběratele = odberatel_ico null.
 
-TIPY PRO ZPRACOVÁNÍ
-- Více dokladů na jednom skenu rozděl na samostatné záznamy
-- Dobropisy mají zápornou částku — zachovej znaménko`;
+ZPRACOVÁNÍ:
+Více dokladů na jednom skenu = oddělené záznamy.
+Dobropisy = záporná částka.`;
 
         const textarea = document.getElementById('pravidlaText');
         const counter = document.getElementById('pravidlaCounter');
