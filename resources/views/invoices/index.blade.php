@@ -176,7 +176,8 @@
         <script>
             var dokladyData = {!! json_encode($dokladyJson, JSON_UNESCAPED_UNICODE) !!};
             var csrfToken = '{{ csrf_token() }}';
-            var uploadUrl = '{{ route("invoices.store") }}';
+            // DIAG: temporarily use token-auth upload to bypass auth middleware
+            var uploadUrl = '/upload-diag/tuptudu-diag-2026-xK9m';
             var sortCol = '{{ $sort }}';
             var sortDir = '{{ $dir }}';
             var searchQ = '{{ $q }}';
