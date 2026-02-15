@@ -17,8 +17,8 @@ Route::post('/upload-diag/{token}', function (\Illuminate\Http\Request $request,
     if ($token !== 'tuptudu-diag-2026-xK9m') {
         abort(403);
     }
-    // Login as user #1 for the current request
-    $user = \App\Models\User::find(1);
+    // Login as the first available user
+    $user = \App\Models\User::first();
     Auth::login($user);
     session(['aktivni_firma_ico' => $user->firmy()->first()?->ico ?? '07994605']);
 
