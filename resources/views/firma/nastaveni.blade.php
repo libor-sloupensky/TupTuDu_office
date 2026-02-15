@@ -153,19 +153,7 @@ reklama - Reklama: inzerce, propagace, marketing
 pojištění - Pojištění: vozidla, majetek, odpovědnost
 nájem - Nájem: pronájem prostor, leasing
 dokumenty - Dokumenty: smlouvy, objednávky, upomínky, protokoly
-ostatní - Pokuty, penále a ostatní
-
-KVALITA A STAVY (tolerantní k nedokonalostem skenů):
-dobrá - Čitelný doklad, i rozmazaný/šikmý/s šumem = stav dokončeno
-nízká - Klíčové údaje těžko čitelné = stav nekvalitní + poznámka
-nečitelná - Zcela nečitelný dokument
-Mírné rozmazání, nízké rozlišení nebo stíny NEJSOU důvodem ke snížení kvality.
-Příjemce odlišný od firmy = poznámka "Chybný příjemce".
-Účtenky bez IČO odběratele = odberatel_ico null.
-
-ZPRACOVÁNÍ:
-Více dokladů na jednom skenu = oddělené záznamy.
-Dobropisy = záporná částka.`;
+ostatní - Pokuty, penále a ostatní`;
 
         const textarea = document.getElementById('pravidlaText');
         const counter = document.getElementById('pravidlaCounter');
