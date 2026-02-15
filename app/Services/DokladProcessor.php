@@ -262,7 +262,7 @@ class DokladProcessor
 
         $systemPrompt = $this->buildSystemPrompt($firma);
 
-        $response = Http::timeout(120)->withHeaders([
+        $response = Http::timeout(60)->withHeaders([
             'x-api-key' => $apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',

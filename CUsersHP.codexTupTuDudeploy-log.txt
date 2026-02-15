@@ -1,0 +1,704 @@
+deploy	Set up job	﻿2026-02-11T08:26:16.5718594Z Current runner version: '2.331.0'
+deploy	Set up job	2026-02-11T08:26:16.5745371Z ##[group]Runner Image Provisioner
+deploy	Set up job	2026-02-11T08:26:16.5746436Z Hosted Compute Agent
+deploy	Set up job	2026-02-11T08:26:16.5747064Z Version: 20260123.484
+deploy	Set up job	2026-02-11T08:26:16.5747670Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+deploy	Set up job	2026-02-11T08:26:16.5748475Z Build Date: 2026-01-23T19:41:17Z
+deploy	Set up job	2026-02-11T08:26:16.5749171Z Worker ID: {45bbe677-4241-44f0-b589-87e5281400ff}
+deploy	Set up job	2026-02-11T08:26:16.5750318Z Azure Region: westus
+deploy	Set up job	2026-02-11T08:26:16.5751039Z ##[endgroup]
+deploy	Set up job	2026-02-11T08:26:16.5752620Z ##[group]Operating System
+deploy	Set up job	2026-02-11T08:26:16.5753248Z Ubuntu
+deploy	Set up job	2026-02-11T08:26:16.5753851Z 24.04.3
+deploy	Set up job	2026-02-11T08:26:16.5754330Z LTS
+deploy	Set up job	2026-02-11T08:26:16.5754879Z ##[endgroup]
+deploy	Set up job	2026-02-11T08:26:16.5755477Z ##[group]Runner Image
+deploy	Set up job	2026-02-11T08:26:16.5756052Z Image: ubuntu-24.04
+deploy	Set up job	2026-02-11T08:26:16.5756647Z Version: 20260201.15.1
+deploy	Set up job	2026-02-11T08:26:16.5757791Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+deploy	Set up job	2026-02-11T08:26:16.5759481Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+deploy	Set up job	2026-02-11T08:26:16.5760936Z ##[endgroup]
+deploy	Set up job	2026-02-11T08:26:16.5762110Z ##[group]GITHUB_TOKEN Permissions
+deploy	Set up job	2026-02-11T08:26:16.5764113Z Contents: read
+deploy	Set up job	2026-02-11T08:26:16.5764799Z Metadata: read
+deploy	Set up job	2026-02-11T08:26:16.5765364Z Packages: read
+deploy	Set up job	2026-02-11T08:26:16.5765934Z ##[endgroup]
+deploy	Set up job	2026-02-11T08:26:16.5768262Z Secret source: Actions
+deploy	Set up job	2026-02-11T08:26:16.5769003Z Prepare workflow directory
+deploy	Set up job	2026-02-11T08:26:16.6114430Z Prepare all required actions
+deploy	Set up job	2026-02-11T08:26:16.6153594Z Getting action download info
+deploy	Set up job	2026-02-11T08:26:17.0847483Z Download action repository 'actions/checkout@v3' (SHA:f43a0e5ff2bd294095638e18286ca9a3d1956744)
+deploy	Set up job	2026-02-11T08:26:17.2095576Z Download action repository 'shivammathur/setup-php@v2' (SHA:44454db4f0199b8b9685a5d763dc37cbf79108e1)
+deploy	Set up job	2026-02-11T08:26:18.1879510Z Complete job name: deploy
+deploy	Run actions/checkout@v3	﻿2026-02-11T08:26:18.2612316Z ##[group]Run actions/checkout@v3
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2613314Z with:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2613787Z   fetch-depth: 2
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2614287Z   repository: libor-sloupensky/TupTuDu_office
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2615092Z   token: ***
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2615507Z   ssh-strict: true
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2615960Z   persist-credentials: true
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2616442Z   clean: true
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2616869Z   sparse-checkout-cone-mode: true
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2617381Z   fetch-tags: false
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2617793Z   lfs: false
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2618190Z   submodules: false
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2618652Z   set-safe-directory: true
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.2619420Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3506753Z Syncing repository: libor-sloupensky/TupTuDu_office
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3508830Z ##[group]Getting Git version info
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3509964Z Working directory is '/home/runner/work/TupTuDu_office/TupTuDu_office'
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3511303Z [command]/usr/bin/git version
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3602997Z git version 2.52.0
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3630354Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3645353Z Temporarily overriding HOME='/home/runner/work/_temp/89a4f670-08b9-426c-a8a9-cd9fe0755fe2' before making global git config changes
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3646997Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3649004Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/TupTuDu_office/TupTuDu_office
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3704776Z Deleting the contents of '/home/runner/work/TupTuDu_office/TupTuDu_office'
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3708544Z ##[group]Initializing the repository
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3711679Z [command]/usr/bin/git init /home/runner/work/TupTuDu_office/TupTuDu_office
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3847482Z hint: Using 'master' as the name for the initial branch. This default branch name
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3848698Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3851041Z hint: to use in all of your new repositories, which will suppress this warning,
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3852014Z hint: call:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3852759Z hint:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3853574Z hint: 	git config --global init.defaultBranch <name>
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3854983Z hint:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3855979Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3857378Z hint: 'development'. The just-created branch can be renamed via this command:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3858123Z hint:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3858531Z hint: 	git branch -m <name>
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3859013Z hint:
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3860315Z hint: Disable this message with "git config set advice.defaultBranchName false"
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3861544Z Initialized empty Git repository in /home/runner/work/TupTuDu_office/TupTuDu_office/.git/
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3864403Z [command]/usr/bin/git remote add origin https://github.com/libor-sloupensky/TupTuDu_office
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3898557Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3899359Z ##[group]Disabling automatic garbage collection
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3901197Z [command]/usr/bin/git config --local gc.auto 0
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3928344Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3929115Z ##[group]Setting up auth
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3933702Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.3960263Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.4335193Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.4362556Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.4581899Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.4616995Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.4618173Z ##[group]Fetching the repository
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.4625705Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --progress --no-recurse-submodules --depth=2 origin +b2ea8bdff0da0c097ae084be0e05d9257a95f63f:refs/remotes/origin/main
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8678280Z remote: Enumerating objects: 96, done.        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8680241Z remote: Counting objects:   1% (1/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8681538Z remote: Counting objects:   2% (2/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8682667Z remote: Counting objects:   3% (3/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8684169Z remote: Counting objects:   4% (4/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8684959Z remote: Counting objects:   5% (5/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8685736Z remote: Counting objects:   6% (6/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8686430Z remote: Counting objects:   7% (7/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8687111Z remote: Counting objects:   8% (8/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8687795Z remote: Counting objects:   9% (9/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8688543Z remote: Counting objects:  10% (10/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8689393Z remote: Counting objects:  11% (11/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8690769Z remote: Counting objects:  12% (12/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8691537Z remote: Counting objects:  13% (13/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8692254Z remote: Counting objects:  14% (14/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8693148Z remote: Counting objects:  15% (15/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8694106Z remote: Counting objects:  16% (16/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8695142Z remote: Counting objects:  17% (17/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8696039Z remote: Counting objects:  18% (18/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8696663Z remote: Counting objects:  19% (19/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8697289Z remote: Counting objects:  20% (20/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8697920Z remote: Counting objects:  21% (21/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8698541Z remote: Counting objects:  22% (22/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8699109Z remote: Counting objects:  23% (23/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8700334Z remote: Counting objects:  25% (24/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8700904Z remote: Counting objects:  26% (25/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8701450Z remote: Counting objects:  27% (26/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8701985Z remote: Counting objects:  28% (27/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8702531Z remote: Counting objects:  29% (28/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8703173Z remote: Counting objects:  30% (29/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8703707Z remote: Counting objects:  31% (30/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8704246Z remote: Counting objects:  32% (31/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8704781Z remote: Counting objects:  33% (32/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8705348Z remote: Counting objects:  34% (33/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8705888Z remote: Counting objects:  35% (34/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8706428Z remote: Counting objects:  36% (35/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8706971Z remote: Counting objects:  37% (36/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8707519Z remote: Counting objects:  38% (37/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8708064Z remote: Counting objects:  39% (38/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8708603Z remote: Counting objects:  40% (39/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8709137Z remote: Counting objects:  41% (40/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8709870Z remote: Counting objects:  42% (41/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8710443Z remote: Counting objects:  43% (42/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8710994Z remote: Counting objects:  44% (43/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8711541Z remote: Counting objects:  45% (44/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8712082Z remote: Counting objects:  46% (45/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8712617Z remote: Counting objects:  47% (46/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8713167Z remote: Counting objects:  48% (47/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8713708Z remote: Counting objects:  50% (48/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8714249Z remote: Counting objects:  51% (49/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8715006Z remote: Counting objects:  52% (50/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8715543Z remote: Counting objects:  53% (51/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8716100Z remote: Counting objects:  54% (52/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8716659Z remote: Counting objects:  55% (53/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8717198Z remote: Counting objects:  56% (54/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8717742Z remote: Counting objects:  57% (55/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8718319Z remote: Counting objects:  58% (56/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8718862Z remote: Counting objects:  59% (57/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8719440Z remote: Counting objects:  60% (58/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8720138Z remote: Counting objects:  61% (59/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8720698Z remote: Counting objects:  62% (60/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8721236Z remote: Counting objects:  63% (61/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8721767Z remote: Counting objects:  64% (62/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8722304Z remote: Counting objects:  65% (63/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8722853Z remote: Counting objects:  66% (64/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8723405Z remote: Counting objects:  67% (65/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8723985Z remote: Counting objects:  68% (66/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8724568Z remote: Counting objects:  69% (67/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8725118Z remote: Counting objects:  70% (68/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8725650Z remote: Counting objects:  71% (69/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8726182Z remote: Counting objects:  72% (70/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8726718Z remote: Counting objects:  73% (71/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8727256Z remote: Counting objects:  75% (72/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8727785Z remote: Counting objects:  76% (73/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8728318Z remote: Counting objects:  77% (74/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8728859Z remote: Counting objects:  78% (75/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8729403Z remote: Counting objects:  79% (76/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8730054Z remote: Counting objects:  80% (77/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8730742Z remote: Counting objects:  81% (78/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8731288Z remote: Counting objects:  82% (79/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8731847Z remote: Counting objects:  83% (80/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8732379Z remote: Counting objects:  84% (81/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8732915Z remote: Counting objects:  85% (82/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8733472Z remote: Counting objects:  86% (83/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8733997Z remote: Counting objects:  87% (84/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8734529Z remote: Counting objects:  88% (85/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8735052Z remote: Counting objects:  89% (86/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8735587Z remote: Counting objects:  90% (87/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8736145Z remote: Counting objects:  91% (88/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8736673Z remote: Counting objects:  92% (89/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8737217Z remote: Counting objects:  93% (90/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8737762Z remote: Counting objects:  94% (91/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8738295Z remote: Counting objects:  95% (92/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8738829Z remote: Counting objects:  96% (93/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8739358Z remote: Counting objects:  97% (94/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8740165Z remote: Counting objects:  98% (95/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8740710Z remote: Counting objects: 100% (96/96)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8741273Z remote: Counting objects: 100% (96/96), done.        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8741865Z remote: Compressing objects:   1% (1/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8742433Z remote: Compressing objects:   2% (2/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8742990Z remote: Compressing objects:   4% (3/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8743641Z remote: Compressing objects:   5% (4/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8744206Z remote: Compressing objects:   6% (5/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8744780Z remote: Compressing objects:   8% (6/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8745550Z remote: Compressing objects:   9% (7/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8746110Z remote: Compressing objects:  11% (8/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8746654Z remote: Compressing objects:  12% (9/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8747213Z remote: Compressing objects:  13% (10/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8747774Z remote: Compressing objects:  15% (11/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8748343Z remote: Compressing objects:  16% (12/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8748905Z remote: Compressing objects:  18% (13/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8749497Z remote: Compressing objects:  19% (14/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8750350Z remote: Compressing objects:  20% (15/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8750971Z remote: Compressing objects:  22% (16/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8751575Z remote: Compressing objects:  23% (17/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8752182Z remote: Compressing objects:  25% (18/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8752773Z remote: Compressing objects:  26% (19/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8753353Z remote: Compressing objects:  27% (20/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8753919Z remote: Compressing objects:  29% (21/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8754473Z remote: Compressing objects:  30% (22/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8755031Z remote: Compressing objects:  31% (23/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8755595Z remote: Compressing objects:  33% (24/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8756151Z remote: Compressing objects:  34% (25/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8756712Z remote: Compressing objects:  36% (26/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8757260Z remote: Compressing objects:  37% (27/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8757832Z remote: Compressing objects:  38% (28/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8758396Z remote: Compressing objects:  40% (29/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8758954Z remote: Compressing objects:  41% (30/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8759528Z remote: Compressing objects:  43% (31/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8760210Z remote: Compressing objects:  44% (32/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8760773Z remote: Compressing objects:  45% (33/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8761484Z remote: Compressing objects:  47% (34/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8762043Z remote: Compressing objects:  48% (35/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8762611Z remote: Compressing objects:  50% (36/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8763172Z remote: Compressing objects:  51% (37/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8763723Z remote: Compressing objects:  52% (38/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8764287Z remote: Compressing objects:  54% (39/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8764849Z remote: Compressing objects:  55% (40/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8765445Z remote: Compressing objects:  56% (41/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8766008Z remote: Compressing objects:  58% (42/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8766567Z remote: Compressing objects:  59% (43/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8767129Z remote: Compressing objects:  61% (44/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8767687Z remote: Compressing objects:  62% (45/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8768256Z remote: Compressing objects:  63% (46/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8768821Z remote: Compressing objects:  65% (47/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8769380Z remote: Compressing objects:  66% (48/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8770058Z remote: Compressing objects:  68% (49/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8770624Z remote: Compressing objects:  69% (50/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8771177Z remote: Compressing objects:  70% (51/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8771746Z remote: Compressing objects:  72% (52/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8772304Z remote: Compressing objects:  73% (53/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8772856Z remote: Compressing objects:  75% (54/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8773416Z remote: Compressing objects:  76% (55/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8773979Z remote: Compressing objects:  77% (56/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8774535Z remote: Compressing objects:  79% (57/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8775096Z remote: Compressing objects:  80% (58/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8775808Z remote: Compressing objects:  81% (59/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8776385Z remote: Compressing objects:  83% (60/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8776950Z remote: Compressing objects:  84% (61/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8777499Z remote: Compressing objects:  86% (62/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8778063Z remote: Compressing objects:  87% (63/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8778632Z remote: Compressing objects:  88% (64/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8779188Z remote: Compressing objects:  90% (65/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8779950Z remote: Compressing objects:  91% (66/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8780572Z remote: Compressing objects:  93% (67/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8781387Z remote: Compressing objects:  94% (68/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8782069Z remote: Compressing objects:  95% (69/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8782765Z remote: Compressing objects:  97% (70/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.8783439Z remote: Compressing objects:  98% (71/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.9193952Z remote: Compressing objects: 100% (72/72)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:18.9195210Z remote: Compressing objects: 100% (72/72), done.        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0016447Z remote: Total 96 (delta 5), reused 92 (delta 5), pack-reused 0 (from 0)        
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0118036Z From https://github.com/libor-sloupensky/TupTuDu_office
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0149395Z  * [new ref]         b2ea8bdff0da0c097ae084be0e05d9257a95f63f -> origin/main
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0152445Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0153659Z ##[group]Determining the checkout info
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0154959Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0156018Z ##[group]Checking out the ref
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0158309Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0279013Z Switched to a new branch 'main'
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0281137Z branch 'main' set up to track 'origin/main'.
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0287834Z ##[endgroup]
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0322051Z [command]/usr/bin/git log -1 --format='%H'
+deploy	Run actions/checkout@v3	2026-02-11T08:26:19.0343777Z 'b2ea8bdff0da0c097ae084be0e05d9257a95f63f'
+deploy	Setup PHP	﻿2026-02-11T08:26:19.0532798Z ##[group]Run shivammathur/setup-php@v2
+deploy	Setup PHP	2026-02-11T08:26:19.0533366Z with:
+deploy	Setup PHP	2026-02-11T08:26:19.0533724Z   php-version: 8.4
+deploy	Setup PHP	2026-02-11T08:26:19.0534179Z   extensions: mbstring, xml, curl, zip, openssl
+deploy	Setup PHP	2026-02-11T08:26:19.0534707Z   ini-file: production
+deploy	Setup PHP	2026-02-11T08:26:19.0535304Z   github-token: ***
+deploy	Setup PHP	2026-02-11T08:26:19.0535701Z ##[endgroup]
+deploy	Setup PHP	2026-02-11T08:26:19.1263745Z [command]/usr/bin/bash /home/runner/work/_actions/shivammathur/setup-php/v2/src/scripts/run.sh
+deploy	Setup PHP	2026-02-11T08:26:19.1688735Z 
+deploy	Setup PHP	2026-02-11T08:26:19.1690373Z [90;1m==> [0m[37;1mSetup PHP[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2043951Z [32;1m✓ [0m[34;1mPHP [0m[90;1mInstalled PHP 8.4.17[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2044795Z 
+deploy	Setup PHP	2026-02-11T08:26:23.2045167Z [90;1m==> [0m[37;1mSetup Extensions[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2536863Z [32;1m✓ [0m[34;1mmbstring [0m[90;1mEnabled[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2564826Z [32;1m✓ [0m[34;1mxml [0m[90;1mEnabled[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2593468Z [32;1m✓ [0m[34;1mcurl [0m[90;1mEnabled[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2626528Z [32;1m✓ [0m[34;1mzip [0m[90;1mEnabled[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2655359Z [32;1m✓ [0m[34;1mopenssl [0m[90;1mEnabled[0m
+deploy	Setup PHP	2026-02-11T08:26:23.2656499Z 
+deploy	Setup PHP	2026-02-11T08:26:23.2656886Z [90;1m==> [0m[37;1mSetup Tools[0m
+deploy	Setup PHP	2026-02-11T08:26:23.6913169Z [32;1m✓ [0m[34;1mcomposer [0m[90;1mAdded composer 2.9.3[0m
+deploy	Setup PHP	2026-02-11T08:26:23.6915133Z 
+deploy	Setup PHP	2026-02-11T08:26:23.6916112Z [90;1m==> [0m[37;1mSponsor setup-php[0m
+deploy	Setup PHP	2026-02-11T08:26:23.6917426Z [32;1m✓ [0m[34;1msetup-php [0m[90;1mhttps://setup-php.com/sponsor[0m
+deploy	Install Composer dependencies	﻿2026-02-11T08:26:23.7107719Z ##[group]Run composer install --no-dev --optimize-autoloader --no-interaction
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7108395Z [36;1mcomposer install --no-dev --optimize-autoloader --no-interaction[0m
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7147723Z shell: /usr/bin/bash -e {0}
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7148006Z env:
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7148201Z   COMPOSER_PROCESS_TIMEOUT: 0
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7148452Z   COMPOSER_NO_INTERACTION: 1
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7148718Z   COMPOSER_NO_AUDIT: 1
+deploy	Install Composer dependencies	2026-02-11T08:26:23.7148922Z ##[endgroup]
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9163715Z Installing dependencies from lock file
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9207918Z Verifying lock file contents can be installed on current platform.
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9520697Z Package operations: 80 installs, 0 updates, 0 removals
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9538985Z   - Downloading symfony/polyfill-mbstring (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9548042Z   - Downloading symfony/polyfill-ctype (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9551197Z   - Downloading symfony/filesystem (v8.0.1)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9554476Z   - Downloading psr/http-message (2.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9557908Z   - Downloading mtdowling/jmespath.php (2.8.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9561491Z   - Downloading ralouphie/getallheaders (3.0.3)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9564292Z   - Downloading psr/http-factory (1.1.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9567492Z   - Downloading guzzlehttp/psr7 (2.8.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9570497Z   - Downloading guzzlehttp/promises (2.3.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9573444Z   - Downloading symfony/deprecation-contracts (v3.6.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9576295Z   - Downloading psr/http-client (1.0.3)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9579098Z   - Downloading guzzlehttp/guzzle (7.10.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9583028Z   - Downloading aws/aws-crt-php (v1.2.7)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9584283Z   - Downloading aws/aws-sdk-php (3.369.30)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9586744Z   - Downloading doctrine/inflector (2.1.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9588164Z   - Downloading doctrine/lexer (3.0.1)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9590865Z   - Downloading dragonmantank/cron-expression (v3.6.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9592316Z   - Downloading symfony/http-foundation (v7.4.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9594656Z   - Downloading fruitcake/php-cors (v1.4.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9596172Z   - Downloading symfony/polyfill-php80 (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9598232Z   - Downloading guzzlehttp/uri-template (v1.0.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9600062Z   - Downloading symfony/polyfill-intl-normalizer (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9601679Z   - Downloading symfony/polyfill-intl-grapheme (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9603266Z   - Downloading symfony/string (v8.0.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9605252Z   - Downloading psr/container (2.0.2)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9606806Z   - Downloading symfony/service-contracts (v3.6.1)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9608388Z   - Downloading symfony/console (v7.4.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9611287Z   - Downloading laravel/prompts (v0.3.12)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9612883Z   - Downloading laravel/serializable-closure (v2.0.9)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9614724Z   - Downloading symfony/var-dumper (v7.4.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9617090Z   - Downloading nikic/php-parser (v5.7.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9619316Z   - Downloading psy/psysh (v0.12.19)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9621874Z   - Downloading voku/portable-ascii (2.0.3)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9624042Z   - Downloading phpoption/phpoption (1.9.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9626349Z   - Downloading graham-campbell/result-type (v1.1.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9628580Z   - Downloading vlucas/phpdotenv (v5.6.3)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9630172Z   - Downloading symfony/css-selector (v8.0.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9632831Z   - Downloading tijsverkoyen/css-to-inline-styles (v2.4.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9634243Z   - Downloading symfony/polyfill-uuid (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9636095Z   - Downloading symfony/uid (v7.4.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9637971Z   - Downloading symfony/routing (v7.4.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9639482Z   - Downloading symfony/process (v7.4.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9641726Z   - Downloading symfony/polyfill-php85 (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9643239Z   - Downloading symfony/polyfill-php84 (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9645292Z   - Downloading symfony/polyfill-php83 (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9646805Z   - Downloading symfony/polyfill-intl-idn (v1.33.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9648652Z   - Downloading symfony/mime (v7.4.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9650951Z   - Downloading psr/event-dispatcher (1.0.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9652529Z   - Downloading symfony/event-dispatcher-contracts (v3.6.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9654179Z   - Downloading symfony/event-dispatcher (v8.0.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9656103Z   - Downloading psr/log (3.0.2)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9660979Z   - Downloading egulias/email-validator (4.0.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9662501Z   - Downloading symfony/mailer (v7.4.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9664530Z   - Downloading symfony/error-handler (v7.4.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9666030Z   - Downloading symfony/http-kernel (v7.4.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9667843Z   - Downloading symfony/finder (v7.4.5)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9670168Z   - Downloading ramsey/collection (2.1.1)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9672597Z   - Downloading brick/math (0.14.7)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9674011Z   - Downloading ramsey/uuid (4.9.2)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9675971Z   - Downloading psr/simple-cache (3.0.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9678279Z   - Downloading nunomaduro/termwind (v2.3.3)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9680045Z   - Downloading symfony/translation-contracts (v3.6.1)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9681724Z   - Downloading symfony/translation (v8.0.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9683753Z   - Downloading psr/clock (1.0.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9685448Z   - Downloading symfony/clock (v8.0.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9687900Z   - Downloading carbonphp/carbon-doctrine-types (3.2.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9690131Z   - Downloading nesbot/carbon (3.11.1)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9692523Z   - Downloading monolog/monolog (3.10.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9694785Z   - Downloading league/uri-interfaces (7.8.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9696201Z   - Downloading league/uri (7.8.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9698217Z   - Downloading league/mime-type-detection (1.16.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9699956Z   - Downloading league/flysystem-local (3.31.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9701762Z   - Downloading league/flysystem (3.31.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9704048Z   - Downloading nette/utils (v4.1.2)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9705489Z   - Downloading nette/schema (v1.3.4)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9707958Z   - Downloading dflydev/dot-access-data (v3.0.3)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9709331Z   - Downloading league/config (v1.2.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9711505Z   - Downloading league/commonmark (2.8.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9713085Z   - Downloading laravel/framework (v12.50.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:23.9714685Z   - Downloading laravel/tinker (v2.11.0)
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5255791Z   - Installing symfony/polyfill-mbstring (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5273754Z   - Installing symfony/polyfill-ctype (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5279609Z   - Installing symfony/filesystem (v8.0.1): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5285852Z   - Installing psr/http-message (2.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5299981Z   - Installing mtdowling/jmespath.php (2.8.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5304994Z   - Installing ralouphie/getallheaders (3.0.3): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5315712Z   - Installing psr/http-factory (1.1.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5320381Z   - Installing guzzlehttp/psr7 (2.8.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5328474Z   - Installing guzzlehttp/promises (2.3.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5335954Z   - Installing symfony/deprecation-contracts (v3.6.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5345445Z   - Installing psr/http-client (1.0.3): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5347925Z   - Installing guzzlehttp/guzzle (7.10.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5350009Z   - Installing aws/aws-crt-php (v1.2.7): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5352831Z   - Installing aws/aws-sdk-php (3.369.30): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5355379Z   - Installing doctrine/inflector (2.1.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5357428Z   - Installing doctrine/lexer (3.0.1): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5359555Z   - Installing dragonmantank/cron-expression (v3.6.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5362182Z   - Installing symfony/http-foundation (v7.4.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5364271Z   - Installing fruitcake/php-cors (v1.4.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5366442Z   - Installing symfony/polyfill-php80 (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5368462Z   - Installing guzzlehttp/uri-template (v1.0.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5371207Z   - Installing symfony/polyfill-intl-normalizer (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5373334Z   - Installing symfony/polyfill-intl-grapheme (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5375255Z   - Installing symfony/string (v8.0.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5377261Z   - Installing psr/container (2.0.2): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5379348Z   - Installing symfony/service-contracts (v3.6.1): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5381701Z   - Installing symfony/console (v7.4.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5383683Z   - Installing laravel/prompts (v0.3.12): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5385809Z   - Installing laravel/serializable-closure (v2.0.9): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5392233Z   - Installing symfony/var-dumper (v7.4.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5393494Z   - Installing nikic/php-parser (v5.7.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5452360Z   - Installing psy/psysh (v0.12.19): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5454722Z   - Installing voku/portable-ascii (2.0.3): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5458093Z   - Installing phpoption/phpoption (1.9.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5460629Z   - Installing graham-campbell/result-type (v1.1.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5463239Z   - Installing vlucas/phpdotenv (v5.6.3): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5465922Z   - Installing symfony/css-selector (v8.0.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5468674Z   - Installing tijsverkoyen/css-to-inline-styles (v2.4.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5471975Z   - Installing symfony/polyfill-uuid (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5473828Z   - Installing symfony/uid (v7.4.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5476645Z   - Installing symfony/routing (v7.4.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5479178Z   - Installing symfony/process (v7.4.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5507548Z   - Installing symfony/polyfill-php85 (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5508832Z   - Installing symfony/polyfill-php84 (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5509599Z   - Installing symfony/polyfill-php83 (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5510583Z   - Installing symfony/polyfill-intl-idn (v1.33.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5511297Z   - Installing symfony/mime (v7.4.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5512000Z   - Installing psr/event-dispatcher (1.0.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5512854Z   - Installing symfony/event-dispatcher-contracts (v3.6.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5513701Z   - Installing symfony/event-dispatcher (v8.0.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5514342Z   - Installing psr/log (3.0.2): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5514954Z   - Installing egulias/email-validator (4.0.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5519147Z   - Installing symfony/mailer (v7.4.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5521763Z   - Installing symfony/error-handler (v7.4.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5524277Z   - Installing symfony/http-kernel (v7.4.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5526608Z   - Installing symfony/finder (v7.4.5): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5529075Z   - Installing ramsey/collection (2.1.1): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5531498Z   - Installing brick/math (0.14.7): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5533385Z   - Installing ramsey/uuid (4.9.2): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5535245Z   - Installing psr/simple-cache (3.0.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5537149Z   - Installing nunomaduro/termwind (v2.3.3): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5539095Z   - Installing symfony/translation-contracts (v3.6.1): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5541099Z   - Installing symfony/translation (v8.0.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5543199Z   - Installing psr/clock (1.0.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5545293Z   - Installing symfony/clock (v8.0.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5547460Z   - Installing carbonphp/carbon-doctrine-types (3.2.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5549536Z   - Installing nesbot/carbon (3.11.1): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5552014Z   - Installing monolog/monolog (3.10.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5554094Z   - Installing league/uri-interfaces (7.8.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5556246Z   - Installing league/uri (7.8.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5558377Z   - Installing league/mime-type-detection (1.16.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5560736Z   - Installing league/flysystem-local (3.31.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5562757Z   - Installing league/flysystem (3.31.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5564890Z   - Installing nette/utils (v4.1.2): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5567045Z   - Installing nette/schema (v1.3.4): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5569307Z   - Installing dflydev/dot-access-data (v3.0.3): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5571859Z   - Installing league/config (v1.2.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5573926Z   - Installing league/commonmark (2.8.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5576006Z   - Installing laravel/framework (v12.50.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:26.5578078Z   - Installing laravel/tinker (v2.11.0): Extracting archive
+deploy	Install Composer dependencies	2026-02-11T08:26:27.5837167Z Generating optimized autoload files
+deploy	Install Composer dependencies	2026-02-11T08:26:28.6412258Z > Illuminate\Foundation\ComposerScripts::postAutoloadDump
+deploy	Install Composer dependencies	2026-02-11T08:26:28.6537483Z > @php artisan package:discover --ansi
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0290867Z 
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0291752Z   [37;44m INFO [39;49m Discovering packages.  
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0292212Z 
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0364005Z   laravel/tinker [90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m [32;1mDONE[39;22m
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0414250Z   nesbot/carbon [90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m [32;1mDONE[39;22m
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0457125Z   nunomaduro/termwind [90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m[90m.[39m [32;1mDONE[39;22m
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0460084Z 
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0564677Z 54 packages you are using are looking for funding.
+deploy	Install Composer dependencies	2026-02-11T08:26:29.0565303Z Use the `composer fund` command to find out more!
+deploy	Generate last push timestamp	﻿2026-02-11T08:26:29.0942495Z ##[group]Run echo "$(TZ='Europe/Prague' date '+%d.%m.%Y %H:%M:%S')" > ./public/last_push.txt
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0943452Z [36;1mecho "$(TZ='Europe/Prague' date '+%d.%m.%Y %H:%M:%S')" > ./public/last_push.txt[0m
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0975415Z shell: /usr/bin/bash -e {0}
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0975647Z env:
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0975830Z   COMPOSER_PROCESS_TIMEOUT: 0
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0976060Z   COMPOSER_NO_INTERACTION: 1
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0976277Z   COMPOSER_NO_AUDIT: 1
+deploy	Generate last push timestamp	2026-02-11T08:26:29.0976473Z ##[endgroup]
+deploy	Check if vendor needs deploy	﻿2026-02-11T08:26:29.1068495Z ##[group]Run if git diff --name-only HEAD~1 HEAD | grep -q "composer.lock"; then
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1069038Z [36;1mif git diff --name-only HEAD~1 HEAD | grep -q "composer.lock"; then[0m
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1069451Z [36;1m  echo "vendor_changed=true" >> $GITHUB_OUTPUT[0m
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1069976Z [36;1melse[0m
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1070200Z [36;1m  echo "vendor_changed=false" >> $GITHUB_OUTPUT[0m
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1070480Z [36;1mfi[0m
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1100594Z shell: /usr/bin/bash -e {0}
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1100827Z env:
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1101009Z   COMPOSER_PROCESS_TIMEOUT: 0
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1101270Z   COMPOSER_NO_INTERACTION: 1
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1101484Z   COMPOSER_NO_AUDIT: 1
+deploy	Check if vendor needs deploy	2026-02-11T08:26:29.1101682Z ##[endgroup]
+deploy	Deploy app files via lftp	﻿2026-02-11T08:26:29.1242763Z ##[group]Run sudo apt-get install -y lftp
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1243133Z [36;1msudo apt-get install -y lftp[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1243380Z [36;1mlftp -e "[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1243709Z [36;1m  set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1244098Z [36;1m  set xfer:clobber on;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1244706Z [36;1m  open ***ftp.tuptudu.cz;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1245076Z [36;1m  mirror --reverse --verbose --no-perms app/ /laravel-office/app/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1246111Z [36;1m  mirror --reverse --verbose --no-perms bootstrap/ /laravel-office/bootstrap/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1246661Z [36;1m  mirror --reverse --verbose --no-perms config/ /laravel-office/config/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1247227Z [36;1m  mirror --reverse --verbose --no-perms database/ /laravel-office/database/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1248028Z [36;1m  mirror --reverse --verbose --no-perms resources/ /laravel-office/resources/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1248540Z [36;1m  mirror --reverse --verbose --no-perms routes/ /laravel-office/routes/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1249086Z [36;1m  mirror --reverse --verbose --no-perms storage/ /laravel-office/storage/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1249500Z [36;1m  put artisan -o /laravel-office/artisan;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1250151Z [36;1m  put composer.json -o /laravel-office/composer.json;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1250704Z [36;1m  put composer.lock -o /laravel-office/composer.lock;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1251029Z [36;1m  rm -f /public_html/index.html;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1251452Z [36;1m  mirror --reverse --delete --verbose --no-perms public/ /public_html/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1251901Z [36;1m  mirror --reverse --verbose --no-perms public/ /_sub/office/;[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1252228Z [36;1m  quit[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1252398Z [36;1m"[0m
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1283761Z shell: /usr/bin/bash -e {0}
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1284010Z env:
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1284187Z   COMPOSER_PROCESS_TIMEOUT: 0
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1284421Z   COMPOSER_NO_INTERACTION: 1
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1284644Z   COMPOSER_NO_AUDIT: 1
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1284841Z ##[endgroup]
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.1572078Z Reading package lists...
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.3823898Z Building dependency tree...
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.3827191Z Reading state information...
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.5926956Z The following NEW packages will be installed:
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.5937006Z   lftp
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.6146016Z 0 upgraded, 1 newly installed, 0 to remove and 110 not upgraded.
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.6146739Z Need to get 704 kB of archives.
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.6147311Z After this operation, 1892 kB of additional disk space will be used.
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.6147772Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+deploy	Deploy app files via lftp	2026-02-11T08:26:29.6933181Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 lftp amd64 4.9.2-2ubuntu1.1 [704 kB]
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0076554Z Fetched 704 kB in 0s (6590 kB/s)
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0431683Z Selecting previously unselected package lftp.
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0586647Z (Reading database ... 
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0587632Z dpkg: warning: files list file for package 'libltdl-dev:amd64' missing; assuming package has no files currently installed
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0600518Z (Reading database ... 5%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0603533Z (Reading database ... 10%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0605609Z (Reading database ... 15%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0608736Z (Reading database ... 20%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0611651Z (Reading database ... 25%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0615856Z (Reading database ... 30%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0619564Z (Reading database ... 35%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0622061Z (Reading database ... 40%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0624133Z (Reading database ... 45%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0626867Z (Reading database ... 50%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0628174Z (Reading database ... 55%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.0786411Z (Reading database ... 60%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.2398391Z (Reading database ... 65%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.3661872Z (Reading database ... 70%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.4513517Z (Reading database ... 75%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.5903778Z (Reading database ... 80%
+deploy	Deploy app files via lftp	2026-02-11T08:26:30.8371621Z (Reading database ... 85%
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.0406974Z (Reading database ... 90%
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.2427924Z (Reading database ... 95%
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.2428417Z (Reading database ... 100%
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.2428806Z (Reading database ... 221211 files and directories currently installed.)
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.2473361Z Preparing to unpack .../lftp_4.9.2-2ubuntu1.1_amd64.deb ...
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.2532652Z Unpacking lftp (4.9.2-2ubuntu1.1) ...
+deploy	Deploy app files via lftp	2026-02-11T08:26:31.3200580Z Setting up lftp (4.9.2-2ubuntu1.1) ...
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.0386208Z 
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.0386735Z Running kernel seems to be up-to-date.
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.0387016Z 
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.0387111Z Restarting services...
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.1145416Z  /etc/needrestart/restart.d/systemd-manager
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.4429997Z  systemctl restart cron.service multipathd.service php8.3-fpm.service polkit.service systemd-journald.service systemd-networkd.service systemd-resolved.service systemd-udevd.service udisks2.service
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6751695Z 
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6752152Z Service restarts being deferred:
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6752666Z  systemctl restart ModemManager.service
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6753140Z  /etc/needrestart/restart.d/dbus.service
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6753633Z  systemctl restart networkd-dispatcher.service
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6754147Z  systemctl restart systemd-logind.service
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6754457Z 
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6754609Z No containers need to be restarted.
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6754885Z 
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6755040Z User sessions running outdated binaries:
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6755488Z  runner @ user manager service: systemd[1077]
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6842273Z 
+deploy	Deploy app files via lftp	2026-02-11T08:26:32.6850997Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+deploy	Deploy app files via lftp	2026-02-11T08:26:40.5434105Z Removing old file `Http/Controllers/Controller.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:40.5434635Z Transferring file `Http/Controllers/Controller.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:41.0184705Z Removing old file `Http/Controllers/InvoiceController.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:41.0185559Z Transferring file `Http/Controllers/InvoiceController.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:42.1283977Z Removing old file `Models/User.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:42.1284450Z Transferring file `Models/User.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:43.2351896Z Removing old file `Providers/AppServiceProvider.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:43.2352858Z Transferring file `Providers/AppServiceProvider.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:44.5009530Z Removing old file `app.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:44.5010151Z Transferring file `app.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:44.9760459Z Removing old file `providers.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:44.9760893Z Transferring file `providers.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:46.0842820Z Removing old file `cache/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:26:46.0843283Z Transferring file `cache/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:26:46.5592246Z Removing old file `cache/packages.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:46.5592681Z Transferring file `cache/packages.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:47.0337603Z Removing old file `cache/services.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:47.0338246Z Transferring file `cache/services.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:48.4554575Z Removing old file `app.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:48.4555025Z Transferring file `app.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:48.9300236Z Removing old file `auth.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:48.9300615Z Transferring file `auth.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:49.4043135Z Removing old file `cache.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:49.4043572Z Transferring file `cache.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:49.8787393Z Removing old file `database.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:49.8787878Z Transferring file `database.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:50.3530080Z Removing old file `filesystems.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:50.3530483Z Transferring file `filesystems.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:50.8276695Z Removing old file `logging.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:50.8277110Z Transferring file `logging.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:51.3022214Z Removing old file `mail.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:51.3022624Z Transferring file `mail.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:51.7779113Z Removing old file `queue.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:51.7779519Z Transferring file `queue.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:52.2534721Z Removing old file `services.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:52.2536773Z Transferring file `services.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:52.7298533Z Removing old file `session.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:52.7299200Z Transferring file `session.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:53.9959384Z Removing old file `.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:26:53.9960008Z Transferring file `.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:26:55.1069505Z Removing old file `factories/UserFactory.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:55.1070288Z Transferring file `factories/UserFactory.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:56.2147602Z Removing old file `migrations/0001_01_01_000000_create_users_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:56.2148290Z Transferring file `migrations/0001_01_01_000000_create_users_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:56.6910162Z Removing old file `migrations/0001_01_01_000001_create_cache_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:56.6910793Z Transferring file `migrations/0001_01_01_000001_create_cache_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:57.1657998Z Removing old file `migrations/0001_01_01_000002_create_jobs_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:57.1658712Z Transferring file `migrations/0001_01_01_000002_create_jobs_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:57.6416668Z Removing old file `migrations/2026_02_09_201315_create_invoices_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:57.6417347Z Transferring file `migrations/2026_02_09_201315_create_invoices_table.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:58.7503001Z Removing old file `seeders/DatabaseSeeder.php'
+deploy	Deploy app files via lftp	2026-02-11T08:26:58.7503510Z Transferring file `seeders/DatabaseSeeder.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:00.6470208Z Removing old file `css/app.css'
+deploy	Deploy app files via lftp	2026-02-11T08:27:00.6470584Z Transferring file `css/app.css'
+deploy	Deploy app files via lftp	2026-02-11T08:27:01.7548902Z Removing old file `js/app.js'
+deploy	Deploy app files via lftp	2026-02-11T08:27:01.7549290Z Transferring file `js/app.js'
+deploy	Deploy app files via lftp	2026-02-11T08:27:02.2300695Z Removing old file `js/bootstrap.js'
+deploy	Deploy app files via lftp	2026-02-11T08:27:02.2301366Z Transferring file `js/bootstrap.js'
+deploy	Deploy app files via lftp	2026-02-11T08:27:03.3380497Z Removing old file `views/welcome.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:03.3381081Z Transferring file `views/welcome.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:04.6084842Z Removing old file `views/invoices/result.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:04.6085501Z Transferring file `views/invoices/result.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:05.0841739Z Removing old file `views/invoices/upload.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:05.0842395Z Transferring file `views/invoices/upload.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:06.1915109Z Removing old file `views/layouts/app.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:06.1915905Z Transferring file `views/layouts/app.blade.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:07.4567298Z Removing old file `console.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:07.4567946Z Transferring file `console.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:07.9314859Z Removing old file `web.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:07.9315434Z Transferring file `web.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:09.8291514Z Removing old file `app/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:09.8292083Z Transferring file `app/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:10.9365086Z Removing old file `app/private/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:10.9365879Z Transferring file `app/private/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:12.0432234Z Removing old file `app/public/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:12.0432762Z Transferring file `app/public/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:13.1498816Z Removing old file `framework/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:13.1499378Z Transferring file `framework/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:14.2575723Z Removing old file `framework/cache/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:14.2576461Z Transferring file `framework/cache/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:15.3671305Z Removing old file `framework/cache/data/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:15.3671989Z Transferring file `framework/cache/data/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:16.4741878Z Removing old file `framework/sessions/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:16.4742549Z Transferring file `framework/sessions/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:17.5822248Z Removing old file `framework/testing/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:17.5823143Z Transferring file `framework/testing/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:18.6903103Z Removing old file `framework/views/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:18.6903900Z Transferring file `framework/views/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:19.7977320Z Removing old file `logs/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:19.7978513Z Transferring file `logs/.gitignore'
+deploy	Deploy app files via lftp	2026-02-11T08:27:22.3741604Z Removing old file `.htaccess'
+deploy	Deploy app files via lftp	2026-02-11T08:27:22.3742152Z Transferring file `.htaccess'
+deploy	Deploy app files via lftp	2026-02-11T08:27:22.8500099Z Removing old file `favicon.ico'
+deploy	Deploy app files via lftp	2026-02-11T08:27:22.8500765Z Transferring file `favicon.ico'
+deploy	Deploy app files via lftp	2026-02-11T08:27:23.3243954Z Removing old file `index.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:23.3244669Z Transferring file `index.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:23.7989591Z Removing old file `last_push.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:23.7990529Z Transferring file `last_push.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:24.2742568Z Removing old file `robots.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:24.2743090Z Transferring file `robots.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:25.5427780Z Removing old file `.htaccess'
+deploy	Deploy app files via lftp	2026-02-11T08:27:25.5428412Z Transferring file `.htaccess'
+deploy	Deploy app files via lftp	2026-02-11T08:27:26.0171395Z Removing old file `favicon.ico'
+deploy	Deploy app files via lftp	2026-02-11T08:27:26.0172286Z Transferring file `favicon.ico'
+deploy	Deploy app files via lftp	2026-02-11T08:27:26.4926381Z Removing old file `index.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:26.4926870Z Transferring file `index.php'
+deploy	Deploy app files via lftp	2026-02-11T08:27:26.9672011Z Removing old file `last_push.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:26.9672567Z Transferring file `last_push.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:27.4420928Z Removing old file `robots.txt'
+deploy	Deploy app files via lftp	2026-02-11T08:27:27.4421299Z Transferring file `robots.txt'
+deploy	Post Run actions/checkout@v3	﻿2026-02-11T08:27:27.9292949Z Post job cleanup.
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0028567Z [command]/usr/bin/git version
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0063283Z git version 2.52.0
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0108283Z Temporarily overriding HOME='/home/runner/work/_temp/6b667db9-a7ce-415c-be33-511e458265c5' before making global git config changes
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0109885Z Adding repository directory to the temporary git global config as a safe directory
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0113611Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/TupTuDu_office/TupTuDu_office
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0146387Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0176952Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0406731Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0430545Z http.https://github.com/.extraheader
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0442687Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+deploy	Post Run actions/checkout@v3	2026-02-11T08:27:28.0472902Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+deploy	Complete job	﻿2026-02-11T08:27:28.0814984Z Cleaning up orphan processes

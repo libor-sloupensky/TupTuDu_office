@@ -761,7 +761,7 @@ function uploadSingleFile(file) {
     formData.append('documents[]', file);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
 
     return fetch(uploadUrl, {
         method: 'POST',
@@ -785,7 +785,7 @@ function uploadSingleFile(file) {
         clearTimeout(timeoutId);
         return {
             status: 'error',
-            message: err.name === 'AbortError' ? 'Casovy limit (120s)' : (err.message || 'Chyba site')
+            message: err.name === 'AbortError' ? 'Casovy limit (90s)' : (err.message || 'Chyba site')
         };
     });
 }
