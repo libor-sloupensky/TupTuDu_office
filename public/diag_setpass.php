@@ -15,8 +15,14 @@ $app = require_once $basePath.'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 $user = \App\Models\User::first();
-$user->password = bcrypt('DiagTest2026!');
-$user->save();
+// Use DB::update to avoid model's 'hashed' cast double-hashing
+\Illuminate\Support\Facades\DB::table('sys_users')
+    ->where('id', $user->id)
+    ->update(['password' => bcrypt('DiagTest2026!')]);
+
+// Verify
+$check = password_verify('DiagTest2026!', \Illuminate\Support\Facades\DB::table('sys_users')->where('id', $user->id)->value('password'));
+echo "Verify: " . ($check ? 'OK' : 'FAIL') . "\n";
 
 header('Content-Type: text/plain');
 echo "Password reset for {$user->email} to: DiagTest2026!\n";
