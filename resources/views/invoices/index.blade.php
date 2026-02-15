@@ -192,63 +192,54 @@
     </script>
     @endif
 
-    @if ($doklady->isEmpty() && empty($q))
-        <div class="empty-state"><p>Zatím žádné doklady.</p></div>
-    @else
-        <div class="ai-search-bar">
-            <span class="ai-search-label">AI hledání</span>
-            <div class="ai-search-input-wrap">
-                <input type="text" id="aiSearchInput" class="ai-search-input"
-                       placeholder="Napište co hledáte, např: pohonné hmoty, květen 2025..."
-                       value="{{ $q }}">
-                <button type="button" id="aiSearchBtn" class="ai-search-btn"
-                        title="Hledat">&#128269;</button>
-            </div>
-            <span class="ai-search-help" title="Pište přirozeně česky:&#10;&#8226; 'pohonné hmoty za květen 2025'&#10;&#8226; 'faktury od Alza nad 5000 Kč'&#10;&#8226; 'doklady s chybou'&#10;&#8226; 'účtenky z minulého měsíce'&#10;AI převede dotaz na filtry automaticky.">?</span>
+    <script>
+        var dokladyData = {!! json_encode($dokladyJson, JSON_UNESCAPED_UNICODE) !!};
+        var sortCol = '{{ $sort }}';
+        var sortDir = '{{ $dir }}';
+        var searchQ = '{{ $q }}';
+    </script>
+
+    <div class="ai-search-bar">
+        <span class="ai-search-label">AI hledání</span>
+        <div class="ai-search-input-wrap">
+            <input type="text" id="aiSearchInput" class="ai-search-input"
+                   placeholder="Napište co hledáte, např: pohonné hmoty, květen 2025..."
+                   value="{{ $q }}">
+            <button type="button" id="aiSearchBtn" class="ai-search-btn"
+                    title="Hledat">&#128269;</button>
         </div>
-        <div id="aiSearchResult" class="ai-search-result" style="display:none;">
-            <span id="aiSearchDesc"></span>
-            <button type="button" id="aiSearchClear" class="ai-search-clear">Zrušit filtr</button>
+        <span class="ai-search-help" title="Pište přirozeně česky:&#10;&#8226; 'pohonné hmoty za květen 2025'&#10;&#8226; 'faktury od Alza nad 5000 Kč'&#10;&#8226; 'doklady s chybou'&#10;&#8226; 'účtenky z minulého měsíce'&#10;AI převede dotaz na filtry automaticky.">?</span>
+    </div>
+    <div id="aiSearchResult" class="ai-search-result" style="display:none;">
+        <span id="aiSearchDesc"></span>
+        <button type="button" id="aiSearchClear" class="ai-search-clear">Zrušit filtr</button>
+    </div>
+
+    <div class="col-toggle" id="colToggle" onclick="document.getElementById('colPanel').classList.toggle('open'); this.querySelector('span').textContent = document.getElementById('colPanel').classList.contains('open') ? '\u25BC' : '\u25B6';"><span>&#9654;</span> Přidat/ubrat sloupce</div>
+    <div class="col-panel" id="colPanel"></div>
+
+    <div id="tableContainer"></div>
+
+    @php
+        $mesice = $doklady
+            ->filter(fn($d) => $d->datum_vystaveni)
+            ->map(fn($d) => $d->datum_vystaveni->format('Y-m'))
+            ->unique()
+            ->sort()
+            ->reverse();
+        $czMonths = [1=>'leden','únor','březen','duben','květen','červen','červenec','srpen','září','říjen','listopad','prosinec'];
+    @endphp
+
+    @if ($mesice->isNotEmpty())
+    <div class="month-downloads">
+        <h3>Stáhnout doklady za měsíc (ZIP)</h3>
+        <div class="month-list">
+            @foreach ($mesice as $m)
+                @php [$y,$mo] = explode('-', $m); @endphp
+                <a href="{{ route('doklady.downloadMonth', $m) }}" class="month-link">{{ $czMonths[(int)$mo] }} {{ $y }}</a>
+            @endforeach
         </div>
-
-        <div class="col-toggle" id="colToggle" onclick="document.getElementById('colPanel').classList.toggle('open'); this.querySelector('span').textContent = document.getElementById('colPanel').classList.contains('open') ? '\u25BC' : '\u25B6';"><span>&#9654;</span> Přidat/ubrat sloupce</div>
-        <div class="col-panel" id="colPanel"></div>
-
-        @if ($doklady->isEmpty())
-            <div class="empty-state"><p>Žádné doklady neodpovídají hledání.</p></div>
-        @else
-
-        <script>
-            var dokladyData = {!! json_encode($dokladyJson, JSON_UNESCAPED_UNICODE) !!};
-            var sortCol = '{{ $sort }}';
-            var sortDir = '{{ $dir }}';
-            var searchQ = '{{ $q }}';
-        </script>
-
-        <div id="tableContainer"></div>
-
-        @php
-            $mesice = $doklady
-                ->filter(fn($d) => $d->datum_vystaveni)
-                ->map(fn($d) => $d->datum_vystaveni->format('Y-m'))
-                ->unique()
-                ->sort()
-                ->reverse();
-            $czMonths = [1=>'leden','únor','březen','duben','květen','červen','červenec','srpen','září','říjen','listopad','prosinec'];
-        @endphp
-
-        @if ($mesice->isNotEmpty())
-        <div class="month-downloads">
-            <h3>Stáhnout doklady za měsíc (ZIP)</h3>
-            <div class="month-list">
-                @foreach ($mesice as $m)
-                    @php [$y,$mo] = explode('-', $m); @endphp
-                    <a href="{{ route('doklady.downloadMonth', $m) }}" class="month-link">{{ $czMonths[(int)$mo] }} {{ $y }}</a>
-                @endforeach
-            </div>
-        </div>
-        @endif
-        @endif
+    </div>
     @endif
 </div>
 
@@ -448,6 +439,11 @@ function renderTable() {
     const cols = getOrderedVisible();
     const container = document.getElementById('tableContainer');
     if (!container) return;
+
+    if (dokladyData.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>Zatím žádné doklady.</p></div>';
+        return;
+    }
 
     let html = '<table class="doklady-table"><thead><tr>';
     cols.forEach(colId => {
@@ -723,40 +719,55 @@ function processNextInQueue() {
         uploadActive--;
         uploadCompleted++;
 
-        const icon = item.querySelector('.upload-item-icon');
-        const status = item.querySelector('.upload-item-status');
+        try {
+            const icon = item.querySelector('.upload-item-icon');
+            const status = item.querySelector('.upload-item-status');
 
-        if (result.status === 'ok') {
-            item.className = 'upload-item status-ok';
-            icon.innerHTML = '&#10003;';
-            status.textContent = result.message || 'Nahráno';
-        } else if (result.status === 'warning') {
-            item.className = 'upload-item status-warning';
-            icon.innerHTML = '&#9888;';
-            status.textContent = result.message || 'Nahráno s upozorněním';
-            addDismissBtn(item);
-        } else if (result.status === 'duplicate') {
-            item.className = 'upload-item status-duplicate';
-            icon.innerHTML = '&#8212;';
-            status.textContent = result.message || 'Již existuje';
-        } else {
-            item.className = 'upload-item status-error';
-            icon.innerHTML = '&#10007;';
-            status.textContent = result.message || 'Chyba';
-            addDismissBtn(item);
+            if (result.status === 'ok') {
+                item.className = 'upload-item status-ok';
+                icon.innerHTML = '&#10003;';
+                status.textContent = result.message || 'Nahráno';
+            } else if (result.status === 'warning') {
+                item.className = 'upload-item status-warning';
+                icon.innerHTML = '&#9888;';
+                status.textContent = result.message || 'Nahráno s upozorněním';
+                addDismissBtn(item);
+            } else if (result.status === 'duplicate') {
+                item.className = 'upload-item status-duplicate';
+                icon.innerHTML = '&#8212;';
+                status.textContent = result.message || 'Již existuje';
+            } else {
+                item.className = 'upload-item status-error';
+                icon.innerHTML = '&#10007;';
+                status.textContent = result.message || 'Chyba';
+                addDismissBtn(item);
+            }
+
+            updateUploadHeader();
+            refreshTableData();
+        } catch(e) {
+            console.error('[UPLOAD] UI update error:', e);
         }
 
-        updateUploadHeader();
-
-        // Refresh table data after each completed file
-        refreshTableData();
-
-        // Try next in queue
+        // ALWAYS continue queue - never let it stall
         if (!processNextInQueue()) {
-            // No more waiting items - check if everything is done
             if (uploadActive === 0) {
                 onAllUploadsComplete();
             }
+        }
+    }).catch(err => {
+        // Safety net: uploadSingleFile should never reject, but if it does, continue queue
+        clearInterval(timerInterval);
+        uploadActive--;
+        uploadCompleted++;
+        console.error('[UPLOAD] Unexpected error:', err);
+        item.className = 'upload-item status-error';
+        item.querySelector('.upload-item-icon').innerHTML = '&#10007;';
+        item.querySelector('.upload-item-status').textContent = 'Neočekávaná chyba';
+        addDismissBtn(item);
+        updateUploadHeader();
+        if (!processNextInQueue()) {
+            if (uploadActive === 0) onAllUploadsComplete();
         }
     });
 
@@ -775,10 +786,6 @@ function refreshTableData() {
     fetch(window.location.pathname + (window.location.search || ''), {
         headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
     }).then(r => r.json()).then(data => {
-        if (!document.getElementById('tableContainer') && data.length > 0) {
-            window.location.reload();
-            return;
-        }
         dokladyData = data;
         renderTable();
     }).catch(() => {});
