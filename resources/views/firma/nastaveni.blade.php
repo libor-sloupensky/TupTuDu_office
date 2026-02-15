@@ -116,11 +116,11 @@
         <form method="POST" action="{{ route('firma.ulozitPravidla') }}">
             @csrf
             <div class="form-group">
-                <textarea name="pravidla_zpracovani" id="pravidlaText" rows="10" maxlength="2000"
+                <textarea name="pravidla_zpracovani" id="pravidlaText" rows="20" maxlength="3000"
                     style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; line-height: 1.5;"
                 >{{ old('pravidla_zpracovani', $firma->pravidla_zpracovani ?? '') }}</textarea>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.3rem;">
-                    <span id="pravidlaCounter" style="font-size: 0.8rem; color: #999;">0 / 2000</span>
+                    <span id="pravidlaCounter" style="font-size: 0.8rem; color: #999;">0 / 3000</span>
                     <button type="button" onclick="obnovitVychozi()"
                         style="padding: 0.3rem 0.75rem; border: 1px solid #95a5a6; background: white; color: #555; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
                         Obnovit výchozí pravidla
@@ -138,13 +138,47 @@
 
     <script>
     (function() {
-        const DEFAULT_PRAVIDLA = `- Účtenky za pohonné hmoty (benzín, nafta, CNG, LPG, AdBlue) zařaď do kategorie "pohonné_hmoty"\n- Účtenky ze supermarketů a restaurací zařaď do kategorie "stravování"\n- Faktury za telefon, internet a data zařaď do kategorie "telekomunikace"\n- Faktury za elektřinu, plyn a vodu zařaď do kategorie "energie"\n- Pokud je doklad špatně čitelný ale klíčové údaje (částka, dodavatel) jdou rozpoznat, označ kvalitu jako "nízká" (ne "nečitelná")\n- U účtenek bez IČO odběratele nastav odberatel_ico na null`;
+        const DEFAULT_PRAVIDLA = `KATEGORIE NÁKLADŮ
+- Pohonné hmoty: benzín, natural, nafta, CNG, LPG, AdBlue → "pohonné_hmoty"
+- Stravování: potraviny, restaurace, kantýna, občerstvení → "stravování"
+- Telekomunikace: telefon, internet, data, hosting, domény → "telekomunikace"
+- Energie: elektřina, plyn, voda, teplo → "energie"
+- Doprava: jízdenky, parkování, mýtné, taxi, kurýr, poštovné → "doprava"
+- Kancelářské potřeby: tonery, papír, obálky, drobný materiál → "kancelářské_potřeby"
+- Software a licence: předplatné, SaaS, cloudové služby, antivirus → "software"
+- Opravy a údržba: servis, náhradní díly, revize, technická kontrola → "opravy_a_údržba"
+- Reklama: inzerce, propagace, tiskoviny, PPC, SEO, sociální sítě → "reklama"
+- Cestovné: ubytování, letenky, jízdenky na služební cestu → "cestovné"
+- Školení: kurzy, semináře, konference, e-learning, certifikace → "školení"
+- Pojištění: vozidla, majetek, odpovědnost, havarijní → "pojištění"
+- Nájem a leasing: pronájem prostor, operativní leasing, coworking → "nájem"
+- Reprezentace: dárky klientům, pohoštění, květiny → "reprezentace"
+- Právní a účetní služby: advokát, notář, daňový poradce, audit → "právní_služby"
+- Bankovní poplatky: vedení účtu, transakční poplatky, terminál → "bankovní_poplatky"
+- Členské příspěvky: komory, asociace, profesní organizace → "členské_příspěvky"
+- BOZP a PO: ochranné pomůcky, hasicí přístroje, revize → "bozp"
+- Dokumenty: smlouvy, objednávky, upomínky, výzvy, protokoly → "dokumenty"
+- Pokuty a penále zařaď do "ostatní" (daňově neuznatelné)
+
+KVALITA A STAVY
+- Čitelný doklad (i mírně rozmazaný) → stav "dokončeno"
+- Některá data nečitelná → stav "nekvalitní" + poznámka co konkrétně chybí
+- Klíčová data nečitelná (částka, dodavatel) → kvalita "nečitelná"
+- Příjemce/odběratel odlišný od naší firmy → kvalita_poznamka "Chybný příjemce"
+- U účtenek bez IČO odběratele nastav odberatel_ico na null
+
+TIPY PRO ZPRACOVÁNÍ
+- Doklady v cizí měně zpracuj normálně s odpovídající měnou (EUR, USD, GBP...)
+- Vícestránkovou fakturu vlož jako jeden doklad
+- Více dokladů na jednom skenu rozděl na samostatné záznamy
+- Zálohovou fakturu rozpoznej i bez slova "záloha" (pokud chybí DUZP, bývá záloha)
+- Dobropisy mají zápornou částku — zachovej znaménko`;
 
         const textarea = document.getElementById('pravidlaText');
         const counter = document.getElementById('pravidlaCounter');
 
         function updateCounter() {
-            counter.textContent = textarea.value.length + ' / 2000';
+            counter.textContent = textarea.value.length + ' / 3000';
         }
 
         textarea.addEventListener('input', updateCounter);

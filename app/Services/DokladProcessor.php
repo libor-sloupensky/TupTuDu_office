@@ -373,7 +373,9 @@ KVALITA:
 - necitelna: nelze přečíst klíčové údaje (částky, dodavatel, číslo dokladu)
 
 KATEGORIE NÁKLADŮ:
-služby, materiál, energie, telekomunikace, nájem, pojištění, doprava, pohonné_hmoty, stravování, ostatní
+služby, materiál, energie, telekomunikace, nájem, pojištění, doprava, pohonné_hmoty, stravování,
+kancelářské_potřeby, software, opravy_a_údržba, reklama, cestovné, školení, reprezentace,
+právní_služby, bankovní_poplatky, členské_příspěvky, bozp, dokumenty, ostatní
 
 FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
 {

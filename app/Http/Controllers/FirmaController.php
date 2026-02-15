@@ -137,7 +137,7 @@ class FirmaController extends Controller
         }
 
         $request->validate([
-            'pravidla_zpracovani' => 'nullable|string|max:2000',
+            'pravidla_zpracovani' => 'nullable|string|max:3000',
         ]);
 
         $pravidla = trim($request->input('pravidla_zpracovani', ''));
