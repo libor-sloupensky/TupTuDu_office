@@ -127,12 +127,23 @@ jobs:
         php -r "
           \$pdo = new PDO('mysql:host=db.dw328.webglobe.com;dbname=tuptudu_office;charset=utf8mb4', 'tuptudu_office', getenv('DB_PASSWORD'));
           \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+          // Drop ai_tokens columns if they exist
           \$cols = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'ai_input_tokens'\")->fetchAll();
           if (!empty(\$cols)) {
             \$pdo->exec('ALTER TABLE fak_doklady DROP COLUMN ai_input_tokens, DROP COLUMN ai_output_tokens');
-            echo 'Migration: dropped ai_input_tokens, ai_output_tokens columns';
+            echo 'Migration: dropped ai_input_tokens, ai_output_tokens columns' . PHP_EOL;
           } else {
-            echo 'Migration: columns already removed, skipping';
+            echo 'Migration: ai_tokens columns already removed, skipping' . PHP_EOL;
+          }
+
+          // Add pravidla_zpracovani column to sys_firmy if missing
+          \$cols2 = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'pravidla_zpracovani'\")->fetchAll();
+          if (empty(\$cols2)) {
+            \$pdo->exec('ALTER TABLE sys_firmy ADD COLUMN pravidla_zpracovani TEXT NULL AFTER je_ucetni');
+            echo 'Migration: added pravidla_zpracovani column to sys_firmy' . PHP_EOL;
+          } else {
+            echo 'Migration: pravidla_zpracovani already exists, skipping' . PHP_EOL;
           }
         "
 

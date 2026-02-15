@@ -151,7 +151,7 @@ class DokladProcessor
         // Stav podle kvality
         $stav = match ($kvalita) {
             'necitelna' => 'nekvalitni',
-            'nizka' => 'dokonceno',
+            'nizka' => 'nekvalitni',
             default => 'dokonceno',
         };
 
@@ -353,10 +353,10 @@ TYPY DOKLADŮ:
 - pokuta: pokuta, výzva k úhradě, penále, přestupek
 - jine: výpis, oznámení, dopis, jiný dokument
 
-KVALITA:
-- dobra: čitelný text, jasné hodnoty
-- nizka: rozmazaný, špatný úhel, částečně čitelný, ale klíčové údaje jdou rozpoznat
-- necitelna: nelze přečíst klíčové údaje (částky, dodavatel, číslo dokladu)
+KVALITA (buď tolerantní — běžné nedokonalosti skenu jsou OK):
+- dobra: klíčové údaje (částka, dodavatel, číslo dokladu) jsou čitelné. Mírné rozmazání, šikmý úhel, nízké rozlišení, šum nebo stíny NEJSOU důvodem ke snížení kvality pokud údaje jdou přečíst.
+- nizka: některé klíčové údaje jsou těžko čitelné nebo chybí, ale alespoň část dat jde extrahovat. Použij pouze pokud skutečně nemůžeš přečíst důležitá pole.
+- necitelna: dokument je zcela nečitelný — nelze přečíst ani částku, ani dodavatele, ani číslo dokladu.
 
 KATEGORIE NÁKLADŮ:
 služby, materiál, energie, telekomunikace, nájem, pojištění, doprava, pohonné_hmoty, stravování,

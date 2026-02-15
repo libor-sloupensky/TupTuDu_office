@@ -154,10 +154,12 @@
 - Dokumenty: smlouvy, objednávky, upomínky, protokoly → "dokumenty"
 - Pokuty a penále → "ostatní"
 
-KVALITA A STAVY
-- Čitelný doklad (i mírně rozmazaný) → stav "dokončeno"
-- Některá data nečitelná → stav "nekvalitní" + poznámka co chybí
-- Klíčová data nečitelná (částka, dodavatel) → kvalita "nečitelná"
+KVALITA A STAVY (buď tolerantní k nedokonalostem skenů)
+- Čitelný doklad (i rozmazaný, šikmý, s šumem) → kvalita "dobrá", stav "dokončeno"
+- Mírné rozmazání, nízké rozlišení nebo stíny NEJSOU důvodem ke snížení kvality
+- Kvalitu sniž pouze pokud skutečně nelze přečíst klíčové údaje
+- Některá klíčová data nečitelná → kvalita "nízká", stav "nekvalitní" + poznámka co chybí
+- Zcela nečitelný dokument → kvalita "nečitelná"
 - Příjemce/odběratel odlišný od naší firmy → kvalita_poznamka "Chybný příjemce"
 - U účtenek bez IČO odběratele nastav odberatel_ico na null
 
