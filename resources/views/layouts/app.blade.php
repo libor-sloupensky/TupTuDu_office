@@ -27,7 +27,7 @@
         .firma-dropdown .add-link:hover { background: #f0f7ff; }
         .btn-logout { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.85rem; margin-left: 1rem; }
         .btn-logout:hover { text-decoration: underline; }
-        .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; width: fit-content; min-width: min(900px, 100%); }
         .card { background: white; border-radius: 8px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .version-info { position: fixed; bottom: 10px; right: 10px; text-align: right; font-family: monospace; font-size: 12px; color: #aaa; }
     </style>

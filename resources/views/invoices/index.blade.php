@@ -73,6 +73,7 @@
     .doklady-table th.drag-over { border-left: 3px solid #3498db; }
     .doklady-table td { padding: 0.45rem 0.6rem; border-bottom: 1px solid #e8ecf0; border-right: 1px solid #f0f0f0; }
     .doklady-table td:last-child { border-right: none; }
+    .doklady-table td[data-col="dodavatel"], .doklady-table th[data-col="dodavatel"] { min-width: 180px; }
     .doklady-table tr:hover > td { background: #f8fafb; }
     .doklady-table a { color: #3498db; text-decoration: none; }
     .doklady-table a:hover { text-decoration: underline; }
