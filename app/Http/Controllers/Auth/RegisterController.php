@@ -49,6 +49,19 @@ class RegisterController extends Controller
             }
         }
 
+        $czMessages = [
+            'jmeno.required' => 'Jméno je povinné.',
+            'prijmeni.required' => 'Příjmení je povinné.',
+            'email.required' => 'Email je povinný.',
+            'email.email' => 'Zadejte platný email.',
+            'email.unique' => 'Tento email je již registrován.',
+            'password.required' => 'Heslo je povinné.',
+            'password.min' => 'Heslo musí mít alespoň 8 znaků.',
+            'password.confirmed' => 'Hesla se neshodují.',
+            'ico.required' => 'IČO je povinné.',
+            'ico.regex' => 'IČO musí být přesně 8 číslic.',
+        ];
+
         if ($pozvani) {
             // Invitation registration — no IČO needed
             $request->validate([
@@ -57,7 +70,7 @@ class RegisterController extends Controller
                 'email' => 'required|email|unique:sys_users,email',
                 'telefon' => 'nullable|string|max:20',
                 'password' => 'required|string|min:8|confirmed',
-            ]);
+            ], $czMessages);
 
             $user = User::create([
                 'jmeno' => $request->jmeno,
@@ -83,7 +96,7 @@ class RegisterController extends Controller
                 'telefon' => 'nullable|string|max:20',
                 'password' => 'required|string|min:8|confirmed',
                 'ico' => 'required|string|regex:/^\d{8}$/',
-            ]);
+            ], $czMessages);
 
             $ares = AresController::fetchAres($request->ico);
 

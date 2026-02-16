@@ -51,7 +51,7 @@
             <button type="button" id="btnZadost" class="btn btn-primary btn-sm" onclick="pozadatOPristup()" style="margin-bottom: 0.5rem;">Požádat o přístup</button>
             <div id="zadostStatus" style="font-size: 0.85rem; margin-top: 0.3rem; display: none;"></div>
             <p style="margin: 0.75rem 0 0; font-size: 0.8rem; color: #999;">
-                V případě komplikací nás kontaktujte na <a href="mailto:info@tuptudu.cz" style="color: #3498db;">info@tuptudu.cz</a>
+                V případě komplikací nás kontaktujte na <a href="mailto:office@tuptudu.cz" style="color: #3498db;">office@tuptudu.cz</a>
             </p>
         </div>
     @endif

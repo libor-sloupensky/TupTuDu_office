@@ -276,6 +276,14 @@ jobs:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
           \");
           echo 'Migration: sys_pozvani table ensured' . PHP_EOL;
+
+          // Smazání testovacího uživatele libor@tuptudu.cz
+          \$testUser = \$pdo->query(\"SELECT id FROM sys_users WHERE email = 'libor@tuptudu.cz'\")->fetch();
+          if (\$testUser) {
+            \$pdo->exec(\"DELETE FROM sys_user_firma WHERE user_id = \" . (int)\$testUser['id']);
+            \$pdo->exec(\"DELETE FROM sys_users WHERE id = \" . (int)\$testUser['id']);
+            echo 'Migration: deleted test user libor@tuptudu.cz' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment
