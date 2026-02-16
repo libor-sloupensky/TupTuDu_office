@@ -731,8 +731,15 @@ PROMPT;
                 $img = $img->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
             }
 
-            // Deskew (narovnání šikmého skenu)
-            $img->deskewImage(40);
+            // Deskew (narovnání šikmého skenu) - nízký práh aby neořízl obsah
+            $img->deskewImage(20);
+
+            // Trim bílých okrajů po deskew (fuzz = tolerance pro skoro-bílou)
+            $img->trimImage(15000);
+            $img->setImagePage(0, 0, 0, 0);
+
+            // Přidat malý okraj pro čitelnost (20px bílý rámeček)
+            $img->borderImage(new \ImagickPixel('white'), 20, 20);
 
             // Enhance (zvýšení čitelnosti)
             $img->normalizeImage();
