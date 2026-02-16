@@ -294,7 +294,7 @@ class InvoiceController extends Controller
                     $message = count($doklady) . ' dokladů z ' . $originalName;
                     if ($status === 'ok') $status = 'warning';
                     $warnings[] = 'Některá pole nelze přesně identifikovat';
-                    $warnings[] = 'Nahrání více dokumentů na jedné stránce není spolehlivé';
+                    $warnings[] = 'Nahrání více dokumentů na jedné stránce není spolehlivé. !!!Nahrávejte pouze jeden dokument v jednom souboru!!!';
                 }
 
                 if ($warnings) {
