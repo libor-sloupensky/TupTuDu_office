@@ -12,28 +12,41 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        fetch-depth: 5
+        fetch-depth: 0
+
+    - name: Determine changes
+      id: changes
+      run: |
+        BEFORE="${{ github.event.before }}"
+        if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+          echo "vendor_changed=true" >> $GITHUB_OUTPUT
+          git ls-files > /tmp/changed_files.txt
+        else
+          git diff --name-only "$BEFORE" HEAD > /tmp/changed_files.txt
+          if grep -q "composer.lock" /tmp/changed_files.txt; then
+            echo "vendor_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "vendor_changed=false" >> $GITHUB_OUTPUT
+          fi
+        fi
+        echo "Changed files in this push:"
+        cat /tmp/changed_files.txt
+        echo "---"
+        echo "File count: $(wc -l < /tmp/changed_files.txt)"
 
     - name: Setup PHP
+      if: steps.changes.outputs.vendor_changed == 'true'
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.4'
         extensions: mbstring, xml, curl, zip, openssl
 
     - name: Install Composer dependencies
+      if: steps.changes.outputs.vendor_changed == 'true'
       run: composer install --no-dev --optimize-autoloader --no-interaction
 
     - name: Generate last push timestamp
       run: echo "$(TZ='Europe/Prague' date '+%d.%m.%Y %H:%M:%S')" > ./public/last_push.txt
-
-    - name: Check if vendor needs deploy
-      id: check_vendor
-      run: |
-        if git diff --name-only HEAD~1 HEAD | grep -q "composer.lock"; then
-          echo "vendor_changed=true" >> $GITHUB_OUTPUT
-        else
-          echo "vendor_changed=false" >> $GITHUB_OUTPUT
-        fi
 
     - name: Prepare .env for upload
       run: |
@@ -89,9 +102,8 @@ jobs:
       run: |
         sudo apt-get install -y lftp
 
-        # Get changed files from git diff
-        CHANGED_FILES=$(git diff --name-only HEAD~4 HEAD 2>/dev/null || git diff --name-only HEAD)
-        echo "Changed files:"
+        CHANGED_FILES=$(cat /tmp/changed_files.txt)
+        echo "Files to deploy:"
         echo "$CHANGED_FILES"
 
         # Build lftp script with only changed files
@@ -150,7 +162,7 @@ jobs:
         echo "Upload complete."
 
     - name: Deploy vendor
-      if: steps.check_vendor.outputs.vendor_changed == 'true'
+      if: steps.changes.outputs.vendor_changed == 'true'
       run: |
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p 222';
