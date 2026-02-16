@@ -84,13 +84,8 @@ class DokladProcessor
             $pageTempPath = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}_p{$pageNum}.pdf";
             Storage::disk('s3')->put($pageTempPath, $pageBytes);
 
-            // Předzpracování stránky: enhance + deskew
-            $enhanced = $this->preprocessFile($pageBytes, 'pdf');
-            $aiBytes = $enhanced ?? $pageBytes;
-            $aiExt = $enhanced ? 'jpeg' : 'pdf';
-
             try {
-                $visionResult = $this->analyzeWithVision($aiBytes, $aiExt, $firma);
+                $visionResult = $this->analyzeWithVision($pageBytes, 'pdf', $firma);
             } catch (\Exception $e) {
                 Log::error("DokladProcessor Vision error page {$pageNum}: {$e->getMessage()}", [
                     'firma_ico' => $firma->ico,
@@ -133,20 +128,10 @@ class DokladProcessor
                     ? "{$baseName} (s{$pageNum}-{$docNum}).pdf"
                     : "{$baseName} (s{$pageNum}).pdf";
 
-                // Multi-doc s bounding boxem: ořízni každý doklad zvlášť
-                $docEnhanced = $enhanced;
-                if ($docsOnPage > 1 && $enhanced && !empty($docData['bounding_box'])) {
-                    $cropped = $this->cropBoundingBox($enhanced, $docData['bounding_box']);
-                    if ($cropped) {
-                        $docEnhanced = $cropped;
-                    }
-                }
-
                 try {
                     $doklad = $this->createDokladFromPage(
                         $docData, $firma, $nazev, $fileHash,
-                        $zdroj, $pageTempPath, $pageBytes, $globalIndex,
-                        $docEnhanced
+                        $zdroj, $pageTempPath, $pageBytes, $globalIndex
                     );
                     $doklady[] = $doklad;
                 } catch (\Exception $e) {
@@ -210,13 +195,8 @@ class DokladProcessor
         $tempS3Path = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}.{$ext}";
         Storage::disk('s3')->put($tempS3Path, $fileBytes);
 
-        // Předzpracování: enhance + deskew
-        $enhanced = $this->preprocessFile($fileBytes, $ext);
-        $aiBytes = $enhanced ?? $fileBytes;
-        $aiExt = $enhanced ? 'jpeg' : $ext;
-
         try {
-            $visionResult = $this->analyzeWithVision($aiBytes, $aiExt, $firma);
+            $visionResult = $this->analyzeWithVision($fileBytes, $ext, $firma);
         } catch (\Exception $e) {
             Log::error("DokladProcessor Vision error: {$e->getMessage()}", [
                 'firma_ico' => $firma->ico,
@@ -262,20 +242,10 @@ class DokladProcessor
                 ? pathinfo($originalName, PATHINFO_FILENAME) . " ({$poradi})." . $ext
                 : $originalName;
 
-            // Multi-doc s bounding boxem: ořízni každý doklad zvlášť
-            $docEnhanced = $enhanced;
-            if ($celkem > 1 && $enhanced && !empty($docData['bounding_box'])) {
-                $cropped = $this->cropBoundingBox($enhanced, $docData['bounding_box']);
-                if ($cropped) {
-                    $docEnhanced = $cropped;
-                }
-            }
-
             try {
                 $doklad = $this->createDokladFromPage(
                     $docData, $firma, $nazev, $fileHash,
-                    $zdroj, $tempS3Path, $fileBytes, $poradi,
-                    $docEnhanced
+                    $zdroj, $tempS3Path, $fileBytes, $poradi
                 );
                 $doklady[] = $doklad;
             } catch (\Exception $e) {
@@ -319,8 +289,7 @@ class DokladProcessor
         string $zdroj,
         string $tempS3Path,
         string $pageBytes,
-        int $poradi,
-        ?string $enhancedBytes = null
+        int $poradi
     ): Doklad {
         $kvalita = $docData['kvalita'] ?? 'dobra';
         $typDokladu = $docData['typ_dokladu'] ?? 'faktura';
@@ -351,22 +320,8 @@ class DokladProcessor
         ]);
 
         // S3 finální cesta
-        $cestaOriginalu = null;
-
-        if ($enhancedBytes) {
-            // Uložit vylepšenou verzi jako hlavní soubor (PNG)
-            $enhancedName = pathinfo($nazev, PATHINFO_FILENAME) . '.jpg';
-            $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $enhancedName, $datum);
-            Storage::disk('s3')->put($s3Path, $enhancedBytes);
-
-            // Uložit originál
-            $cestaOriginalu = $this->buildS3PathOriginal($firma->ico, $doklad->id, $nazev, $datum);
-            Storage::disk('s3')->put($cestaOriginalu, $pageBytes);
-        } else {
-            // Bez vylepšení - pouze originál
-            $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $nazev, $datum);
-            Storage::disk('s3')->put($s3Path, $pageBytes);
-        }
+        $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $nazev, $datum);
+        Storage::disk('s3')->put($s3Path, $pageBytes);
 
         // Detekce obsahové duplicity (stejné číslo dokladu + dodavatel)
         $duplicitaId = null;
@@ -422,7 +377,6 @@ class DokladProcessor
             'adresni' => $adresni,
             'overeno_adresat' => $overenoAdresat,
             'cesta_souboru' => $s3Path,
-            'cesta_originalu' => $cestaOriginalu,
             'stav' => $stav,
         ]);
 
@@ -612,15 +566,13 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
       "castka_celkem": 0.00,
       "mena": "CZK",
       "castka_dph": 0.00,
-      "kategorie": "služby",
-      "bounding_box": {"x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0}
+      "kategorie": "služby"
     }
   ]
 }
 
 DŮLEŽITÁ PRAVIDLA:
 - KRITICKÉ: Na naskenované stránce bývá VÍCE samostatných dokladů! Pokud vidíš 2 nebo více účtenek, paragonů nebo faktur na jedné stránce (vedle sebe, nad sebou, nalepené na papíru), MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Typický sken A4 obsahuje 2-4 účtenky. Nestačí je sloučit do jednoho záznamu!
-- BOUNDING BOX: Pokud na stránce vidíš VÍCE dokladů, pro KAŽDÝ vrať "bounding_box" s přibližným umístěním na stránce. Souřadnice jsou relativní (0.0 až 1.0): x = levý okraj, y = horní okraj, w = šířka, h = výška. Příklad: doklad v horní polovině stránky = {"x": 0.0, "y": 0.0, "w": 1.0, "h": 0.5}. Pokud je na stránce pouze jeden doklad, bounding_box vynech.
 - U neadresních dokladů (účtenky, paragony bez IČO odběratele) bude odberatel_ico null
 - Pokud je doklad v cizí měně, uveď správnou měnu (EUR, USD, GBP, PLN atd.)
 - Pokud údaj nelze z dokumentu zjistit, použij null - nikdy nevymýšlej data
@@ -705,121 +657,6 @@ PROMPT;
     }
 
     /**
-     * Předzpracuje soubor pomocí ImageMagick: enhance + deskew.
-     * Vrací ['enhanced' => bytes|null]. Pokud Imagick není dostupný, vrací null.
-     */
-    private function preprocessFile(string $fileBytes, string $ext): ?string
-    {
-        if (!extension_loaded('imagick')) {
-            return null;
-        }
-
-        try {
-            $img = new \Imagick();
-
-            $isPdf = $ext === 'pdf' || str_starts_with($fileBytes, '%PDF');
-            if ($isPdf) {
-                $img->setResolution(300, 300);
-            }
-
-            $img->readImageBlob($fileBytes);
-
-            if ($isPdf) {
-                $img->setImageFormat('png');
-                $img->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
-                $img->setImageBackgroundColor('white');
-                $img = $img->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
-            }
-
-            // Deskew (narovnání šikmého skenu) - nízký práh aby neořízl obsah
-            $img->deskewImage(20);
-
-            // Trim bílých okrajů po deskew (fuzz = tolerance pro skoro-bílou)
-            $img->trimImage(15000);
-            $img->setImagePage(0, 0, 0, 0);
-
-            // Přidat malý okraj pro čitelnost (20px bílý rámeček)
-            $img->borderImage(new \ImagickPixel('white'), 20, 20);
-
-            // Enhance (zvýšení čitelnosti)
-            $img->normalizeImage();
-            $img->sharpenImage(0, 1.0);
-            $img->despeckleImage();
-
-            // JPEG výstup - výrazně menší než PNG pro skenované dokumenty
-            // Claude Vision API má limit 5MB na obrázek
-            $maxBytes = 4500000;
-
-            $img->setImageFormat('jpeg');
-            $img->setImageCompressionQuality(90);
-            $enhanced = $img->getImageBlob();
-
-            // Pokud stále příliš velký, snížit kvalitu
-            if (strlen($enhanced) > $maxBytes) {
-                $img->setImageCompressionQuality(75);
-                $enhanced = $img->getImageBlob();
-            }
-
-            // Pokud stále příliš velký, zmenšit rozlišení
-            if (strlen($enhanced) > $maxBytes) {
-                $w = $img->getImageWidth();
-                $h = $img->getImageHeight();
-                $ratio = sqrt($maxBytes / strlen($enhanced));
-                $img->resizeImage((int)($w * $ratio), (int)($h * $ratio), \Imagick::FILTER_LANCZOS, 1);
-                $img->setImageCompressionQuality(80);
-                $enhanced = $img->getImageBlob();
-            }
-
-            $img->destroy();
-
-            return $enhanced;
-        } catch (\Exception $e) {
-            Log::warning("Předzpracování souboru selhalo: {$e->getMessage()}");
-            return null;
-        }
-    }
-
-    /**
-     * Ořízne oblast z obrázku podle bounding boxu (relativní souřadnice 0-1).
-     */
-    private function cropBoundingBox(string $imageBytes, array $box): ?string
-    {
-        if (!extension_loaded('imagick')) {
-            return null;
-        }
-
-        try {
-            $img = new \Imagick();
-            $img->readImageBlob($imageBytes);
-
-            $imgW = $img->getImageWidth();
-            $imgH = $img->getImageHeight();
-
-            $x = max(0, (int)(($box['x'] ?? 0) * $imgW));
-            $y = max(0, (int)(($box['y'] ?? 0) * $imgH));
-            $w = min($imgW - $x, (int)(($box['w'] ?? 1) * $imgW));
-            $h = min($imgH - $y, (int)(($box['h'] ?? 1) * $imgH));
-
-            if ($w < 50 || $h < 50) {
-                $img->destroy();
-                return null;
-            }
-
-            $img->cropImage($w, $h, $x, $y);
-            $img->setImagePage($w, $h, 0, 0);
-            $img->setImageFormat('jpeg');
-            $img->setImageCompressionQuality(90);
-            $result = $img->getImageBlob();
-            $img->destroy();
-
-            return $result;
-        } catch (\Exception $e) {
-            Log::warning("Ořez bounding boxu selhal: {$e->getMessage()}");
-            return null;
-        }
-    }
-
-    /**
      * Sestaví S3 cestu: doklady/{ICO}/{YYYY-MM}/{YYYY-MM-DD}_{ID}.{ext}
      */
     private function buildS3Path(string $ico, int $dokladId, string $originalName, ?string $datumVystaveni): string
@@ -829,18 +666,6 @@ PROMPT;
         $mesic = substr($datum, 0, 7);
 
         return "doklady/{$ico}/{$mesic}/{$datum}_{$dokladId}.{$ext}";
-    }
-
-    /**
-     * Sestaví S3 cestu pro originální soubor: doklady/{ICO}/{YYYY-MM}/{YYYY-MM-DD}_{ID}_original.{ext}
-     */
-    private function buildS3PathOriginal(string $ico, int $dokladId, string $originalName, ?string $datumVystaveni): string
-    {
-        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION)) ?: 'pdf';
-        $datum = $datumVystaveni ?: date('Y-m-d');
-        $mesic = substr($datum, 0, 7);
-
-        return "doklady/{$ico}/{$mesic}/{$datum}_{$dokladId}_original.{$ext}";
     }
 
     /**
