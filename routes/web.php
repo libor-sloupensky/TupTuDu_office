@@ -56,6 +56,7 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::get('/doklady/{doklad}', [InvoiceController::class, 'show'])->name('doklady.show');
     Route::get('/doklady/{doklad}/stahnout', [InvoiceController::class, 'download'])->name('doklady.download');
     Route::get('/doklady/{doklad}/nahled', [InvoiceController::class, 'preview'])->name('doklady.preview');
+    Route::get('/doklady/{doklad}/nahled-original', [InvoiceController::class, 'previewOriginal'])->name('doklady.previewOriginal');
     Route::patch('/doklady/{doklad}', [InvoiceController::class, 'update'])->name('doklady.update');
     Route::delete('/doklady/{doklad}', [InvoiceController::class, 'destroy'])->name('doklady.destroy');
 

@@ -110,7 +110,9 @@ class InvoiceController extends Controller
             'update_url' => route('doklady.update', $d),
             'destroy_url' => route('doklady.destroy', $d),
             'preview_url' => $d->cesta_souboru ? route('doklady.preview', $d) : null,
-            'preview_ext' => strtolower(pathinfo($d->nazev_souboru, PATHINFO_EXTENSION)),
+            'preview_ext' => $d->cesta_souboru ? strtolower(pathinfo($d->cesta_souboru, PATHINFO_EXTENSION)) : null,
+            'preview_original_url' => $d->cesta_originalu ? route('doklady.previewOriginal', $d) : null,
+            'preview_original_ext' => $d->cesta_originalu ? strtolower(pathinfo($d->cesta_originalu, PATHINFO_EXTENSION)) : null,
             'adresni' => $d->adresni,
             'overeno_adresat' => $d->overeno_adresat,
             'chybova_zprava' => $d->chybova_zprava,
@@ -172,6 +174,18 @@ class InvoiceController extends Controller
         }, $doklad->nazev_souboru);
     }
 
+    private function mimeFromPath(string $path): string
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        return match ($ext) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            default => 'application/octet-stream',
+        };
+    }
+
     public function preview(Doklad $doklad)
     {
         $this->autorizujDoklad($doklad);
@@ -181,18 +195,27 @@ class InvoiceController extends Controller
             abort(404, 'Soubor nebyl nalezen.');
         }
 
-        $ext = strtolower(pathinfo($doklad->nazev_souboru, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-        ];
-        $mime = $mimeTypes[$ext] ?? 'application/octet-stream';
+        $mime = $this->mimeFromPath($doklad->cesta_souboru);
 
         return response($disk->get($doklad->cesta_souboru))
             ->header('Content-Type', $mime)
             ->header('Content-Disposition', 'inline; filename="' . $doklad->nazev_souboru . '"');
+    }
+
+    public function previewOriginal(Doklad $doklad)
+    {
+        $this->autorizujDoklad($doklad);
+        $disk = Storage::disk('s3');
+
+        if (!$doklad->cesta_originalu || !$disk->exists($doklad->cesta_originalu)) {
+            abort(404, 'Originální soubor nebyl nalezen.');
+        }
+
+        $mime = $this->mimeFromPath($doklad->cesta_originalu);
+
+        return response($disk->get($doklad->cesta_originalu))
+            ->header('Content-Type', $mime)
+            ->header('Content-Disposition', 'inline; filename="original_' . $doklad->nazev_souboru . '"');
     }
 
     public function store(Request $request)
@@ -631,6 +654,9 @@ PROMPT;
 
         if ($doklad->cesta_souboru) {
             Storage::disk('s3')->delete($doklad->cesta_souboru);
+        }
+        if ($doklad->cesta_originalu) {
+            Storage::disk('s3')->delete($doklad->cesta_originalu);
         }
 
         Doklad::where('duplicita_id', $doklad->id)->update(['duplicita_id' => null]);

@@ -480,7 +480,17 @@ function cellValue(d, colId) {
         case 'vystaveni': return d.datum_vystaveni || '-';
         case 'splatnost': return d.datum_splatnosti || '-';
         case 'cislo': return '<a href="'+d.show_url+'">'+(d.cislo_dokladu || d.nazev_souboru)+'</a>' + (d.duplicita_id ? '<span class="badge-dup" title="Možná duplicita">DUP</span>' : '');
-        case 'nahled': return d.preview_url ? '<a href="#" class="btn-preview" title="Náhled" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>' : '';
+        case 'nahled': {
+            var ph = '';
+            if (d.preview_original_url) {
+                ph += '<a href="#" class="btn-preview" title="Originál" onclick="openPreview(\''+d.preview_original_url+'\',\''+d.preview_original_ext+'\');return false;">&#128196;</a>';
+                ph += '<br>';
+                ph += '<a href="#" class="btn-preview" title="Vylepšeno" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>';
+            } else if (d.preview_url) {
+                ph += '<a href="#" class="btn-preview" title="Náhled" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>';
+            }
+            return ph;
+        }
         case 'dodavatel': return d.dodavatel_nazev || '-';
         case 'ico': return d.dodavatel_ico || '-';
         case 'castka': return d.castka_celkem ? Number(d.castka_celkem).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';

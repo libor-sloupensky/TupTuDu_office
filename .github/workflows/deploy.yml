@@ -243,6 +243,15 @@ jobs:
             echo 'Migration: interni_role already exists, skipping' . PHP_EOL;
           }
 
+          // Add cesta_originalu column to fak_doklady if missing
+          \$cols4 = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'cesta_originalu'\")->fetchAll();
+          if (empty(\$cols4)) {
+            \$pdo->exec(\"ALTER TABLE fak_doklady ADD COLUMN cesta_originalu VARCHAR(500) NULL AFTER cesta_souboru\");
+            echo 'Migration: added cesta_originalu column to fak_doklady' . PHP_EOL;
+          } else {
+            echo 'Migration: cesta_originalu already exists, skipping' . PHP_EOL;
+          }
+
           // Create sys_pozvani table
           \$pdo->exec(\"
             CREATE TABLE IF NOT EXISTS sys_pozvani (
