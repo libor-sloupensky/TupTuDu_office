@@ -28,11 +28,27 @@
     .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
     .toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: not-allowed; }
 
-    .kat-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
-    .kat-row input { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
-    .kat-row input:first-child { max-width: 200px; }
-    .kat-row .btn-remove { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.2rem; padding: 0 0.3rem; }
-    .kat-row .btn-remove:hover { color: #c0392b; }
+    .kat-section-header { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
+    .kat-section-header h3 { margin: 0; }
+    .kat-arrow { font-size: 0.7rem; color: #888; transition: transform 0.2s; }
+    .kat-arrow.open { transform: rotate(90deg); }
+    .kat-body { display: none; margin-top: 0.75rem; }
+    .kat-body.open { display: block; }
+    .kat-desc { font-size: 0.85rem; color: #888; margin-bottom: 0.75rem; }
+    .kat-table { width: 100%; border-collapse: collapse; }
+    .kat-table th { padding: 0.4rem 0.5rem; text-align: left; font-weight: 600; color: #888; font-size: 0.8rem; border-bottom: 2px solid #eee; text-transform: uppercase; letter-spacing: 0.03em; }
+    .kat-table th:first-child { width: 30%; }
+    .kat-table td { padding: 0.25rem 0.3rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .kat-table td:last-child { width: 30px; text-align: center; }
+    .kat-table input { width: 100%; padding: 0.35rem 0.5rem; border: 1px solid transparent; border-radius: 4px; font-size: 0.9rem; background: transparent; }
+    .kat-table input:hover { border-color: #e0e0e0; }
+    .kat-table input:focus { outline: none; border-color: #3498db; background: white; box-shadow: 0 0 0 2px rgba(52,152,219,0.15); }
+    .kat-table .btn-remove { background: none; border: none; color: #ddd; cursor: pointer; font-size: 1.1rem; padding: 0; line-height: 1; }
+    .kat-table .btn-remove:hover { color: #e74c3c; }
+    .kat-table tr.kat-empty input { color: #999; }
+    .kat-table tr.kat-empty input::placeholder { color: #ccc; }
+    .kat-save-status { font-size: 0.8rem; color: #27ae60; margin-left: 0.5rem; opacity: 0; transition: opacity 0.3s; }
+    .kat-save-status.visible { opacity: 1; }
 </style>
 @endsection
 
@@ -178,66 +194,48 @@
     {{-- Kategorie nákladů --}}
     @if ($firma)
     <div class="section">
-        <h3>Kategorie nákladů</h3>
-        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
-            Definujte kategorie pro třídění dokladů. AI bude doklady automaticky zařazovat do těchto kategorií.
+        <div class="kat-section-header" onclick="toggleKategorie()">
+            <span class="kat-arrow" id="katArrow">&#9654;</span>
+            <h3>Kategorie nákladů</h3>
+            <span class="kat-save-status" id="katSaveStatus"></span>
+        </div>
+        <p class="kat-desc">
+            Kategorie pro automatické třídění dokladů. AI zařazuje doklady podle tohoto seznamu.
         </p>
 
-        <form method="POST" action="{{ route('firma.ulozitKategorie') }}" id="kategorieForm">
-            @csrf
-            <div id="kategorieList">
-                @foreach ($kategorie as $kat)
-                <div class="kat-row" data-id="{{ $kat->id }}">
-                    <input type="hidden" name="kategorie[{{ $loop->index }}][id]" value="{{ $kat->id }}">
-                    <input type="text" name="kategorie[{{ $loop->index }}][nazev]" value="{{ $kat->nazev }}" placeholder="Název" required>
-                    <input type="text" name="kategorie[{{ $loop->index }}][popis]" value="{{ $kat->popis }}" placeholder="Popis (příklady)">
-                    <button type="button" class="btn-remove" onclick="removeKategorie(this)" title="Odebrat">&times;</button>
-                </div>
-                @endforeach
-            </div>
-
-            @error('kategorie')
-                <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $message }}</div>
-            @enderror
-
-            <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
-                <button type="button" onclick="addKategorie()" style="padding: 0.5rem 1rem; border: 1px dashed #aaa; background: white; color: #555; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">+ Přidat kategorii</button>
-                <button type="submit" class="btn-save" style="background: #8e44ad;">Uložit kategorie</button>
-            </div>
-        </form>
-    </div>
-    @endif
-
-    {{-- Pravidla zpracování --}}
-    @if ($firma)
-    <div class="section">
-        <h3>Vlastní pravidla zpracování</h3>
-        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
-            Doplňková pravidla pro AI zpracování dokladů (nepovinné). Kategorie se definují výše, zde zadejte jen specifické instrukce.
-        </p>
-
-        <form method="POST" action="{{ route('firma.ulozitPravidla') }}">
-            @csrf
-            <div class="form-group">
-                <textarea name="pravidla_zpracovani" id="pravidlaText" rows="6" maxlength="3000"
-                    style="resize: vertical; line-height: 1.5; font-family: inherit; font-size: 0.85rem;"
-                    placeholder="Např.: Doklady od dodavatele XY vždy zařadit do kategorie Služby."
-                >{{ old('pravidla_zpracovani', $firma->pravidla_zpracovani ?? '') }}</textarea>
-                <span id="pravidlaCounter" style="font-size: 0.8rem; color: #999;">0 / 3000</span>
-            </div>
-
-            @error('pravidla_zpracovani')
-                <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $message }}</div>
-            @enderror
-
-            <button type="submit" class="btn-save" style="background: #8e44ad;">Uložit pravidla</button>
-        </form>
+        <div class="kat-body" id="katBody">
+            <table class="kat-table" id="katTable">
+                <thead>
+                    <tr>
+                        <th>Kategorie</th>
+                        <th>Příklady</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="katTbody">
+                    @foreach ($kategorie as $kat)
+                    <tr data-id="{{ $kat->id }}">
+                        <td><input type="text" value="{{ $kat->nazev }}" data-field="nazev" placeholder="Název"></td>
+                        <td><input type="text" value="{{ $kat->popis }}" data-field="popis" placeholder="příklady..."></td>
+                        <td><button type="button" class="btn-remove" onclick="removeKat(this)" title="Odebrat">&times;</button></td>
+                    </tr>
+                    @endforeach
+                    <tr class="kat-empty" data-id="">
+                        <td><input type="text" value="" data-field="nazev" placeholder="Nová kategorie..."></td>
+                        <td><input type="text" value="" data-field="popis" placeholder="příklady..."></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
     @endif
 </div>
 
 <script>
 (function() {
+    const csrfToken = '{{ csrf_token() }}';
+
     // Toggle účetní
     const toggle = document.getElementById('toggleUcetni');
     if (toggle && !toggle.disabled) {
@@ -247,7 +245,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({ je_ucetni: jeUcetni ? 1 : 0 })
@@ -268,55 +266,165 @@
         });
     }
 
-    // Kategorie - přidat řádek
-    let katIndex = {{ $kategorie->count() }};
-    window.addKategorie = function() {
-        const list = document.getElementById('kategorieList');
-        const row = document.createElement('div');
-        row.className = 'kat-row';
-        row.innerHTML = `
-            <input type="hidden" name="kategorie[${katIndex}][id]" value="">
-            <input type="text" name="kategorie[${katIndex}][nazev]" placeholder="Název" required>
-            <input type="text" name="kategorie[${katIndex}][popis]" placeholder="Popis (příklady)">
-            <button type="button" class="btn-remove" onclick="removeKategorie(this)" title="Odebrat">&times;</button>
-        `;
-        list.appendChild(row);
-        katIndex++;
-        row.querySelector('input[type="text"]').focus();
+    // ===== Kategorie =====
+    let saveTimer = null;
+    const SAVE_DELAY = 800; // ms after last change
+
+    window.toggleKategorie = function() {
+        const body = document.getElementById('katBody');
+        const arrow = document.getElementById('katArrow');
+        body.classList.toggle('open');
+        arrow.classList.toggle('open');
     };
 
-    window.removeKategorie = function(btn) {
-        const row = btn.closest('.kat-row');
-        if (document.querySelectorAll('.kat-row').length <= 1) {
-            alert('Musíte mít alespoň jednu kategorii.');
-            return;
-        }
+    function showSaveStatus(text, color) {
+        const el = document.getElementById('katSaveStatus');
+        el.textContent = text;
+        el.style.color = color || '#27ae60';
+        el.classList.add('visible');
+        setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+
+    function scheduleSave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveKategorie, SAVE_DELAY);
+    }
+
+    function saveKategorie() {
+        const rows = document.querySelectorAll('#katTbody tr');
+        const kategorie = [];
+
+        rows.forEach((row, idx) => {
+            const nazev = row.querySelector('[data-field="nazev"]').value.trim();
+            const popis = row.querySelector('[data-field="popis"]').value.trim();
+            if (!nazev) return; // skip empty rows
+            kategorie.push({
+                id: row.dataset.id || '',
+                nazev: nazev,
+                popis: popis,
+                poradi: idx + 1
+            });
+        });
+
+        if (kategorie.length === 0) return;
+
+        fetch('{{ route("firma.ulozitKategorie") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ kategorie: kategorie })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                showSaveStatus('Uloženo', '#27ae60');
+                // Update row IDs from server response
+                if (data.ids) {
+                    const dataRows = Array.from(document.querySelectorAll('#katTbody tr:not(.kat-empty)'));
+                    data.ids.forEach((id, i) => {
+                        if (dataRows[i]) dataRows[i].dataset.id = id;
+                    });
+                }
+                ensureEmptyRow();
+            } else {
+                showSaveStatus('Chyba ukládání', '#e74c3c');
+            }
+        })
+        .catch(() => showSaveStatus('Chyba připojení', '#e74c3c'));
+    }
+
+    window.removeKat = function(btn) {
+        const row = btn.closest('tr');
+        const id = row.dataset.id;
         row.remove();
-        reindexKategorie();
+        ensureEmptyRow();
+
+        if (id) {
+            // Delete from server
+            fetch('{{ url("/nastaveni/kategorie") }}/' + id, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) showSaveStatus('Odstraněno', '#27ae60');
+            })
+            .catch(() => {});
+        }
     };
 
-    function reindexKategorie() {
-        document.querySelectorAll('.kat-row').forEach((row, i) => {
-            row.querySelectorAll('input, select').forEach(input => {
-                const name = input.getAttribute('name');
-                if (name) {
-                    input.setAttribute('name', name.replace(/kategorie\[\d+\]/, `kategorie[${i}]`));
+    function ensureEmptyRow() {
+        const tbody = document.getElementById('katTbody');
+        const emptyRows = tbody.querySelectorAll('tr.kat-empty');
+        // Remove extra empty rows
+        emptyRows.forEach(row => {
+            const nazev = row.querySelector('[data-field="nazev"]').value.trim();
+            if (!nazev && emptyRows.length > 1) row.remove();
+        });
+        // Make sure there's exactly one empty row at the end
+        const lastRow = tbody.querySelector('tr:last-child');
+        if (!lastRow || !lastRow.classList.contains('kat-empty') || lastRow.querySelector('[data-field="nazev"]').value.trim()) {
+            addEmptyRow();
+        }
+    }
+
+    function addEmptyRow() {
+        const tbody = document.getElementById('katTbody');
+        const tr = document.createElement('tr');
+        tr.className = 'kat-empty';
+        tr.dataset.id = '';
+        tr.innerHTML = '<td><input type="text" value="" data-field="nazev" placeholder="Nová kategorie..."></td>' +
+                        '<td><input type="text" value="" data-field="popis" placeholder="příklady..."></td>' +
+                        '<td></td>';
+        tbody.appendChild(tr);
+        attachInputListeners(tr);
+    }
+
+    function attachInputListeners(scope) {
+        (scope || document).querySelectorAll('#katTbody input').forEach(input => {
+            if (input._katBound) return;
+            input._katBound = true;
+            input.addEventListener('input', function() {
+                const row = this.closest('tr');
+                // If typing in empty row, convert it to data row
+                if (row.classList.contains('kat-empty') && this.dataset.field === 'nazev' && this.value.trim()) {
+                    row.classList.remove('kat-empty');
+                    // Add remove button
+                    const lastTd = row.querySelector('td:last-child');
+                    if (!lastTd.querySelector('.btn-remove')) {
+                        lastTd.innerHTML = '<button type="button" class="btn-remove" onclick="removeKat(this)" title="Odebrat">&times;</button>';
+                    }
+                    ensureEmptyRow();
+                }
+                scheduleSave();
+            });
+            input.addEventListener('blur', function() {
+                // If a data row nazev is now empty, remove it
+                const row = this.closest('tr');
+                if (!row.classList.contains('kat-empty') && this.dataset.field === 'nazev' && !this.value.trim()) {
+                    const id = row.dataset.id;
+                    row.remove();
+                    ensureEmptyRow();
+                    if (id) {
+                        fetch('{{ url("/nastaveni/kategorie") }}/' + id, {
+                            method: 'DELETE',
+                            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                        }).catch(() => {});
+                    }
+                    scheduleSave();
                 }
             });
         });
-        katIndex = document.querySelectorAll('.kat-row').length;
     }
 
-    // Pravidla counter
-    const textarea = document.getElementById('pravidlaText');
-    const counter = document.getElementById('pravidlaCounter');
-    if (textarea && counter) {
-        function updateCounter() {
-            counter.textContent = textarea.value.length + ' / 3000';
-        }
-        textarea.addEventListener('input', updateCounter);
-        updateCounter();
-    }
+    // Init listeners
+    attachInputListeners(document);
 })();
 </script>
 @endsection

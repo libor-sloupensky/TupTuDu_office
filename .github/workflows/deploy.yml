@@ -137,13 +137,13 @@ jobs:
             echo 'Migration: ai_tokens columns already removed, skipping' . PHP_EOL;
           }
 
-          // Add pravidla_zpracovani column to sys_firmy if missing
+          // Drop pravidla_zpracovani column from sys_firmy if it exists
           \$cols2 = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'pravidla_zpracovani'\")->fetchAll();
-          if (empty(\$cols2)) {
-            \$pdo->exec('ALTER TABLE sys_firmy ADD COLUMN pravidla_zpracovani TEXT NULL AFTER je_ucetni');
-            echo 'Migration: added pravidla_zpracovani column to sys_firmy' . PHP_EOL;
+          if (!empty(\$cols2)) {
+            \$pdo->exec('ALTER TABLE sys_firmy DROP COLUMN pravidla_zpracovani');
+            echo 'Migration: dropped pravidla_zpracovani column from sys_firmy' . PHP_EOL;
           } else {
-            echo 'Migration: pravidla_zpracovani already exists, skipping' . PHP_EOL;
+            echo 'Migration: pravidla_zpracovani already gone, skipping' . PHP_EOL;
           }
 
           // Create fak_kategorie table
