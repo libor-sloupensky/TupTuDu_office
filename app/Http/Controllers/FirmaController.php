@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Webklex\IMAP\ClientManager;
 
 class FirmaController extends Controller
 {
@@ -256,6 +257,96 @@ class FirmaController extends Controller
         $kategorie->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    public function toggleSystemEmail(Request $request)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
+        }
+
+        $request->validate(['aktivni' => 'required|boolean']);
+
+        $firma->update(['email_system_aktivni' => (bool) $request->aktivni]);
+
+        // Ensure email_doklady is set
+        if ($request->aktivni && !$firma->email_doklady) {
+            $firma->update(['email_doklady' => $firma->ico . '@tuptudu.cz']);
+        }
+
+        return response()->json(['ok' => true, 'email' => $firma->ico . '@tuptudu.cz']);
+    }
+
+    public function ulozitVlastniEmail(Request $request)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
+        }
+
+        $request->validate([
+            'aktivni' => 'required|boolean',
+            'email' => 'nullable|email|max:255',
+            'host' => 'nullable|string|max:255',
+            'port' => 'nullable|integer|min:1|max:65535',
+            'sifrovani' => 'nullable|in:ssl,tls,none',
+            'uzivatel' => 'nullable|string|max:255',
+            'heslo' => 'nullable|string|max:255',
+        ]);
+
+        $firma->update([
+            'email_vlastni_aktivni' => (bool) $request->aktivni,
+            'email_vlastni' => $request->email,
+            'email_vlastni_host' => $request->host,
+            'email_vlastni_port' => $request->port,
+            'email_vlastni_sifrovani' => $request->sifrovani ?? 'ssl',
+            'email_vlastni_uzivatel' => $request->uzivatel,
+            'email_vlastni_heslo' => $request->heslo,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function testEmailVlastni(Request $request)
+    {
+        $request->validate([
+            'host' => 'required|string|max:255',
+            'port' => 'required|integer|min:1|max:65535',
+            'sifrovani' => 'required|in:ssl,tls,none',
+            'uzivatel' => 'required|string|max:255',
+            'heslo' => 'required|string|max:255',
+        ]);
+
+        try {
+            $cm = new ClientManager();
+            $client = $cm->make([
+                'host' => $request->host,
+                'port' => $request->port,
+                'encryption' => $request->sifrovani === 'none' ? false : $request->sifrovani,
+                'validate_cert' => true,
+                'username' => $request->uzivatel,
+                'password' => $request->heslo,
+                'protocol' => 'imap',
+            ]);
+
+            $client->connect();
+            $folder = $client->getFolder('INBOX');
+            $unseen = $folder->query()->unseen()->count();
+            $client->disconnect();
+
+            return response()->json([
+                'ok' => true,
+                'message' => "Připojení úspěšné. Nepřečtených zpráv: {$unseen}.",
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Nepodařilo se připojit: ' . $e->getMessage(),
+            ]);
+        }
     }
 
     public function pridatUzivatele(Request $request)

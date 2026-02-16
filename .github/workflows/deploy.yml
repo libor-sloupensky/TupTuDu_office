@@ -76,9 +76,11 @@ jobs:
         MAIL_FROM_ADDRESS=office@tuptudu.cz
         MAIL_FROM_NAME=TupTuDu
 
-        IMAP_HOST=mail.tuptudu.cz
-        IMAP_PORT=993
-        IMAP_ENCRYPTION=ssl
+        IMAP_SYSTEM_HOST=mail.tuptudu.cz
+        IMAP_SYSTEM_PORT=993
+        IMAP_SYSTEM_ENCRYPTION=ssl
+        IMAP_SYSTEM_USERNAME=faktury@tuptudu.cz
+        IMAP_SYSTEM_PASSWORD=${{ secrets.IMAP_SYSTEM_PASSWORD }}
         ENVEOF
         # Remove leading spaces (heredoc indentation)
         sed -i 's/^        //' /tmp/deploy.env
@@ -283,6 +285,24 @@ jobs:
             \$pdo->exec(\"DELETE FROM sys_user_firma WHERE user_id = \" . (int)\$testUser['id']);
             \$pdo->exec(\"DELETE FROM sys_users WHERE id = \" . (int)\$testUser['id']);
             echo 'Migration: deleted test user libor@tuptudu.cz' . PHP_EOL;
+          }
+
+          // Email doklady: nové sloupce pro systémový + vlastní IMAP
+          \$colCheck = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'email_system_aktivni'\")->fetchAll();
+          if (empty(\$colCheck)) {
+            \$pdo->exec(\"ALTER TABLE sys_firmy
+              ADD COLUMN email_system_aktivni BOOLEAN NOT NULL DEFAULT FALSE,
+              ADD COLUMN email_vlastni_aktivni BOOLEAN NOT NULL DEFAULT FALSE,
+              ADD COLUMN email_vlastni VARCHAR(255) NULL,
+              ADD COLUMN email_vlastni_host VARCHAR(255) NULL,
+              ADD COLUMN email_vlastni_port SMALLINT UNSIGNED NULL,
+              ADD COLUMN email_vlastni_sifrovani VARCHAR(10) NULL DEFAULT 'ssl',
+              ADD COLUMN email_vlastni_uzivatel VARCHAR(255) NULL,
+              ADD COLUMN email_vlastni_heslo VARCHAR(255) NULL
+            \");
+            echo 'Migration: added email columns to sys_firmy' . PHP_EOL;
+          } else {
+            echo 'Migration: email columns already exist, skipping' . PHP_EOL;
           }
         "
 

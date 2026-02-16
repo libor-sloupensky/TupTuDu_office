@@ -163,6 +163,10 @@
             <p class="formats">PDF, JPG, PNG (max 10 MB)</p>
         </div>
         <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple style="display: none;">
+        <div class="notif-history-toggle" id="notifHistoryToggle" onclick="toggleNotifHistory()">
+            <span id="notifHistoryArrow">&#9654;</span> Zobrazit historii (<span id="notifHistoryCount">0</span>)
+        </div>
+        <div class="notif-history" id="notifHistory"></div>
         <div class="notif-panel" id="notifPanel">
             <div class="notif-panel-header">
                 <span id="notifTitle"></span>
@@ -170,10 +174,6 @@
             </div>
             <div id="notifList"></div>
         </div>
-        <div class="notif-history-toggle" id="notifHistoryToggle" onclick="toggleNotifHistory()">
-            <span id="notifHistoryArrow">&#9654;</span> Zobrazit historii (<span id="notifHistoryCount">0</span>)
-        </div>
-        <div class="notif-history" id="notifHistory"></div>
     @endif
 
     <script>

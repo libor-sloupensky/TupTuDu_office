@@ -69,7 +69,7 @@
     .usr-pending-name { padding-left: 0.5rem; }
     .usr-badge-pending { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 10px; font-size: 0.65rem; font-weight: 600; background: #fff3cd; color: #856404; margin-left: 0.4rem; vertical-align: middle; }
     .usr-new .usr-input::placeholder { color: #ccc; }
-    .usr-save-status { font-size: 0.8rem; color: #27ae60; opacity: 0; transition: opacity 0.3s; display: inline-block; margin-top: 0.3rem; }
+    .usr-save-status { font-size: 0.9rem; color: #27ae60; opacity: 0; transition: opacity 0.3s; display: inline-block; margin-top: 0.5rem; font-weight: 600; }
     .usr-save-status.visible { opacity: 1; }
 </style>
 @endsection
@@ -139,28 +139,85 @@
     @endif
 
     {{-- Email pro doklady --}}
-    @if ($firma && $firma->email_doklady)
+    @if ($firma)
     <div class="section">
         <h3>Email pro zasílání dokladů</h3>
-        <p style="margin-bottom: 0.5rem;">Doklady můžete posílat jako přílohy na adresu:</p>
-        <div style="background: #f0f7ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 0.75rem 1rem; font-size: 1.1rem; font-weight: 600; color: #2b6cb0;">
-            {{ $firma->email_doklady }}
-        </div>
-        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #888;">
-            Podporované formáty příloh: PDF, JPG, PNG (max 10 MB).
-            Doklady budou automaticky zpracovány a zobrazí se v přehledu.
+        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
+            Doklady zasílejte jako přílohy emailem. Podporované formáty: PDF, JPG, PNG (max 10 MB).
         </p>
 
-        <form method="POST" action="{{ route('firma.ulozit') }}" style="margin-top: 1rem;">
-            @csrf
-            <div class="form-group">
-                <label for="email_doklady_heslo">IMAP heslo (pro automatické stahování)</label>
-                <input type="password" id="email_doklady_heslo" name="email_doklady_heslo"
-                       value="{{ old('email_doklady_heslo', $firma->email_doklady_heslo ?? '') }}"
-                       placeholder="Heslo k emailové schránce {{ $firma->email_doklady }}">
+        {{-- Systémový email --}}
+        <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleSystemEmail" {{ $firma->email_system_aktivni ? 'checked' : '' }}>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="font-weight: 600;">Systémový email</span>
             </div>
-            <button type="submit" class="btn-save" style="background: #3498db;">Uložit heslo</button>
-        </form>
+            <div style="background: #f0f7ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 0.6rem 1rem; font-size: 1rem; font-weight: 600; color: #2b6cb0;">
+                {{ $firma->ico }}@tuptudu.cz
+            </div>
+            <p style="font-size: 0.8rem; color: #888; margin-top: 0.4rem;">
+                Doklady odeslané na tuto adresu budou automaticky zpracovány a přiřazeny k vaší firmě.
+            </p>
+        </div>
+
+        {{-- Vlastní email (IMAP) --}}
+        <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleVlastniEmail" {{ $firma->email_vlastni_aktivni ? 'checked' : '' }}>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="font-weight: 600;">Vlastní email (IMAP)</span>
+            </div>
+
+            <div id="vlastniEmailForm" style="{{ $firma->email_vlastni_aktivni ? '' : 'display:none;' }}">
+                <div class="form-group">
+                    <label for="vlastniEmail">Email adresa *</label>
+                    <input type="email" id="vlastniEmail" class="usr-input" value="{{ $firma->email_vlastni ?? '' }}" placeholder="faktury@mojefirma.cz">
+                </div>
+                <div class="form-group">
+                    <label for="vlastniHost">IMAP server *</label>
+                    <input type="text" id="vlastniHost" class="usr-input" value="{{ $firma->email_vlastni_host ?? '' }}" placeholder="imap.seznam.cz">
+                </div>
+                <div class="form-group">
+                    <label for="vlastniHeslo">Heslo *</label>
+                    <input type="password" id="vlastniHeslo" class="usr-input" value="{{ $firma->email_vlastni_heslo ?? '' }}">
+                </div>
+
+                <div id="vlastniAdvanced" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="vlastniPort">Port</label>
+                            <input type="number" id="vlastniPort" class="usr-input" value="{{ $firma->email_vlastni_port ?? 993 }}" min="1" max="65535">
+                        </div>
+                        <div class="form-group">
+                            <label for="vlastniSifrovani">Šifrování</label>
+                            <select id="vlastniSifrovani" class="usr-select" style="border: 1px solid #ddd; padding: 0.5rem;">
+                                <option value="ssl" {{ ($firma->email_vlastni_sifrovani ?? 'ssl') === 'ssl' ? 'selected' : '' }}>SSL</option>
+                                <option value="tls" {{ ($firma->email_vlastni_sifrovani ?? '') === 'tls' ? 'selected' : '' }}>TLS</option>
+                                <option value="none" {{ ($firma->email_vlastni_sifrovani ?? '') === 'none' ? 'selected' : '' }}>Žádné</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="vlastniUzivatel">Uživatelské jméno</label>
+                        <input type="text" id="vlastniUzivatel" class="usr-input" value="{{ $firma->email_vlastni_uzivatel ?? '' }}" placeholder="stejné jako email">
+                    </div>
+                </div>
+                <p style="font-size: 0.8rem; color: #3498db; cursor: pointer; margin-bottom: 0.75rem;" onclick="document.getElementById('vlastniAdvanced').style.display = document.getElementById('vlastniAdvanced').style.display === 'none' ? 'block' : 'none';">
+                    Pokročilé nastavení (port, šifrování, uživatel)
+                </p>
+
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn-save" style="background: #3498db;" onclick="testVlastniEmail()">Otestovat připojení</button>
+                    <button type="button" class="btn-save" onclick="ulozitVlastniEmail()">Uložit</button>
+                </div>
+                <div id="vlastniEmailStatus" style="font-size: 0.85rem; margin-top: 0.5rem; display: none;"></div>
+            </div>
+        </div>
     </div>
     @endif
 
@@ -521,7 +578,7 @@
         el.textContent = text;
         el.style.color = color || '#27ae60';
         el.classList.add('visible');
-        setTimeout(() => el.classList.remove('visible'), 2000);
+        setTimeout(() => el.classList.remove('visible'), 5000);
     }
 
     let usrSaveTimer = null;
@@ -581,6 +638,14 @@
         .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
     };
 
+    // Enter v inputech nového uživatele → addUser() místo odeslání formuláře
+    ['newUserJmeno', 'newUserEmail'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); addUser(); }
+        });
+    });
+
     window.addUser = function() {
         const jmeno = document.getElementById('newUserJmeno').value.trim();
         const email = document.getElementById('newUserEmail').value.trim();
@@ -607,6 +672,114 @@
             }
         })
         .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
+    };
+    // ===== Email pro doklady =====
+    // Systémový email toggle
+    const toggleSys = document.getElementById('toggleSystemEmail');
+    if (toggleSys) {
+        toggleSys.addEventListener('change', function() {
+            fetch('{{ route("firma.toggleSystemEmail") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+                body: JSON.stringify({ aktivni: this.checked ? 1 : 0 })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) { alert(data.error || 'Chyba'); toggleSys.checked = !toggleSys.checked; }
+            })
+            .catch(() => { alert('Chyba připojení.'); toggleSys.checked = !toggleSys.checked; });
+        });
+    }
+
+    // Vlastní email toggle → show/hide form
+    const toggleVlastni = document.getElementById('toggleVlastniEmail');
+    if (toggleVlastni) {
+        toggleVlastni.addEventListener('change', function() {
+            document.getElementById('vlastniEmailForm').style.display = this.checked ? '' : 'none';
+        });
+    }
+
+    // Auto port on encryption change
+    const sifrovaniSelect = document.getElementById('vlastniSifrovani');
+    if (sifrovaniSelect) {
+        sifrovaniSelect.addEventListener('change', function() {
+            const portInput = document.getElementById('vlastniPort');
+            portInput.value = this.value === 'ssl' ? 993 : 143;
+        });
+    }
+
+    function getVlastniData() {
+        return {
+            email: document.getElementById('vlastniEmail').value.trim(),
+            host: document.getElementById('vlastniHost').value.trim(),
+            heslo: document.getElementById('vlastniHeslo').value,
+            port: parseInt(document.getElementById('vlastniPort').value) || 993,
+            sifrovani: document.getElementById('vlastniSifrovani').value,
+            uzivatel: document.getElementById('vlastniUzivatel').value.trim(),
+        };
+    }
+
+    function showVlastniStatus(text, color) {
+        const el = document.getElementById('vlastniEmailStatus');
+        el.textContent = text;
+        el.style.color = color || '#27ae60';
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 8000);
+    }
+
+    window.testVlastniEmail = function() {
+        const d = getVlastniData();
+        if (!d.host || !d.heslo) { showVlastniStatus('Vyplňte server a heslo.', '#e74c3c'); return; }
+
+        showVlastniStatus('Testuji připojení...', '#666');
+
+        fetch('{{ route("firma.testEmailVlastni") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+            body: JSON.stringify({
+                host: d.host,
+                port: d.port,
+                sifrovani: d.sifrovani,
+                uzivatel: d.uzivatel || d.email,
+                heslo: d.heslo,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                showVlastniStatus(data.message, '#27ae60');
+            } else {
+                showVlastniStatus(data.error, '#e74c3c');
+                // Show advanced settings on failure
+                document.getElementById('vlastniAdvanced').style.display = 'block';
+            }
+        })
+        .catch(() => showVlastniStatus('Chyba připojení.', '#e74c3c'));
+    };
+
+    window.ulozitVlastniEmail = function() {
+        const d = getVlastniData();
+        const aktivni = document.getElementById('toggleVlastniEmail').checked;
+
+        fetch('{{ route("firma.ulozitVlastniEmail") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+            body: JSON.stringify({
+                aktivni: aktivni ? 1 : 0,
+                email: d.email,
+                host: d.host,
+                port: d.port,
+                sifrovani: d.sifrovani,
+                uzivatel: d.uzivatel,
+                heslo: d.heslo,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) showVlastniStatus('Nastavení uloženo.', '#27ae60');
+            else showVlastniStatus(data.error || 'Chyba při ukládání.', '#e74c3c');
+        })
+        .catch(() => showVlastniStatus('Chyba připojení.', '#e74c3c'));
     };
 })();
 </script>

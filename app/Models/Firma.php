@@ -16,10 +16,16 @@ class Firma extends Model
     protected $fillable = [
         'ico', 'nazev', 'dic', 'ulice', 'mesto', 'psc',
         'email', 'email_doklady', 'email_doklady_heslo', 'telefon', 'je_ucetni',
+        'email_system_aktivni', 'email_vlastni_aktivni',
+        'email_vlastni', 'email_vlastni_host', 'email_vlastni_port',
+        'email_vlastni_sifrovani', 'email_vlastni_uzivatel', 'email_vlastni_heslo',
     ];
 
     protected $casts = [
         'je_ucetni' => 'boolean',
+        'email_system_aktivni' => 'boolean',
+        'email_vlastni_aktivni' => 'boolean',
+        'email_vlastni_port' => 'integer',
     ];
 
     public function doklady(): HasMany

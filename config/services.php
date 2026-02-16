@@ -38,10 +38,12 @@ return [
         'key' => env('ANTHROPIC_API_KEY'),
     ],
 
-    'imap' => [
-        'host' => env('IMAP_HOST', 'mail.tuptudu.cz'),
-        'port' => env('IMAP_PORT', 993),
-        'encryption' => env('IMAP_ENCRYPTION', 'ssl'),
+    'imap_system' => [
+        'host' => env('IMAP_SYSTEM_HOST', 'mail.tuptudu.cz'),
+        'port' => env('IMAP_SYSTEM_PORT', 993),
+        'encryption' => env('IMAP_SYSTEM_ENCRYPTION', 'ssl'),
+        'username' => env('IMAP_SYSTEM_USERNAME', 'faktury@tuptudu.cz'),
+        'password' => env('IMAP_SYSTEM_PASSWORD'),
     ],
 
     'slack' => [
