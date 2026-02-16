@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v3
@@ -83,31 +83,65 @@ jobs:
         # Remove leading spaces (heredoc indentation)
         sed -i 's/^        //' /tmp/deploy.env
 
-    - name: Deploy app files via lftp
+    - name: Deploy changed files via lftp
       run: |
         sudo apt-get install -y lftp
+
+        # Get changed files from git diff
+        CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+
+        # Build lftp script with only changed files
+        LFTP_SCRIPT=""
+        DIRS_CREATED=""
+
+        for file in $CHANGED_FILES; do
+          # Skip deleted files
+          if [ ! -f "$file" ]; then
+            echo "SKIP (deleted): $file"
+            continue
+          fi
+
+          TARGET=""
+          case "$file" in
+            app/*|bootstrap/*|config/*|database/*|resources/*|routes/*)
+              TARGET="/tuptudu.cz/laravel-office/$file"
+              ;;
+            public/*)
+              TARGET="/tuptudu.cz/_sub/office/${file#public/}"
+              ;;
+            artisan|composer.json|composer.lock)
+              TARGET="/tuptudu.cz/laravel-office/$file"
+              ;;
+          esac
+
+          if [ -n "$TARGET" ]; then
+            # Ensure remote directory exists (deduplicate mkdir calls)
+            DIR=$(dirname "$TARGET")
+            if ! echo "$DIRS_CREATED" | grep -qF "$DIR"; then
+              LFTP_SCRIPT="${LFTP_SCRIPT}mkdir -pf $DIR;"
+              DIRS_CREATED="${DIRS_CREATED}${DIR}\n"
+            fi
+            LFTP_SCRIPT="${LFTP_SCRIPT}put $file -o $TARGET;"
+            echo "UPLOAD: $file -> $TARGET"
+          fi
+        done
+
+        # Always upload .env and last_push.txt
+        LFTP_SCRIPT="${LFTP_SCRIPT}put /tmp/deploy.env -o /tuptudu.cz/laravel-office/.env;"
+        LFTP_SCRIPT="${LFTP_SCRIPT}put public/last_push.txt -o /tuptudu.cz/_sub/office/last_push.txt;"
+
+        echo ""
+        echo "Connecting to SFTP..."
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
           set xfer:clobber on;
           open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          mirror --reverse --verbose --no-perms app/ /tuptudu.cz/laravel-office/app/;
-          mirror --reverse --verbose --no-perms bootstrap/ /tuptudu.cz/laravel-office/bootstrap/;
-          mirror --reverse --verbose --no-perms config/ /tuptudu.cz/laravel-office/config/;
-          mirror --reverse --verbose --no-perms database/ /tuptudu.cz/laravel-office/database/;
-          mirror --reverse --verbose --no-perms resources/ /tuptudu.cz/laravel-office/resources/;
-          mirror --reverse --verbose --no-perms routes/ /tuptudu.cz/laravel-office/routes/;
-          mirror --reverse --verbose --no-perms storage/ /tuptudu.cz/laravel-office/storage/;
-          put artisan -o /tuptudu.cz/laravel-office/artisan;
-          put composer.json -o /tuptudu.cz/laravel-office/composer.json;
-          put composer.lock -o /tuptudu.cz/laravel-office/composer.lock;
-          put /tmp/deploy.env -o /tuptudu.cz/laravel-office/.env;
-          mirror --reverse --delete --verbose --no-perms public/ /tuptudu.cz/_sub/office/;
-          echo '--- Verifying _sub/office/ ---';
-          ls /tuptudu.cz/_sub/office/;
-          echo '--- Verifying laravel-office/ ---';
-          ls /tuptudu.cz/laravel-office/;
+          ${LFTP_SCRIPT}
           quit
         "
+        echo "Upload complete."
 
     - name: Deploy vendor
       if: steps.check_vendor.outputs.vendor_changed == 'true'
