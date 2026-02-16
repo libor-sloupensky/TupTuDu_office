@@ -190,6 +190,43 @@ jobs:
             }
             echo 'Migration: seeded default categories for ' . count(\$firmy) . ' firms' . PHP_EOL;
           }
+
+          // Add interni_role column to sys_user_firma if missing
+          \$cols3 = \$pdo->query(\"SHOW COLUMNS FROM sys_user_firma LIKE 'interni_role'\")->fetchAll();
+          if (empty(\$cols3)) {
+            \$pdo->exec(\"ALTER TABLE sys_user_firma ADD COLUMN interni_role VARCHAR(20) NOT NULL DEFAULT 'spravce' AFTER role\");
+            echo 'Migration: added interni_role column to sys_user_firma' . PHP_EOL;
+            // Set oldest user per firma as superadmin
+            \$pdo->exec(\"
+              UPDATE sys_user_firma uf
+              INNER JOIN (
+                SELECT firma_ico, MIN(id) as min_id FROM sys_user_firma GROUP BY firma_ico
+              ) oldest ON uf.firma_ico = oldest.firma_ico AND uf.id = oldest.min_id
+              SET uf.interni_role = 'superadmin'
+            \");
+            echo 'Migration: set founders as superadmin' . PHP_EOL;
+          } else {
+            echo 'Migration: interni_role already exists, skipping' . PHP_EOL;
+          }
+
+          // Create sys_pozvani table
+          \$pdo->exec(\"
+            CREATE TABLE IF NOT EXISTS sys_pozvani (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              firma_ico VARCHAR(20) NOT NULL,
+              jmeno VARCHAR(255) NOT NULL,
+              email VARCHAR(255) NOT NULL,
+              interni_role VARCHAR(20) NOT NULL DEFAULT 'spravce',
+              token VARCHAR(64) NOT NULL UNIQUE,
+              created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+              expires_at TIMESTAMP NULL,
+              accepted_at TIMESTAMP NULL,
+              INDEX idx_token (token),
+              INDEX idx_firma_ico (firma_ico),
+              FOREIGN KEY (firma_ico) REFERENCES sys_firmy(ico) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+          \");
+          echo 'Migration: sys_pozvani table ensured' . PHP_EOL;
         "
 
     - name: Verify deployment

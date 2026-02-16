@@ -34,7 +34,11 @@
 @section('content')
 <div class="card" style="max-width: 550px; margin: 0 auto;">
     <h2 style="margin-bottom: 0.5rem;">Registrace</h2>
-    <p style="color: #666; margin-bottom: 1.5rem;">Vytvořte si účet v systému TupTuDu</p>
+    @if (!empty($pozvani) && !empty($firma))
+        <p style="color: #666; margin-bottom: 1.5rem;">Pozvánka do firmy <strong>{{ $firma->nazev }}</strong></p>
+    @else
+        <p style="color: #666; margin-bottom: 1.5rem;">Vytvořte si účet v systému TupTuDu</p>
+    @endif
 
     @if ($errors->any())
         <div style="background: #fef0f0; border: 1px solid #e74c3c; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;">
@@ -46,11 +50,16 @@
 
     <form method="POST" action="{{ route('register') }}" id="regForm">
         @csrf
+        @if (!empty($pozvani))
+            <input type="hidden" name="pozvanka_token" value="{{ $pozvani->token }}">
+        @endif
 
+        @if (empty($pozvani))
         <div class="step-header">
             <span id="stepInd1" class="active">1</span>
             <span id="stepInd2">2</span>
         </div>
+        @endif
 
         <!-- Krok 1: Údaje uživatele -->
         <div class="step active" id="step1">
@@ -59,17 +68,21 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="jmeno">Jméno *</label>
-                    <input type="text" name="jmeno" id="jmeno" value="{{ old('jmeno') }}" required>
+                    <input type="text" name="jmeno" id="jmeno" value="{{ old('jmeno', !empty($pozvani) ? explode(' ', $pozvani->jmeno, 2)[0] ?? '' : '') }}" required>
                 </div>
                 <div class="form-group">
                     <label for="prijmeni">Příjmení *</label>
-                    <input type="text" name="prijmeni" id="prijmeni" value="{{ old('prijmeni') }}" required>
+                    <input type="text" name="prijmeni" id="prijmeni" value="{{ old('prijmeni', !empty($pozvani) ? (explode(' ', $pozvani->jmeno, 2)[1] ?? '') : '') }}" required>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="email">Email *</label>
-                <input type="email" name="email" id="email" value="{{ old('email') }}" required>
+                @if (!empty($pozvani))
+                    <input type="email" name="email" id="email" value="{{ $pozvani->email }}" required readonly>
+                @else
+                    <input type="email" name="email" id="email" value="{{ old('email') }}" required>
+                @endif
             </div>
 
             <div class="form-group">
@@ -89,10 +102,15 @@
 
             <div class="step-nav">
                 <div></div>
-                <button type="button" class="btn btn-primary" onclick="goStep(2)">Pokračovat</button>
+                @if (!empty($pozvani))
+                    <button type="submit" class="btn btn-primary">Zaregistrovat se</button>
+                @else
+                    <button type="button" class="btn btn-primary" onclick="goStep(2)">Pokračovat</button>
+                @endif
             </div>
         </div>
 
+        @if (empty($pozvani))
         <!-- Krok 2: Údaje firmy -->
         <div class="step" id="step2">
             <h3 style="margin-bottom: 1rem;">Údaje firmy</h3>
@@ -139,6 +157,7 @@
                 <button type="submit" class="btn btn-primary">Zaregistrovat se</button>
             </div>
         </div>
+        @endif
     </form>
 
     <p style="text-align: center; margin-top: 1.5rem; color: #666;">

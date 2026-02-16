@@ -38,7 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function firmy(): BelongsToMany
     {
         return $this->belongsToMany(Firma::class, 'sys_user_firma', 'user_id', 'firma_ico')
-            ->withPivot('role')
+            ->withPivot('role', 'interni_role')
             ->withTimestamps();
     }
 
@@ -60,6 +60,12 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $ico = $ico ?? session('aktivni_firma_ico');
         return $this->firmy()->where('ico', $ico)->wherePivot('role', $role)->exists();
+    }
+
+    public function jeSuperadmin(?string $ico = null): bool
+    {
+        $ico = $ico ?? session('aktivni_firma_ico');
+        return $this->firmy()->where('ico', $ico)->wherePivot('interni_role', 'superadmin')->exists();
     }
 
     public function dostupneIco(): array

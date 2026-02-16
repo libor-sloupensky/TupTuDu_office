@@ -230,6 +230,90 @@
         </div>
     </div>
     @endif
+
+    {{-- Správa uživatelů (pouze superadmin) --}}
+    @if ($firma && $jeSuperadmin)
+    <div class="section">
+        <h3>Uživatelé firmy</h3>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
+            <thead>
+                <tr>
+                    <th style="padding: 0.5rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.85rem;">Jméno</th>
+                    <th style="padding: 0.5rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.85rem;">Email</th>
+                    <th style="padding: 0.5rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.85rem;">Role</th>
+                    <th style="padding: 0.5rem 0.8rem; border-bottom: 2px solid #eee; background: #f8f9fa;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($uzivatele as $u)
+                <tr>
+                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $u->cele_jmeno }}</td>
+                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $u->email }}</td>
+                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">
+                        @if ($u->pivot->interni_role === 'superadmin')
+                            <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#e8daef; color:#6c3483;">Superadmin</span>
+                        @else
+                            <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#d5f5e3; color:#1e8449;">Správce</span>
+                        @endif
+                    </td>
+                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee;">
+                        @if ($u->id !== auth()->id())
+                        <form method="POST" action="{{ route('firma.odebratUzivatele', $u->id) }}" onsubmit="return confirm('Odebrat uživatele {{ $u->cele_jmeno }}?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" style="padding:0.25rem 0.6rem; border:1px solid #e74c3c; background:white; color:#e74c3c; border-radius:4px; cursor:pointer; font-size:0.8rem;">Odebrat</button>
+                        </form>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        @if ($pozvani->isNotEmpty())
+        <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.5rem;">Čekající pozvánky:</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
+            <tbody>
+                @foreach ($pozvani as $p)
+                <tr>
+                    <td style="padding: 0.4rem 0.8rem; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; color: #888;">{{ $p->jmeno }}</td>
+                    <td style="padding: 0.4rem 0.8rem; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; color: #888;">{{ $p->email }}</td>
+                    <td style="padding: 0.4rem 0.8rem; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem;">
+                        <span style="display:inline-block; padding:0.15rem 0.5rem; border-radius:12px; font-size:0.7rem; font-weight:600; background:#fff3cd; color:#856404;">Odesláno</span>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @endif
+
+        <form method="POST" action="{{ route('firma.pridatUzivatele') }}" style="background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-top: 0.5rem;">
+            @csrf
+            <p style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem;">Pozvat nového uživatele</p>
+            @if ($errors->has('email') || $errors->has('jmeno'))
+                <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $errors->first('email') ?: $errors->first('jmeno') }}</div>
+            @endif
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; align-items: end;">
+                <div>
+                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 0.2rem;">Jméno</label>
+                    <input type="text" name="jmeno" value="{{ old('jmeno') }}" required style="width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 0.2rem;">Email</label>
+                    <input type="email" name="email" value="{{ old('email') }}" required style="width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                </div>
+                <div>
+                    <select name="interni_role" style="padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                        <option value="spravce">Správce</option>
+                        <option value="superadmin">Superadmin</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" style="margin-top: 0.75rem; padding: 0.5rem 1.2rem; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Pozvat</button>
+        </form>
+    </div>
+    @endif
 </div>
 
 <script>

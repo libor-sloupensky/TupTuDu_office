@@ -66,6 +66,8 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::post('/nastaveni/toggle-ucetni', [FirmaController::class, 'toggleUcetni'])->name('firma.toggleUcetni');
     Route::post('/nastaveni/kategorie', [FirmaController::class, 'ulozitKategorie'])->name('firma.ulozitKategorie');
     Route::delete('/nastaveni/kategorie/{id}', [FirmaController::class, 'smazatKategorii'])->name('firma.smazatKategorii');
+    Route::post('/nastaveni/uzivatele', [FirmaController::class, 'pridatUzivatele'])->name('firma.pridatUzivatele');
+    Route::delete('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'odebratUzivatele'])->name('firma.odebratUzivatele');
 
     // Klienti (pouze ucetni)
     Route::middleware('role:ucetni')->group(function () {

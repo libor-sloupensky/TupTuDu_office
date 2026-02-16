@@ -805,17 +805,10 @@ function processNextInQueue() {
     item.className = 'notif-item status-processing';
     item.querySelector('.notif-item-icon').innerHTML = '<span class="spinner-sm"></span>';
     const detailEl = item.querySelector('.notif-item-detail');
-    if (detailEl) detailEl.textContent = 'Zpracovávám... 0s';
+    if (detailEl) detailEl.textContent = 'Zpracovávám...';
     updateNotifHeader();
 
-    const startTime = Date.now();
-    const timerInterval = setInterval(() => {
-        const elapsed = Math.round((Date.now() - startTime) / 1000);
-        if (detailEl) detailEl.textContent = 'Zpracovávám... ' + elapsed + 's';
-    }, 1000);
-
     uploadSingleFile(file).then(result => {
-        clearInterval(timerInterval);
         uploadActive--;
         uploadCompleted++;
 
@@ -858,7 +851,6 @@ function processNextInQueue() {
             if (uploadActive === 0) onAllUploadsComplete();
         }
     }).catch(err => {
-        clearInterval(timerInterval);
         uploadActive--;
         uploadCompleted++;
         console.error('[UPLOAD] Unexpected error:', err);
