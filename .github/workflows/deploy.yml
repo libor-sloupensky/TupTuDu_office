@@ -134,9 +134,13 @@ jobs:
 
         echo ""
         echo "Connecting to SFTP..."
+        echo "LFTP commands: ${LFTP_SCRIPT}"
         lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p 222';
           set xfer:clobber on;
+          set net:timeout 30;
+          set net:max-retries 2;
+          set net:reconnect-interval-base 5;
           open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           ${LFTP_SCRIPT}
           quit
@@ -147,8 +151,10 @@ jobs:
       if: steps.check_vendor.outputs.vendor_changed == 'true'
       run: |
         lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p 222';
           set xfer:clobber on;
+          set net:timeout 30;
+          set net:max-retries 2;
           open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
           mirror --reverse --parallel=5 --verbose --no-perms vendor/ /tuptudu.cz/laravel-office/vendor/;
           quit
