@@ -67,6 +67,7 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::post('/nastaveni/kategorie', [FirmaController::class, 'ulozitKategorie'])->name('firma.ulozitKategorie');
     Route::delete('/nastaveni/kategorie/{id}', [FirmaController::class, 'smazatKategorii'])->name('firma.smazatKategorii');
     Route::post('/nastaveni/uzivatele', [FirmaController::class, 'pridatUzivatele'])->name('firma.pridatUzivatele');
+    Route::patch('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'upravitUzivatele'])->name('firma.upravitUzivatele');
     Route::delete('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'odebratUzivatele'])->name('firma.odebratUzivatele');
 
     // Klienti (pouze ucetni)

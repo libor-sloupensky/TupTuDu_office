@@ -88,7 +88,7 @@ class KlientiController extends Controller
             'stav' => 'ceka_na_firmu',
         ]);
 
-        return redirect()->route('klienti.index')->with('flash', "Žádost odeslána firmě {$klientFirma->nazev}.");
+        return redirect()->route('klienti.index')->with('flash', "Klient {$klientFirma->nazev} přidán. Čeká na schválení.");
     }
 
     public function destroy(string $klientIco)

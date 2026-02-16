@@ -276,7 +276,7 @@ class FirmaController extends Controller
         $user = auth()->user();
 
         if (!$firma || !$user->jeSuperadmin($firma->ico)) {
-            abort(403, 'Nemáte oprávnění.');
+            return response()->json(['ok' => false, 'error' => 'Nemáte oprávnění.'], 403);
         }
 
         $request->validate([
@@ -285,18 +285,33 @@ class FirmaController extends Controller
             'interni_role' => 'required|in:superadmin,spravce',
         ]);
 
-        if (User::where('email', $request->email)->exists()) {
-            return back()->withErrors(['email' => 'Tento email je již registrován.'])->withInput();
+        // Check if user already exists
+        $existujiciUser = User::where('email', $request->email)->first();
+
+        if ($existujiciUser) {
+            // Already member of this firma?
+            if ($existujiciUser->firmy()->where('ico', $firma->ico)->exists()) {
+                return response()->json(['ok' => false, 'error' => 'Uživatel je již členem firmy.']);
+            }
+
+            // Attach existing user directly
+            $existujiciUser->firmy()->attach($firma->ico, [
+                'role' => 'firma',
+                'interni_role' => $request->interni_role,
+            ]);
+
+            return response()->json(['ok' => true, 'message' => "{$existujiciUser->cele_jmeno} přidán do firmy."]);
         }
 
-        $existujici = Pozvani::where('firma_ico', $firma->ico)
+        // Check for pending invitation
+        $existujiciPozvani = Pozvani::where('firma_ico', $firma->ico)
             ->where('email', $request->email)
             ->whereNull('accepted_at')
             ->where('expires_at', '>', now())
             ->first();
 
-        if ($existujici) {
-            return back()->withErrors(['email' => 'Pozvánka na tento email již existuje.'])->withInput();
+        if ($existujiciPozvani) {
+            return response()->json(['ok' => false, 'error' => 'Pozvánka na tento email již existuje.']);
         }
 
         $token = bin2hex(random_bytes(32));
@@ -314,10 +329,48 @@ class FirmaController extends Controller
             Mail::to($request->email)->send(new PozvankaDoFirmy($pozvani, $firma));
         } catch (\Throwable $e) {
             Log::error('Chyba odeslání pozvánky: ' . $e->getMessage());
-            return back()->withErrors(['email' => 'Nepodařilo se odeslat pozvánku emailem.'])->withInput();
+            return response()->json(['ok' => false, 'error' => 'Nepodařilo se odeslat pozvánku emailem.']);
         }
 
-        return redirect()->route('firma.nastaveni')->with('success', "Pozvánka odeslána na {$request->email}.");
+        return response()->json(['ok' => true, 'message' => "Pozvánka odeslána na {$request->email}."]);
+    }
+
+    public function upravitUzivatele(Request $request, int $userId)
+    {
+        $firma = auth()->user()->aktivniFirma();
+        $user = auth()->user();
+
+        if (!$firma || !$user->jeSuperadmin($firma->ico)) {
+            return response()->json(['ok' => false, 'error' => 'Nemáte oprávnění.'], 403);
+        }
+
+        $request->validate([
+            'jmeno' => 'nullable|string|max:255',
+            'interni_role' => 'nullable|in:superadmin,spravce',
+        ]);
+
+        $targetUser = User::find($userId);
+        if (!$targetUser || !$targetUser->firmy()->where('ico', $firma->ico)->exists()) {
+            return response()->json(['ok' => false, 'error' => 'Uživatel nenalezen.'], 404);
+        }
+
+        // Update name if provided
+        if ($request->filled('jmeno')) {
+            $parts = explode(' ', $request->jmeno, 2);
+            $targetUser->update([
+                'jmeno' => $parts[0],
+                'prijmeni' => $parts[1] ?? '',
+            ]);
+        }
+
+        // Update role if provided
+        if ($request->filled('interni_role')) {
+            $targetUser->firmy()->updateExistingPivot($firma->ico, [
+                'interni_role' => $request->interni_role,
+            ]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function odebratUzivatele(int $userId)
@@ -326,15 +379,15 @@ class FirmaController extends Controller
         $user = auth()->user();
 
         if (!$firma || !$user->jeSuperadmin($firma->ico)) {
-            abort(403, 'Nemáte oprávnění.');
+            return response()->json(['ok' => false, 'error' => 'Nemáte oprávnění.'], 403);
         }
 
         if ($userId === $user->id) {
-            return back()->withErrors(['user' => 'Nemůžete odebrat sami sebe.']);
+            return response()->json(['ok' => false, 'error' => 'Nemůžete odebrat sami sebe.']);
         }
 
         $firma->users()->detach($userId);
 
-        return redirect()->route('firma.nastaveni')->with('success', 'Uživatel byl odebrán.');
+        return response()->json(['ok' => true]);
     }
 }

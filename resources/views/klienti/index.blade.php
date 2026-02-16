@@ -50,7 +50,6 @@
                 <label for="klient_ico">IČO klienta</label>
                 <input type="text" name="klient_ico" id="klient_ico" value="{{ old('klient_ico') }}" maxlength="8" pattern="\d{8}" required placeholder="12345678">
             </div>
-            <button type="button" class="btn btn-primary btn-sm" onclick="lookupAres()" style="margin-bottom: 0; white-space: nowrap;">ARES</button>
             <button type="submit" class="btn btn-primary" style="margin-bottom: 0; white-space: nowrap;">Přidat</button>
         </div>
         <div id="aresStatus" class="ares-status"></div>
@@ -99,18 +98,23 @@
 
 @section('scripts')
 <script>
-function lookupAres() {
-    var ico = document.getElementById('klient_ico').value.trim();
-    if (!/^\d{8}$/.test(ico)) { alert('IČO musí být přesně 8 číslic.'); return; }
+var aresTimer = null;
+document.getElementById('klient_ico').addEventListener('input', function() {
+    clearTimeout(aresTimer);
+    var ico = this.value.trim();
     var st = document.getElementById('aresStatus');
+    if (ico.length < 8) { st.textContent = ''; return; }
+    if (!/^\d{8}$/.test(ico)) return;
     st.textContent = 'Hledám...'; st.style.color = '#666';
-    fetch('/api/ares/' + ico)
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            if (data.error) { st.textContent = data.error; st.style.color = '#e74c3c'; return; }
-            st.textContent = 'Nalezeno: ' + (data.nazev || ico); st.style.color = '#27ae60';
-        })
-        .catch(function(){ st.textContent = 'Chyba při komunikaci s ARES.'; st.style.color = '#e74c3c'; });
-}
+    aresTimer = setTimeout(function() {
+        fetch('/api/ares/' + ico)
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                if (data.error) { st.textContent = data.error; st.style.color = '#e74c3c'; return; }
+                st.textContent = data.nazev || ico; st.style.color = '#27ae60';
+            })
+            .catch(function(){ st.textContent = 'Chyba při komunikaci s ARES.'; st.style.color = '#e74c3c'; });
+    }, 300);
+});
 </script>
 @endsection

@@ -131,6 +131,12 @@ class RegisterController extends Controller
         Auth::login($user);
         session(['aktivni_firma_ico' => $firma->ico]);
 
+        if ($pozvani) {
+            // Invitation registration — email is pre-verified (came from invitation link)
+            $user->update(['email_verified_at' => now()]);
+            return redirect()->route('doklady.index');
+        }
+
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes(60),

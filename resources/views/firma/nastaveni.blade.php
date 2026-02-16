@@ -49,6 +49,28 @@
     .kat-table tr.kat-empty input::placeholder { color: #ccc; }
     .kat-save-status { font-size: 0.8rem; color: #27ae60; margin-left: 0.5rem; opacity: 0; transition: opacity 0.3s; }
     .kat-save-status.visible { opacity: 1; }
+
+    .usr-table { width: 100%; border-collapse: collapse; }
+    .usr-table th { padding: 0.4rem 0.5rem; text-align: left; font-weight: 600; color: #888; font-size: 0.8rem; border-bottom: 2px solid #eee; text-transform: uppercase; letter-spacing: 0.03em; }
+    .usr-table td { padding: 0.25rem 0.3rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .usr-input { width: 100%; padding: 0.35rem 0.5rem; border: 1px solid transparent; border-radius: 4px; font-size: 0.9rem; background: transparent; }
+    .usr-input:hover { border-color: #e0e0e0; }
+    .usr-input:focus { outline: none; border-color: #3498db; background: white; box-shadow: 0 0 0 2px rgba(52,152,219,0.15); }
+    .usr-select { padding: 0.3rem 0.4rem; border: 1px solid transparent; border-radius: 4px; font-size: 0.85rem; background: transparent; cursor: pointer; width: 100%; }
+    .usr-select:hover { border-color: #e0e0e0; }
+    .usr-select:focus { outline: none; border-color: #3498db; }
+    .usr-select:disabled { cursor: default; color: #999; }
+    .usr-email { font-size: 0.9rem; padding-left: 0.5rem !important; color: #555; }
+    .usr-remove { background: none; border: none; color: #ddd; cursor: pointer; font-size: 1.2rem; padding: 0; line-height: 1; }
+    .usr-remove:hover { color: #e74c3c; }
+    .usr-add { background: none; border: none; color: #bbb; cursor: pointer; font-size: 1.3rem; padding: 0; line-height: 1; font-weight: bold; }
+    .usr-add:hover { color: #27ae60; }
+    .usr-pending td { opacity: 0.6; }
+    .usr-pending-name { padding-left: 0.5rem; }
+    .usr-badge-pending { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 10px; font-size: 0.65rem; font-weight: 600; background: #fff3cd; color: #856404; margin-left: 0.4rem; vertical-align: middle; }
+    .usr-new .usr-input::placeholder { color: #ccc; }
+    .usr-save-status { font-size: 0.8rem; color: #27ae60; opacity: 0; transition: opacity 0.3s; display: inline-block; margin-top: 0.3rem; }
+    .usr-save-status.visible { opacity: 1; }
 </style>
 @endsection
 
@@ -236,82 +258,64 @@
     <div class="section">
         <h3>Uživatelé firmy</h3>
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
+        @if ($errors->has('email') || $errors->has('jmeno'))
+            <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $errors->first('email') ?: $errors->first('jmeno') }}</div>
+        @endif
+
+        <table class="usr-table" id="usrTable">
             <thead>
                 <tr>
-                    <th style="padding: 0.5rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.85rem;">Jméno</th>
-                    <th style="padding: 0.5rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.85rem;">Email</th>
-                    <th style="padding: 0.5rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.85rem;">Role</th>
-                    <th style="padding: 0.5rem 0.8rem; border-bottom: 2px solid #eee; background: #f8f9fa;"></th>
+                    <th>Jméno</th>
+                    <th>Email</th>
+                    <th style="width: 130px;">Role</th>
+                    <th style="width: 30px;"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($uzivatele as $u)
-                <tr>
-                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $u->cele_jmeno }}</td>
-                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $u->email }}</td>
-                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">
-                        @if ($u->pivot->interni_role === 'superadmin')
-                            <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#e8daef; color:#6c3483;">Superadmin</span>
-                        @else
-                            <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#d5f5e3; color:#1e8449;">Správce</span>
-                        @endif
+                <tr data-user-id="{{ $u->id }}">
+                    <td><input type="text" class="usr-input" value="{{ $u->cele_jmeno }}" data-field="jmeno" {{ $u->id === auth()->id() ? '' : '' }}></td>
+                    <td class="usr-email">{{ $u->email }}</td>
+                    <td>
+                        <select class="usr-select" data-field="interni_role">
+                            <option value="spravce" {{ $u->pivot->interni_role === 'spravce' ? 'selected' : '' }}>Správce</option>
+                            <option value="superadmin" {{ $u->pivot->interni_role === 'superadmin' ? 'selected' : '' }}>Superadmin</option>
+                        </select>
                     </td>
-                    <td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid #eee;">
+                    <td>
                         @if ($u->id !== auth()->id())
-                        <form method="POST" action="{{ route('firma.odebratUzivatele', $u->id) }}" onsubmit="return confirm('Odebrat uživatele {{ $u->cele_jmeno }}?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" style="padding:0.25rem 0.6rem; border:1px solid #e74c3c; background:white; color:#e74c3c; border-radius:4px; cursor:pointer; font-size:0.8rem;">Odebrat</button>
-                        </form>
+                        <button type="button" class="usr-remove" onclick="removeUser({{ $u->id }}, '{{ addslashes($u->cele_jmeno) }}')" title="Odebrat">&times;</button>
                         @endif
                     </td>
                 </tr>
                 @endforeach
-            </tbody>
-        </table>
-
-        @if ($pozvani->isNotEmpty())
-        <p style="font-size: 0.85rem; color: #888; margin-bottom: 0.5rem;">Čekající pozvánky:</p>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
-            <tbody>
                 @foreach ($pozvani as $p)
-                <tr>
-                    <td style="padding: 0.4rem 0.8rem; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; color: #888;">{{ $p->jmeno }}</td>
-                    <td style="padding: 0.4rem 0.8rem; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; color: #888;">{{ $p->email }}</td>
-                    <td style="padding: 0.4rem 0.8rem; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem;">
-                        <span style="display:inline-block; padding:0.15rem 0.5rem; border-radius:12px; font-size:0.7rem; font-weight:600; background:#fff3cd; color:#856404;">Odesláno</span>
+                <tr class="usr-pending" data-pozvani-id="{{ $p->id }}">
+                    <td><span class="usr-pending-name">{{ $p->jmeno }}</span></td>
+                    <td class="usr-email">{{ $p->email }} <span class="usr-badge-pending">Pozvánka</span></td>
+                    <td>
+                        <select class="usr-select" disabled>
+                            <option value="spravce" {{ $p->interni_role === 'spravce' ? 'selected' : '' }}>Správce</option>
+                            <option value="superadmin" {{ $p->interni_role === 'superadmin' ? 'selected' : '' }}>Superadmin</option>
+                        </select>
                     </td>
+                    <td></td>
                 </tr>
                 @endforeach
+                <tr class="usr-new">
+                    <td><input type="text" class="usr-input" id="newUserJmeno" placeholder="Jméno..." value="{{ old('jmeno') }}"></td>
+                    <td><input type="email" class="usr-input" id="newUserEmail" placeholder="Email..." value="{{ old('email') }}"></td>
+                    <td>
+                        <select class="usr-select" id="newUserRole">
+                            <option value="spravce">Správce</option>
+                            <option value="superadmin">Superadmin</option>
+                        </select>
+                    </td>
+                    <td><button type="button" class="usr-add" onclick="addUser()" title="Přidat">+</button></td>
+                </tr>
             </tbody>
         </table>
-        @endif
-
-        <form method="POST" action="{{ route('firma.pridatUzivatele') }}" style="background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-top: 0.5rem;">
-            @csrf
-            <p style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem;">Pozvat nového uživatele</p>
-            @if ($errors->has('email') || $errors->has('jmeno'))
-                <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $errors->first('email') ?: $errors->first('jmeno') }}</div>
-            @endif
-            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; align-items: end;">
-                <div>
-                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 0.2rem;">Jméno</label>
-                    <input type="text" name="jmeno" value="{{ old('jmeno') }}" required style="width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
-                </div>
-                <div>
-                    <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 0.2rem;">Email</label>
-                    <input type="email" name="email" value="{{ old('email') }}" required style="width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
-                </div>
-                <div>
-                    <select name="interni_role" style="padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
-                        <option value="spravce">Správce</option>
-                        <option value="superadmin">Superadmin</option>
-                    </select>
-                </div>
-            </div>
-            <button type="submit" style="margin-top: 0.75rem; padding: 0.5rem 1.2rem; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Pozvat</button>
-        </form>
+        <span class="usr-save-status" id="usrSaveStatus"></span>
     </div>
     @endif
 </div>
@@ -509,6 +513,101 @@
 
     // Init listeners
     attachInputListeners(document);
+
+    // ===== Uživatelé =====
+    function showUsrStatus(text, color) {
+        const el = document.getElementById('usrSaveStatus');
+        if (!el) return;
+        el.textContent = text;
+        el.style.color = color || '#27ae60';
+        el.classList.add('visible');
+        setTimeout(() => el.classList.remove('visible'), 2000);
+    }
+
+    let usrSaveTimer = null;
+    function scheduleUsrSave(userId) {
+        if (usrSaveTimer) clearTimeout(usrSaveTimer);
+        usrSaveTimer = setTimeout(() => saveUser(userId), 800);
+    }
+
+    function saveUser(userId) {
+        const row = document.querySelector('tr[data-user-id="'+userId+'"]');
+        if (!row) return;
+        const jmeno = row.querySelector('[data-field="jmeno"]').value.trim();
+        const role = row.querySelector('[data-field="interni_role"]').value;
+        if (!jmeno) return;
+
+        fetch('{{ url("/nastaveni/uzivatele") }}/' + userId, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ jmeno: jmeno, interni_role: role })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) showUsrStatus('Uloženo', '#27ae60');
+            else showUsrStatus(data.error || 'Chyba', '#e74c3c');
+        })
+        .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
+    }
+
+    // Attach listeners to existing user rows
+    document.querySelectorAll('#usrTable tr[data-user-id]').forEach(row => {
+        const userId = row.dataset.userId;
+        const nameInput = row.querySelector('[data-field="jmeno"]');
+        const roleSelect = row.querySelector('[data-field="interni_role"]');
+        if (nameInput) nameInput.addEventListener('input', () => scheduleUsrSave(userId));
+        if (roleSelect) roleSelect.addEventListener('change', () => saveUser(userId));
+    });
+
+    window.removeUser = function(userId, name) {
+        if (!confirm('Odebrat uživatele ' + name + '?')) return;
+        fetch('{{ url("/nastaveni/uzivatele") }}/' + userId, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                document.querySelector('tr[data-user-id="'+userId+'"]').remove();
+                showUsrStatus('Uživatel odebrán', '#27ae60');
+            } else {
+                showUsrStatus(data.error || 'Chyba', '#e74c3c');
+            }
+        })
+        .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
+    };
+
+    window.addUser = function() {
+        const jmeno = document.getElementById('newUserJmeno').value.trim();
+        const email = document.getElementById('newUserEmail').value.trim();
+        const role = document.getElementById('newUserRole').value;
+        if (!jmeno || !email) { showUsrStatus('Vyplňte jméno a email', '#e74c3c'); return; }
+
+        fetch('{{ route("firma.pridatUzivatele") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ jmeno: jmeno, email: email, interni_role: role })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                showUsrStatus(data.message || 'Uživatel přidán', '#27ae60');
+                // Reload to refresh the table
+                setTimeout(() => window.location.reload(), 500);
+            } else {
+                showUsrStatus(data.error || 'Chyba', '#e74c3c');
+            }
+        })
+        .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
+    };
 })();
 </script>
 @endsection

@@ -393,6 +393,7 @@ function updateNotifHeader() {
 // ===== Column definitions =====
 const COLUMNS = [
     { id: 'expand',    label: '',           tip: null, sortable: false, editable: false, fixed: true,  field: null },
+    { id: 'nahled',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
     { id: 'nahrano',   label: 'Nahráno',    tip: 'Datum a čas vložení do systému', sortable: 'created_at', editable: false, fixed: false, field: null },
     { id: 'cas_nahrani', label: 'Čas',      tip: 'Čas nahrání dokladu', sortable: false, editable: false, fixed: false, field: null },
     { id: 'datum_prijeti', label: 'Příjetí', tip: 'Datum příjetí dokladu do účetnictví', sortable: 'datum_prijeti', editable: 'date', fixed: false, field: 'datum_prijeti' },
@@ -400,7 +401,6 @@ const COLUMNS = [
     { id: 'vystaveni', label: 'Vystavení',  tip: 'Datum vystavení dokladu dodavatelem', sortable: 'datum_vystaveni', editable: 'date', fixed: false, field: 'datum_vystaveni' },
     { id: 'splatnost', label: 'Splatnost',  tip: 'Datum splatnosti', sortable: 'datum_splatnosti', editable: 'date', fixed: false, field: 'datum_splatnosti' },
     { id: 'cislo',     label: 'Číslo',      tip: 'Číslo/variabilní symbol dokladu', sortable: false, editable: 'text', fixed: false, field: 'cislo_dokladu' },
-    { id: 'nahled',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
     { id: 'dodavatel', label: 'Dodavatel',  tip: 'Název dodavatele/vystavitele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_nazev' },
     { id: 'ico',       label: 'IČ',         tip: 'IČO dodavatele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_ico' },
     { id: 'castka',    label: 'Částka',      tip: 'Celková částka s DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_celkem' },
@@ -415,7 +415,7 @@ const COLUMNS = [
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
 
-const DEFAULT_VISIBLE = ['expand','nahrano','vystaveni','nahled','dodavatel','ico','castka','mena','stav','smazat'];
+const DEFAULT_VISIBLE = ['expand','nahled','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
 const FIXED_COLS = ['expand','nahled','smazat'];
 
 function loadPref(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
@@ -723,7 +723,8 @@ function initDragDrop() {
                 const fromIdx = colOrder.indexOf(dragCol);
                 const toIdx = colOrder.indexOf(targetCol);
                 colOrder.splice(fromIdx, 1);
-                colOrder.splice(toIdx, 0, dragCol);
+                const insertIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
+                colOrder.splice(insertIdx, 0, dragCol);
                 savePref('doklady_column_order', colOrder);
                 renderTable();
             }
