@@ -40,6 +40,22 @@
         <p style="color: #666; margin-bottom: 1.5rem;">Vytvořte si účet v systému TupTuDu</p>
     @endif
 
+    @if (session('firma_obsazena'))
+        <div id="firmaObsazenaBox" style="background: #fffbea; border: 1px solid #f0c36d; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+            <p style="margin: 0 0 0.5rem; font-weight: 600; color: #856404;">Firma {{ session('firma_nazev') }} je již v systému registrována.</p>
+            <p style="margin: 0 0 0.75rem; font-size: 0.9rem; color: #666;">
+                Pokud jste členem firmy, můžete požádat uživatele
+                <strong>{{ session('superadmin_prijmeni') }}</strong>
+                ({{ session('superadmin_email_masked') }}) o přístup.
+            </p>
+            <button type="button" id="btnZadost" class="btn btn-primary btn-sm" onclick="pozadatOPristup()" style="margin-bottom: 0.5rem;">Požádat o přístup</button>
+            <div id="zadostStatus" style="font-size: 0.85rem; margin-top: 0.3rem; display: none;"></div>
+            <p style="margin: 0.75rem 0 0; font-size: 0.8rem; color: #999;">
+                V případě komplikací nás kontaktujte na <a href="mailto:info@tuptudu.cz" style="color: #3498db;">info@tuptudu.cz</a>
+            </p>
+        </div>
+    @endif
+
     @if ($errors->any())
         <div style="background: #fef0f0; border: 1px solid #e74c3c; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;">
             @foreach ($errors->all() as $error)
@@ -184,6 +200,48 @@ function goStep(n) {
     document.getElementById('step'+n).classList.add('active');
     document.getElementById('stepInd1').className = n >= 1 ? (n > 1 ? 'done' : 'active') : '';
     document.getElementById('stepInd2').className = n >= 2 ? 'active' : '';
+}
+
+@if (session('firma_obsazena'))
+// Auto-show step 2 when firma is occupied
+goStep(2);
+@endif
+
+function pozadatOPristup() {
+    var jmeno = (document.getElementById('jmeno').value + ' ' + document.getElementById('prijmeni').value).trim();
+    var email = document.getElementById('email').value.trim();
+    var ico = '{{ session("firma_ico", "") }}';
+    if (!jmeno || !email) { alert('Vyplňte prosím jméno a email v kroku 1.'); return; }
+
+    var btn = document.getElementById('btnZadost');
+    var st = document.getElementById('zadostStatus');
+    btn.disabled = true;
+    btn.textContent = 'Odesílám...';
+
+    fetch('{{ route("firma.zadostOPristup") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json'},
+        body: JSON.stringify({ico: ico, jmeno: jmeno, email: email})
+    }).then(function(r){ return r.json(); }).then(function(data){
+        if (data.ok) {
+            btn.textContent = 'Žádost odeslána';
+            btn.style.background = '#27ae60';
+            st.textContent = 'Žádost byla odeslána správci firmy na email.';
+            st.style.color = '#27ae60';
+        } else {
+            btn.textContent = 'Požádat o přístup';
+            btn.disabled = false;
+            st.textContent = data.error || 'Chyba při odesílání.';
+            st.style.color = '#e74c3c';
+        }
+        st.style.display = 'block';
+    }).catch(function(){
+        btn.textContent = 'Požádat o přístup';
+        btn.disabled = false;
+        st.textContent = 'Chyba spojení.';
+        st.style.color = '#e74c3c';
+        st.style.display = 'block';
+    });
 }
 
 function lookupAres() {

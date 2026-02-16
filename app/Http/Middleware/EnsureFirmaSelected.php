@@ -16,7 +16,7 @@ class EnsureFirmaSelected
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Nemáte přiřazenou žádnou firmu.'], 403);
             }
-            return redirect()->route('firma.pridat');
+            return redirect()->route('firma.zadna');
         }
 
         if (!session('aktivni_firma_ico') || !$user->firmy()->where('ico', session('aktivni_firma_ico'))->exists()) {

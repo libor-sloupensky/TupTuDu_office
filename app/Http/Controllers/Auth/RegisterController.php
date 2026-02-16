@@ -91,6 +91,21 @@ class RegisterController extends Controller
                 return back()->withErrors(['ico' => 'IČO nebylo nalezeno v ARES.'])->withInput();
             }
 
+            // Kontrola: firma již existuje a má uživatele → blokovat
+            $existujiciFirma = Firma::find($request->ico);
+            if ($existujiciFirma && $existujiciFirma->users()->exists()) {
+                $superadmin = $existujiciFirma->users()->withPivot('interni_role')
+                    ->wherePivot('interni_role', 'superadmin')->first();
+
+                return back()->withInput()->with([
+                    'firma_obsazena' => true,
+                    'firma_nazev' => $existujiciFirma->nazev,
+                    'firma_ico' => $existujiciFirma->ico,
+                    'superadmin_prijmeni' => $superadmin?->prijmeni ?? 'správce',
+                    'superadmin_email_masked' => $superadmin ? User::maskEmail($superadmin->email) : '',
+                ]);
+            }
+
             $user = User::create([
                 'jmeno' => $request->jmeno,
                 'prijmeni' => $request->prijmeni,
@@ -118,13 +133,10 @@ class RegisterController extends Controller
                 Firma::seedDefaultKategorie($firma->ico);
             }
 
-            // First user of this firma = superadmin
-            $hasUsers = $firma->users()->exists();
-            $interniRole = $hasUsers ? 'spravce' : 'superadmin';
-
+            // Nová firma = první uživatel je vždy superadmin
             $user->firmy()->attach($firma->ico, [
                 'role' => 'firma',
-                'interni_role' => $interniRole,
+                'interni_role' => 'superadmin',
             ]);
         }
 

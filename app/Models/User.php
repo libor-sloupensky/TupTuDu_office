@@ -68,6 +68,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->firmy()->where('ico', $ico)->wherePivot('interni_role', 'superadmin')->exists();
     }
 
+    public static function maskEmail(string $email): string
+    {
+        [$local, $domain] = explode('@', $email, 2);
+        if (strlen($local) <= 2) {
+            return $local[0] . '***@' . $domain;
+        }
+        return substr($local, 0, 2) . '***' . substr($local, -1) . '@' . $domain;
+    }
+
     public function dostupneIco(): array
     {
         $icos = $this->firmy()->pluck('ico')->toArray();

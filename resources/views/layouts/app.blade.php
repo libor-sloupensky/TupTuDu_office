@@ -65,7 +65,6 @@
                                     </button>
                                 </form>
                             @endforeach
-                            <a href="{{ route('firma.pridat') }}" class="add-link">+ Přidat firmu</a>
                         </div>
                     </div>
                 @endif

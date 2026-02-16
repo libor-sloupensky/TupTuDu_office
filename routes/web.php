@@ -28,6 +28,9 @@ Route::middleware('guest')->group(function () {
 // --- ARES (bez auth) ---
 Route::get('/api/ares/{ico}', [AresController::class, 'lookup'])->middleware('throttle:30,1')->name('ares.lookup');
 
+// --- Žádost o přístup k firmě (bez auth, throttle) ---
+Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->middleware('throttle:3,60')->name('firma.zadostOPristup');
+
 // --- Email verification (auth, not yet verified) ---
 Route::middleware('auth')->group(function () {
     Route::get('/email/overeni', [VerificationController::class, 'notice'])->name('verification.notice');
@@ -39,8 +42,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/odhlaseni', [LoginController::class, 'logout'])->name('logout');
 
-    Route::get('/firma/pridat', [FirmaController::class, 'pridatFirmu'])->name('firma.pridat');
-    Route::post('/firma/pridat', [FirmaController::class, 'ulozitNovou'])->name('firma.ulozitNovou');
+    Route::get('/firma/zadna', [FirmaController::class, 'zadnaFirma'])->name('firma.zadna');
     Route::post('/firma/prepnout/{ico}', [FirmaController::class, 'prepnout'])->name('firma.prepnout');
 });
 

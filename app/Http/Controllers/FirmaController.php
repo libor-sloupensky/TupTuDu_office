@@ -79,53 +79,41 @@ class FirmaController extends Controller
         return redirect()->route('firma.nastaveni')->with('success', 'Nastavení uloženo.');
     }
 
-    public function pridatFirmu()
+    public function zadnaFirma()
     {
-        return view('firma.pridat');
+        return view('firma.zadna');
     }
 
-    public function ulozitNovou(Request $request)
+    public function zadostOPristup(Request $request)
     {
         $request->validate([
             'ico' => 'required|string|regex:/^\d{8}$/',
+            'jmeno' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
         ]);
 
-        $user = auth()->user();
-
-        if ($user->firmy()->where('ico', $request->ico)->exists()) {
-            return back()->withErrors(['ico' => 'Tuto firmu již máte přiřazenou.'])->withInput();
+        $firma = Firma::find($request->ico);
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Firma nenalezena.'], 404);
         }
 
-        $ares = AresController::fetchAres($request->ico);
+        $superadmin = $firma->users()->withPivot('interni_role')
+            ->wherePivot('interni_role', 'superadmin')->first();
 
-        if (!$ares || !$ares['nazev']) {
-            return back()->withErrors(['ico' => 'IČO nebylo nalezeno v ARES.'])->withInput();
+        if (!$superadmin) {
+            return response()->json(['ok' => false, 'error' => 'Správce firmy nenalezen.'], 404);
         }
 
-        $firma = Firma::firstOrCreate(
-            ['ico' => $request->ico],
-            [
-                'nazev' => $ares['nazev'],
-                'dic' => $ares['dic'],
-                'ulice' => $ares['ulice'],
-                'mesto' => $ares['mesto'],
-                'psc' => $ares['psc'],
-            ]
-        );
-
-        if (!$firma->email_doklady) {
-            $firma->update(['email_doklady' => $request->ico . '@tuptudu.cz']);
+        try {
+            Mail::to($superadmin->email)->send(
+                new \App\Mail\ZadostOPristup($request->jmeno, $request->email, $firma)
+            );
+        } catch (\Throwable $e) {
+            Log::error('Chyba odeslání žádosti o přístup: ' . $e->getMessage());
+            return response()->json(['ok' => false, 'error' => 'Nepodařilo se odeslat žádost.'], 500);
         }
 
-        if ($firma->kategorie()->count() === 0) {
-            Firma::seedDefaultKategorie($firma->ico);
-        }
-
-        $user->firmy()->attach($firma->ico, ['role' => 'firma']);
-
-        session(['aktivni_firma_ico' => $firma->ico]);
-
-        return redirect()->route('doklady.index')->with('flash', "Firma {$firma->nazev} byla přidána.");
+        return response()->json(['ok' => true]);
     }
 
     public function prepnout(string $ico)
