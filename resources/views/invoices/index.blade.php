@@ -16,34 +16,42 @@
     .upload-zone .formats { font-size: 0.8rem; color: #95a5a6; margin-top: 0.3rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Upload list */
-    .upload-panel { display: none; border: 1px solid #d0d8e0; border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; }
-    .upload-panel.active { display: block; }
-    .upload-panel-header { background: #f0f4f8; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; color: #555; display: flex; justify-content: space-between; align-items: center; }
-    .upload-item { display: flex; align-items: center; padding: 0.45rem 1rem; border-bottom: 1px solid #eee; font-size: 0.85rem; gap: 0.6rem; transition: opacity 0.5s; }
-    .upload-item:last-child { border-bottom: none; }
-    .upload-item-icon { width: 20px; text-align: center; flex-shrink: 0; }
-    .upload-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .upload-item-size { color: #95a5a6; font-size: 0.75rem; flex-shrink: 0; }
-    .upload-item-status { font-size: 0.8rem; flex-shrink: 1; min-width: 0; }
-    .upload-item-dismiss { background: none; border: none; cursor: pointer; color: #bdc3c7; font-size: 1rem; padding: 0 0.3rem; line-height: 1; flex-shrink: 0; }
-    .upload-item-dismiss:hover { color: #555; }
-    .upload-item .spinner-sm { display: inline-block; width: 14px; height: 14px; border: 2px solid #bdc3c7; border-top-color: #3498db; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    .upload-item.status-ok .upload-item-icon { color: #27ae60; }
-    .upload-item.status-warning .upload-item-icon { color: #e67e22; }
-    .upload-item.status-error .upload-item-icon { color: #e74c3c; }
-    .upload-item.status-duplicate .upload-item-icon { color: #95a5a6; }
-    .upload-item.status-info .upload-item-icon { color: #2980b9; }
-    .upload-item.status-warning, .upload-item.status-error { background: #fffaf5; flex-wrap: wrap; }
-    .upload-item.status-warning .upload-item-status, .upload-item.status-error .upload-item-status { flex-basis: 100%; padding-left: 26px; font-size: 0.78rem; margin-top: -0.1rem; }
-    .upload-item.status-warning .upload-item-status { color: #e67e22; }
-    .upload-item.status-error .upload-item-status { color: #e74c3c; }
+    /* Notification panel */
+    .notif-panel { display: none; border: 1px solid #d0d8e0; border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; }
+    .notif-panel.active { display: block; }
+    .notif-panel-header { background: #f0f4f8; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; color: #555; display: flex; justify-content: space-between; align-items: center; }
+    .notif-item { display: flex; align-items: center; padding: 0.5rem 1rem; border-bottom: 1px solid #eee; font-size: 0.85rem; gap: 0.6rem; transition: all 0.4s; }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item-icon { width: 20px; text-align: center; flex-shrink: 0; }
+    .notif-item-body { flex: 1; min-width: 0; }
+    .notif-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .notif-item-size { color: #95a5a6; font-size: 0.75rem; flex-shrink: 0; }
+    .notif-item-detail { font-size: 0.78rem; margin-top: 0.2rem; }
+    .notif-item-detail ul { margin: 0.15rem 0 0 1.2rem; padding: 0; }
+    .notif-item-detail ul li { margin-bottom: 0.1rem; }
+    .notif-item-dismiss { background: none; border: none; cursor: pointer; color: #95a5a6; font-size: 1.4rem; padding: 0.1rem 0.4rem; line-height: 1; flex-shrink: 0; align-self: flex-start; margin-top: 0.1rem; }
+    .notif-item-dismiss:hover { color: #333; }
+    .notif-item .spinner-sm { display: inline-block; width: 14px; height: 14px; border: 2px solid #bdc3c7; border-top-color: #3498db; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .notif-item.status-ok .notif-item-icon { color: #27ae60; }
+    .notif-item.status-warning .notif-item-icon { color: #e67e22; }
+    .notif-item.status-error .notif-item-icon { color: #e74c3c; }
+    .notif-item.status-duplicate .notif-item-icon { color: #95a5a6; }
+    .notif-item.status-info .notif-item-icon { color: #2980b9; }
+    .notif-item.status-processing .notif-item-icon { color: #3498db; }
+    .notif-item.status-waiting .notif-item-icon { color: #bdc3c7; }
+    .notif-item.status-warning { background: #fffaf5; }
+    .notif-item.status-warning .notif-item-detail { color: #e67e22; }
+    .notif-item.status-error { background: #fff5f5; }
+    .notif-item.status-error .notif-item-detail { color: #e74c3c; }
+    .notif-item.fading { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; border: none; overflow: hidden; }
 
-    /* Alert history */
-    .alert-history-toggle { font-size: 0.8rem; color: #95a5a6; cursor: pointer; margin-bottom: 0.5rem; display: none; }
-    .alert-history-toggle:hover { color: #555; }
-    .alert-history { display: none; border: 1px solid #e8ecf0; border-radius: 6px; margin-bottom: 1rem; }
-    .alert-history.open { display: block; }
+    /* Notification history */
+    .notif-history-toggle { font-size: 0.8rem; color: #95a5a6; cursor: pointer; margin-bottom: 0.5rem; display: none; }
+    .notif-history-toggle:hover { color: #555; }
+    .notif-history { display: none; border: 1px solid #e8ecf0; border-radius: 6px; margin-bottom: 1rem; overflow: hidden; }
+    .notif-history.open { display: block; }
+    .notif-history .notif-item { opacity: 0.65; font-size: 0.8rem; padding: 0.35rem 1rem; }
+    .notif-history .notif-item-detail { font-size: 0.72rem; }
 
     .ai-search-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.5rem 1rem; background: #f0f4f8; border: 1px solid #d0d8e0; border-radius: 8px; }
     .ai-search-label { font-size: 0.78rem; font-weight: 600; color: #555; white-space: nowrap; }
@@ -142,11 +150,6 @@
         <h2>Doklady</h2>
     </div>
 
-    <div class="alert-history-toggle" id="alertHistoryToggle" onclick="toggleAlertHistory()">
-        <span id="alertHistoryArrow">&#9654;</span> Zobrazit skryté hlášky (<span id="alertHistoryCount">0</span>)
-    </div>
-    <div class="alert-history" id="alertHistory"></div>
-
     @if (!$firma)
         <div class="warning-msg">Nejdříve vyplňte <a href="{{ route('firma.nastaveni') }}">nastavení firmy</a>.</div>
     @else
@@ -160,37 +163,17 @@
             <p class="formats">PDF, JPG, PNG (max 10 MB)</p>
         </div>
         <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple style="display: none;">
-        <div class="upload-panel" id="uploadPanel">
-            <div class="upload-panel-header">
-                <span id="uploadPanelTitle">Nahrávám soubory...</span>
-                <span id="uploadPanelProgress"></span>
+        <div class="notif-panel" id="notifPanel">
+            <div class="notif-panel-header">
+                <span id="notifTitle"></span>
+                <span id="notifProgress"></span>
             </div>
-            <div id="uploadList"></div>
+            <div id="notifList"></div>
         </div>
-    @endif
-
-    @if (session('flash') && ($doklady->isEmpty() && empty($q)))
-    <script>
-    (function() {
-        const msg = @json(session('flash'));
-        const panel = document.getElementById('uploadPanel');
-        const list = document.getElementById('uploadList');
-        if (!panel || !list) return;
-        const item = document.createElement('div');
-        item.className = 'upload-item status-info';
-        item.innerHTML = '<span class="upload-item-icon">&#8505;</span><span class="upload-item-name">' + msg + '</span>';
-        const btn = document.createElement('button');
-        btn.className = 'upload-item-dismiss';
-        btn.innerHTML = '&times;';
-        btn.onclick = function() { item.style.opacity='0'; setTimeout(() => { item.remove(); if (!list.children.length) panel.classList.remove('active'); }, 300); };
-        item.appendChild(btn);
-        list.appendChild(item);
-        panel.classList.add('active');
-        document.getElementById('uploadPanelTitle').textContent = '';
-        document.getElementById('uploadPanelProgress').textContent = '';
-        setTimeout(() => { item.style.opacity='0'; setTimeout(() => { item.remove(); if (!list.children.length) panel.classList.remove('active'); }, 500); }, 8000);
-    })();
-    </script>
+        <div class="notif-history-toggle" id="notifHistoryToggle" onclick="toggleNotifHistory()">
+            <span id="notifHistoryArrow">&#9654;</span> Zobrazit historii (<span id="notifHistoryCount">0</span>)
+        </div>
+        <div class="notif-history" id="notifHistory"></div>
     @endif
 
     <script>
@@ -262,45 +245,149 @@
 
 @section('scripts')
 <script>
-// ===== Alert history =====
-let dismissedAlerts = [];
+// ===== Unified Notification System =====
+const AUTO_HIDE_DELAY = 8000;
+let notifHistory = [];
 
-function toggleAlertHistory() {
-    const el = document.getElementById('alertHistory');
-    const arrow = document.getElementById('alertHistoryArrow');
+function toggleNotifHistory() {
+    const el = document.getElementById('notifHistory');
+    const arrow = document.getElementById('notifHistoryArrow');
     el.classList.toggle('open');
     arrow.innerHTML = el.classList.contains('open') ? '&#9660;' : '&#9654;';
 }
 
-function dismissUploadItem(btn) {
-    const item = btn.closest('.upload-item');
-    const msg = item.querySelector('.upload-item-status')?.textContent || '';
-    const name = item.querySelector('.upload-item-name')?.textContent || '';
-    dismissedAlerts.push({ name, msg, cls: item.className });
-    item.style.opacity = '0';
+function formatNotifMessage(msg) {
+    if (!msg) return '';
+    // Split on the warning marker
+    const warnIdx = msg.indexOf('\u26A0');
+    if (warnIdx === -1) return escHtml(msg);
+
+    const main = msg.substring(0, warnIdx).trim();
+    const detail = msg.substring(warnIdx + 1).trim();
+
+    // Split detail into sentences (by ". " or standalone sentences)
+    const sentences = detail.split(/\.\s+/).map(s => s.replace(/\.+$/, '').trim()).filter(s => s.length > 0);
+
+    let html = escHtml(main);
+    if (sentences.length > 1) {
+        html += '<ul>' + sentences.map(s => '<li>' + escHtml(s) + '</li>').join('') + '</ul>';
+    } else if (sentences.length === 1) {
+        html += '<ul><li>' + escHtml(sentences[0]) + '</li></ul>';
+    }
+    return html;
+}
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function addNotification(opts) {
+    // opts: { status, icon, name, detail, size, autoHide }
+    const panel = document.getElementById('notifPanel');
+    const list = document.getElementById('notifList');
+    if (!panel || !list) return null;
+
+    const item = document.createElement('div');
+    item.className = 'notif-item status-' + (opts.status || 'info');
+
+    let bodyHtml = '<span class="notif-item-name">' + (opts.name || '') + '</span>';
+    if (opts.detail) {
+        bodyHtml += '<div class="notif-item-detail">' + opts.detail + '</div>';
+    }
+
+    item.innerHTML =
+        '<span class="notif-item-icon">' + (opts.icon || '&#8505;') + '</span>' +
+        (opts.size ? '<span class="notif-item-size">' + opts.size + '</span>' : '') +
+        '<span class="notif-item-body">' + bodyHtml + '</span>';
+
+    // Always add dismiss button (on the right)
+    const btn = document.createElement('button');
+    btn.className = 'notif-item-dismiss';
+    btn.innerHTML = '&times;';
+    btn.onclick = function() { dismissNotif(item); };
+    item.appendChild(btn);
+
+    list.appendChild(item);
+    panel.classList.add('active');
+    updateNotifHeader();
+
+    // Auto-hide for non-alert items
+    if (opts.autoHide !== false && (opts.status === 'ok' || opts.status === 'info' || opts.status === 'duplicate')) {
+        setTimeout(() => {
+            if (item.parentNode) moveToHistory(item);
+        }, AUTO_HIDE_DELAY);
+    }
+
+    return item;
+}
+
+function dismissNotif(item) {
+    moveToHistory(item);
+}
+
+function moveToHistory(item) {
+    if (!item.parentNode) return;
+    // Save to history
+    notifHistory.push(item.outerHTML);
+    // Animate out
+    item.classList.add('fading');
     setTimeout(() => {
         item.remove();
-        updateAlertHistory();
-        checkUploadPanelEmpty();
-    }, 300);
+        checkNotifPanelEmpty();
+        updateHistoryPanel();
+    }, 400);
 }
 
-function updateAlertHistory() {
-    const toggle = document.getElementById('alertHistoryToggle');
-    const container = document.getElementById('alertHistory');
-    const count = document.getElementById('alertHistoryCount');
-    if (dismissedAlerts.length === 0) { toggle.style.display = 'none'; return; }
+function checkNotifPanelEmpty() {
+    const panel = document.getElementById('notifPanel');
+    const items = panel.querySelectorAll('.notif-item');
+    if (items.length === 0) {
+        panel.classList.remove('active');
+        updateNotifHeader();
+    }
+}
+
+function updateHistoryPanel() {
+    const toggle = document.getElementById('notifHistoryToggle');
+    const container = document.getElementById('notifHistory');
+    const count = document.getElementById('notifHistoryCount');
+    if (notifHistory.length === 0) { toggle.style.display = 'none'; return; }
     toggle.style.display = 'block';
-    count.textContent = dismissedAlerts.length;
-    container.innerHTML = dismissedAlerts.map(a =>
-        '<div class="upload-item" style="opacity:0.7"><span class="upload-item-name">' + a.name + '</span><span class="upload-item-status" style="color:#999">' + a.msg + '</span></div>'
-    ).join('');
+    count.textContent = notifHistory.length;
+    // Render history items (newest first) without dismiss buttons
+    container.innerHTML = notifHistory.slice().reverse().map(html => {
+        // Remove dismiss button from history items
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        const btn = tmp.querySelector('.notif-item-dismiss');
+        if (btn) btn.remove();
+        // Remove fading class
+        const el = tmp.querySelector('.notif-item');
+        if (el) el.classList.remove('fading');
+        return tmp.innerHTML;
+    }).join('');
 }
 
-function checkUploadPanelEmpty() {
-    const panel = document.getElementById('uploadPanel');
-    const items = panel.querySelectorAll('.upload-item');
-    if (items.length === 0) panel.classList.remove('active');
+function updateNotifHeader() {
+    const title = document.getElementById('notifTitle');
+    const progress = document.getElementById('notifProgress');
+    if (!title) return;
+    const total = uploadQueue.length;
+    if (total === 0) {
+        // Non-upload notifications
+        title.textContent = '';
+        progress.textContent = '';
+        return;
+    }
+    const pending = total - uploadCompleted - uploadActive;
+    if (pending > 0 || uploadActive > 0) {
+        title.textContent = 'Nahrávání souborů...';
+    } else {
+        title.textContent = 'Nahrávání dokončeno';
+    }
+    progress.textContent = uploadCompleted + ' / ' + total;
 }
 
 // ===== Column definitions =====
@@ -647,8 +734,6 @@ function initDragDrop() {
 // ===== Upload =====
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-const uploadPanel = document.getElementById('uploadPanel');
-const uploadList = document.getElementById('uploadList');
 
 if (dropZone) {
     dropZone.addEventListener('click', () => fileInput.click());
@@ -677,27 +762,32 @@ function enqueueFiles(files) {
     for (const file of files) {
         if (!allowed.includes(file.type) || file.size > 10*1024*1024) continue;
 
-        const item = document.createElement('div');
-        item.className = 'upload-item status-waiting';
-        item.innerHTML =
-            '<span class="upload-item-icon"><span class="spinner-sm"></span></span>' +
-            '<span class="upload-item-name">' + file.name + '</span>' +
-            '<span class="upload-item-size">' + formatSize(file.size) + '</span>' +
-            '<span class="upload-item-status">Čeká...</span>';
-        uploadList.appendChild(item);
+        const item = addNotification({
+            status: 'waiting',
+            icon: '<span class="spinner-sm"></span>',
+            name: escHtml(file.name),
+            detail: '',
+            size: formatSize(file.size),
+            autoHide: false
+        });
+        // Update body to show "Čeká..." status
+        const detail = item.querySelector('.notif-item-detail');
+        if (detail) detail.textContent = 'Čeká...';
+        else {
+            const d = document.createElement('div');
+            d.className = 'notif-item-detail';
+            d.textContent = 'Čeká...';
+            item.querySelector('.notif-item-body').appendChild(d);
+        }
         uploadQueue.push({ file, item });
         added++;
     }
     if (!added) return;
 
-    // Cancel pending auto-hide (new files added)
-    if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null; }
-
-    // Show panel, shrink drop zone but keep it active
-    uploadPanel.classList.add('active');
+    // Shrink drop zone but keep it active
     dropZone.classList.add('compact');
     dropZone.querySelector('p:first-child').textContent = 'Přidat další soubory';
-    updateUploadHeader();
+    updateNotifHeader();
 
     // Kick workers
     while (uploadActive < MAX_CONCURRENT) {
@@ -705,35 +795,23 @@ function enqueueFiles(files) {
     }
 }
 
-function updateUploadHeader() {
-    const total = uploadQueue.length;
-    const pending = total - uploadCompleted - uploadActive;
-    if (pending > 0 || uploadActive > 0) {
-        document.getElementById('uploadPanelTitle').textContent = 'Nahrávání souborů...';
-    } else {
-        document.getElementById('uploadPanelTitle').textContent = 'Nahrávání dokončeno';
-    }
-    document.getElementById('uploadPanelProgress').textContent = uploadCompleted + ' / ' + total;
-}
-
 function processNextInQueue() {
-    // Find next waiting item
     const entry = uploadQueue.find(e => e.item.classList.contains('status-waiting'));
     if (!entry) return false;
 
     uploadActive++;
     const { file, item } = entry;
 
-    item.className = 'upload-item status-processing';
-    const statusEl = item.querySelector('.upload-item-status');
-    statusEl.textContent = 'Zpracovávám... 0s';
-    updateUploadHeader();
+    item.className = 'notif-item status-processing';
+    item.querySelector('.notif-item-icon').innerHTML = '<span class="spinner-sm"></span>';
+    const detailEl = item.querySelector('.notif-item-detail');
+    if (detailEl) detailEl.textContent = 'Zpracovávám... 0s';
+    updateNotifHeader();
 
-    // Elapsed timer
     const startTime = Date.now();
     const timerInterval = setInterval(() => {
         const elapsed = Math.round((Date.now() - startTime) / 1000);
-        statusEl.textContent = 'Zpracovávám... ' + elapsed + 's';
+        if (detailEl) detailEl.textContent = 'Zpracovávám... ' + elapsed + 's';
     }, 1000);
 
     uploadSingleFile(file).then(result => {
@@ -742,66 +820,59 @@ function processNextInQueue() {
         uploadCompleted++;
 
         try {
-            const icon = item.querySelector('.upload-item-icon');
-            const status = item.querySelector('.upload-item-status');
+            const icon = item.querySelector('.notif-item-icon');
+            const detail = item.querySelector('.notif-item-detail');
+            const statusClass = result.status || 'error';
+
+            // Remove existing classes, set new status
+            item.className = 'notif-item status-' + statusClass;
 
             if (result.status === 'ok') {
-                item.className = 'upload-item status-ok';
                 icon.innerHTML = '&#10003;';
-                status.textContent = result.message || 'Nahráno';
+                if (detail) detail.innerHTML = formatNotifMessage(result.message || 'Nahráno');
             } else if (result.status === 'warning') {
-                item.className = 'upload-item status-warning';
                 icon.innerHTML = '&#9888;';
-                status.textContent = result.message || 'Nahráno s upozorněním';
-                addDismissBtn(item);
+                if (detail) detail.innerHTML = formatNotifMessage(result.message || 'Nahráno s upozorněním');
             } else if (result.status === 'duplicate') {
-                item.className = 'upload-item status-duplicate';
                 icon.innerHTML = '&#8212;';
-                status.textContent = result.message || 'Již existuje';
+                if (detail) detail.innerHTML = formatNotifMessage(result.message || 'Již existuje');
             } else {
-                item.className = 'upload-item status-error';
                 icon.innerHTML = '&#10007;';
-                status.textContent = result.message || 'Chyba';
-                addDismissBtn(item);
+                if (detail) detail.innerHTML = formatNotifMessage(result.message || 'Chyba');
             }
 
-            updateUploadHeader();
+            updateNotifHeader();
             refreshTableData();
+
+            // Auto-hide OK/duplicate after delay; warnings/errors stay
+            if (result.status === 'ok' || result.status === 'duplicate') {
+                setTimeout(() => {
+                    if (item.parentNode) moveToHistory(item);
+                }, AUTO_HIDE_DELAY);
+            }
         } catch(e) {
             console.error('[UPLOAD] UI update error:', e);
         }
 
-        // ALWAYS continue queue - never let it stall
         if (!processNextInQueue()) {
-            if (uploadActive === 0) {
-                onAllUploadsComplete();
-            }
+            if (uploadActive === 0) onAllUploadsComplete();
         }
     }).catch(err => {
-        // Safety net: uploadSingleFile should never reject, but if it does, continue queue
         clearInterval(timerInterval);
         uploadActive--;
         uploadCompleted++;
         console.error('[UPLOAD] Unexpected error:', err);
-        item.className = 'upload-item status-error';
-        item.querySelector('.upload-item-icon').innerHTML = '&#10007;';
-        item.querySelector('.upload-item-status').textContent = 'Neočekávaná chyba';
-        addDismissBtn(item);
-        updateUploadHeader();
+        item.className = 'notif-item status-error';
+        item.querySelector('.notif-item-icon').innerHTML = '&#10007;';
+        const detail = item.querySelector('.notif-item-detail');
+        if (detail) detail.textContent = 'Neočekávaná chyba';
+        updateNotifHeader();
         if (!processNextInQueue()) {
             if (uploadActive === 0) onAllUploadsComplete();
         }
     });
 
     return true;
-}
-
-function addDismissBtn(item) {
-    const btn = document.createElement('button');
-    btn.className = 'upload-item-dismiss';
-    btn.innerHTML = '&times;';
-    btn.onclick = function() { dismissUploadItem(this); };
-    item.appendChild(btn);
 }
 
 function refreshTableData() {
@@ -814,23 +885,9 @@ function refreshTableData() {
 }
 
 function onAllUploadsComplete() {
-    updateUploadHeader();
+    updateNotifHeader();
     dropZone.classList.remove('compact');
     dropZone.querySelector('p:first-child').textContent = 'Přetáhněte soubory sem nebo klikněte pro výběr';
-
-    // Auto-hide success and duplicate items after 10s
-    autoHideTimer = setTimeout(() => {
-        uploadQueue.forEach(e => {
-            if (e.item.classList.contains('status-ok') || e.item.classList.contains('status-duplicate')) {
-                e.item.style.opacity = '0';
-                setTimeout(() => {
-                    e.item.remove();
-                    checkUploadPanelEmpty();
-                }, 500);
-            }
-        });
-        autoHideTimer = null;
-    }, 10000);
 }
 
 function uploadSingleFile(file) {
@@ -1044,29 +1101,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview
 buildColPanel();
 renderTable();
 
-// ===== Flash → upload panel =====
+// ===== Flash → notif panel =====
 (function() {
     const flashMsg = @json(session('flash', ''));
     if (!flashMsg) return;
-    const panel = document.getElementById('uploadPanel');
-    const list = document.getElementById('uploadList');
-    if (!panel || !list) return;
-
-    const item = document.createElement('div');
-    item.className = 'upload-item status-info';
-    item.innerHTML =
-        '<span class="upload-item-icon">&#8505;</span>' +
-        '<span class="upload-item-name">' + flashMsg + '</span>';
-    addDismissBtn(item);
-    list.appendChild(item);
-    panel.classList.add('active');
-    document.getElementById('uploadPanelTitle').textContent = '';
-    document.getElementById('uploadPanelProgress').textContent = '';
-
-    setTimeout(() => {
-        item.style.opacity = '0';
-        setTimeout(() => { item.remove(); checkUploadPanelEmpty(); }, 500);
-    }, 8000);
+    addNotification({ status: 'ok', icon: 'ℹ️', name: flashMsg });
 })();
 </script>
 @endsection
