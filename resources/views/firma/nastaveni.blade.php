@@ -6,13 +6,33 @@
 <style>
     .form-group { margin-bottom: 1rem; }
     .form-group label { display: block; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; color: #555; }
-    .form-group input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
-    .form-group input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,0.2); }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,0.2); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     .btn-save { background: #2ecc71; color: white; border: none; padding: 0.7rem 2rem; border-radius: 6px; font-size: 1rem; cursor: pointer; }
     .btn-save:hover { background: #27ae60; }
     .success-msg { background: #d4edda; color: #155724; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
     .error-msg { color: #c0392b; font-size: 0.85rem; margin-top: 0.25rem; }
+    .section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee; }
+    .section h3 { margin-bottom: 1rem; }
+
+    .firma-info { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 1rem; font-size: 0.95rem; margin-bottom: 1rem; }
+    .firma-info dt { font-weight: 600; color: #555; }
+    .firma-info dd { margin: 0; }
+
+    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 26px; transition: 0.3s; }
+    .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+    .toggle-switch input:checked + .toggle-slider { background: #2ecc71; }
+    .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+    .toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: not-allowed; }
+
+    .kat-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .kat-row input { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+    .kat-row input:first-child { max-width: 200px; }
+    .kat-row .btn-remove { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.2rem; padding: 0 0.3rem; }
+    .kat-row .btn-remove:hover { color: #c0392b; }
 </style>
 @endsection
 
@@ -23,48 +43,30 @@
     @if (session('success'))
         <div class="success-msg">{{ session('success') }}</div>
     @endif
+    @if (session('flash'))
+        <div class="success-msg">{{ session('flash') }}</div>
+    @endif
 
+    {{-- Firma info as plain text --}}
+    @if ($firma)
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+        <dl class="firma-info">
+            <dt>IČO:</dt><dd>{{ $firma->ico }}</dd>
+            <dt>DIČ:</dt><dd>{{ $firma->dic ?? '—' }}</dd>
+            <dt>Název:</dt><dd>{{ $firma->nazev }}</dd>
+            <dt>Ulice:</dt><dd>{{ $firma->ulice ?? '—' }}</dd>
+            <dt>Město:</dt><dd>{{ $firma->mesto ?? '—' }}</dd>
+            <dt>PSČ:</dt><dd>{{ $firma->psc ?? '—' }}</dd>
+        </dl>
+        <form method="POST" action="{{ route('firma.obnovitAres') }}" style="margin: 0; flex-shrink: 0;">
+            @csrf
+            <button type="submit" style="padding: 0.5rem 0.75rem; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">Obnovit z ARES</button>
+        </form>
+    </div>
+
+    {{-- Editable email + telefon --}}
     <form method="POST" action="{{ route('firma.ulozit') }}">
         @csrf
-
-        <div class="form-row">
-            <div class="form-group">
-                <label for="ico">IČO</label>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <input type="text" id="ico" value="{{ $firma->ico ?? '' }}" readonly style="background: #f0f0f0; flex: 1;">
-                    <form method="POST" action="{{ route('firma.obnovitAres') }}" style="margin: 0;">
-                        @csrf
-                        <button type="submit" style="padding: 0.5rem 0.75rem; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 6px; cursor: pointer; font-size: 0.8rem; white-space: nowrap;">ARES</button>
-                    </form>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="dic">DIČ</label>
-                <input type="text" id="dic" name="dic" value="{{ old('dic', $firma->dic ?? '') }}" readonly style="background: #f0f0f0;">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="nazev">Název firmy</label>
-            <input type="text" id="nazev" name="nazev" value="{{ old('nazev', $firma->nazev ?? '') }}" readonly style="background: #f0f0f0;">
-        </div>
-
-        <div class="form-group">
-            <label for="ulice">Ulice</label>
-            <input type="text" id="ulice" name="ulice" value="{{ old('ulice', $firma->ulice ?? '') }}" readonly style="background: #f0f0f0;">
-        </div>
-
-        <div class="form-row">
-            <div class="form-group">
-                <label for="mesto">Město</label>
-                <input type="text" id="mesto" name="mesto" value="{{ old('mesto', $firma->mesto ?? '') }}" readonly style="background: #f0f0f0;">
-            </div>
-            <div class="form-group">
-                <label for="psc">PSČ</label>
-                <input type="text" id="psc" name="psc" value="{{ old('psc', $firma->psc ?? '') }}" readonly style="background: #f0f0f0;">
-            </div>
-        </div>
-
         <div class="form-row">
             <div class="form-group">
                 <label for="email">E-mail</label>
@@ -75,13 +77,33 @@
                 <input type="text" id="telefon" name="telefon" value="{{ old('telefon', $firma->telefon ?? '') }}">
             </div>
         </div>
-
         <button type="submit" class="btn-save">Uložit nastavení</button>
     </form>
+    @endif
 
+    {{-- Toggle "Jsem účetní" --}}
+    @if ($firma)
+    <div class="section">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <label class="toggle-switch">
+                <input type="checkbox" id="toggleUcetni" {{ $jeUcetni ? 'checked' : '' }} {{ $toggleDisabledReason ? 'disabled' : '' }}>
+                <span class="toggle-slider"></span>
+            </label>
+            <span style="font-weight: 600; font-size: 1rem;">Jsem účetní firma</span>
+        </div>
+        @if ($toggleDisabledReason)
+            <p style="font-size: 0.85rem; color: #e67e22; margin-top: 0.5rem;">{{ $toggleDisabledReason }}</p>
+        @endif
+        <p style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+            Zapnutím získáte přístup k záložce Klienti, kde můžete spravovat firmy, kterým vedete účetnictví.
+        </p>
+    </div>
+    @endif
+
+    {{-- Email pro doklady --}}
     @if ($firma && $firma->email_doklady)
-    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
-        <h3 style="margin-bottom: 1rem;">Email pro zasílání dokladů</h3>
+    <div class="section">
+        <h3>Email pro zasílání dokladů</h3>
         <p style="margin-bottom: 0.5rem;">Doklady můžete posílat jako přílohy na adresu:</p>
         <div style="background: #f0f7ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 0.75rem 1rem; font-size: 1.1rem; font-weight: 600; color: #2b6cb0;">
             {{ $firma->email_doklady }}
@@ -93,7 +115,6 @@
 
         <form method="POST" action="{{ route('firma.ulozit') }}" style="margin-top: 1rem;">
             @csrf
-            <input type="hidden" name="nazev" value="{{ $firma->nazev }}">
             <div class="form-group">
                 <label for="email_doklady_heslo">IMAP heslo (pro automatické stahování)</label>
                 <input type="password" id="email_doklady_heslo" name="email_doklady_heslo"
@@ -105,13 +126,10 @@
     </div>
     @endif
 
+    {{-- Účetní vazby --}}
     @if ($vazby->isNotEmpty())
-    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
-        <h3 style="margin-bottom: 1rem;">Účetní vazby</h3>
-
-        @if (session('flash'))
-            <div class="success-msg">{{ session('flash') }}</div>
-        @endif
+    <div class="section">
+        <h3>Účetní vazby</h3>
 
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
@@ -157,27 +175,55 @@
     </div>
     @endif
 
+    {{-- Kategorie nákladů --}}
     @if ($firma)
-    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
-        <h3 style="margin-bottom: 0.5rem;">Pravidla zpracování dokladů</h3>
+    <div class="section">
+        <h3>Kategorie nákladů</h3>
         <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
-            Vlastní pravidla upřesňující klasifikaci a kategorizaci dokladů.
-            Pravidla jsou při ukládání ověřena AI — povoleny jsou pouze instrukce týkající se zpracování dokladů.
+            Definujte kategorie pro třídění dokladů. AI bude doklady automaticky zařazovat do těchto kategorií.
+        </p>
+
+        <form method="POST" action="{{ route('firma.ulozitKategorie') }}" id="kategorieForm">
+            @csrf
+            <div id="kategorieList">
+                @foreach ($kategorie as $kat)
+                <div class="kat-row" data-id="{{ $kat->id }}">
+                    <input type="hidden" name="kategorie[{{ $loop->index }}][id]" value="{{ $kat->id }}">
+                    <input type="text" name="kategorie[{{ $loop->index }}][nazev]" value="{{ $kat->nazev }}" placeholder="Název" required>
+                    <input type="text" name="kategorie[{{ $loop->index }}][popis]" value="{{ $kat->popis }}" placeholder="Popis (příklady)">
+                    <button type="button" class="btn-remove" onclick="removeKategorie(this)" title="Odebrat">&times;</button>
+                </div>
+                @endforeach
+            </div>
+
+            @error('kategorie')
+                <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $message }}</div>
+            @enderror
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
+                <button type="button" onclick="addKategorie()" style="padding: 0.5rem 1rem; border: 1px dashed #aaa; background: white; color: #555; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">+ Přidat kategorii</button>
+                <button type="submit" class="btn-save" style="background: #8e44ad;">Uložit kategorie</button>
+            </div>
+        </form>
+    </div>
+    @endif
+
+    {{-- Pravidla zpracování --}}
+    @if ($firma)
+    <div class="section">
+        <h3>Vlastní pravidla zpracování</h3>
+        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
+            Doplňková pravidla pro AI zpracování dokladů (nepovinné). Kategorie se definují výše, zde zadejte jen specifické instrukce.
         </p>
 
         <form method="POST" action="{{ route('firma.ulozitPravidla') }}">
             @csrf
             <div class="form-group">
-                <textarea name="pravidla_zpracovani" id="pravidlaText" rows="20" maxlength="3000"
-                    style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; line-height: 1.5;"
+                <textarea name="pravidla_zpracovani" id="pravidlaText" rows="6" maxlength="3000"
+                    style="resize: vertical; line-height: 1.5; font-family: inherit; font-size: 0.85rem;"
+                    placeholder="Např.: Doklady od dodavatele XY vždy zařadit do kategorie Služby."
                 >{{ old('pravidla_zpracovani', $firma->pravidla_zpracovani ?? '') }}</textarea>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.3rem;">
-                    <span id="pravidlaCounter" style="font-size: 0.8rem; color: #999;">0 / 3000</span>
-                    <button type="button" onclick="obnovitVychozi()"
-                        style="padding: 0.3rem 0.75rem; border: 1px solid #95a5a6; background: white; color: #555; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">
-                        Obnovit výchozí pravidla
-                    </button>
-                </div>
+                <span id="pravidlaCounter" style="font-size: 0.8rem; color: #999;">0 / 3000</span>
             </div>
 
             @error('pravidla_zpracovani')
@@ -187,49 +233,90 @@
             <button type="submit" class="btn-save" style="background: #8e44ad;">Uložit pravidla</button>
         </form>
     </div>
+    @endif
+</div>
 
-    <script>
-    (function() {
-        const DEFAULT_PRAVIDLA = `KATEGORIE NÁKLADŮ:
-pohonné_hmoty - Pohonné hmoty: benzín, nafta, CNG, LPG, AdBlue
-stravování - Stravování: potraviny, restaurace, občerstvení
-telekomunikace - Telekomunikace: telefon, internet, hosting
-energie - Energie: elektřina, plyn, voda, teplo
-doprava - Doprava a cestovné: jízdenky, parkování, mýtné, taxi, poštovné, ubytování
-kancelářské_potřeby - Kancelářské potřeby: tonery, papír, drobný materiál
-software - Software a licence: předplatné, cloudové služby
-opravy_a_údržba - Opravy a údržba: servis, náhradní díly, revize
-služby - Služby: poskytování služeb, účetnictví
-reklama - Reklama: inzerce, propagace, marketing
-školení - Školení: kurzy, semináře, konference
-pojištění - Pojištění: vozidla, majetek, odpovědnost
-nájem - Nájem: pronájem prostor, leasing
-dokumenty - Dokumenty: smlouvy, objednávky, upomínky, protokoly
-ostatní - Pokuty, penále a ostatní`;
+<script>
+(function() {
+    // Toggle účetní
+    const toggle = document.getElementById('toggleUcetni');
+    if (toggle && !toggle.disabled) {
+        toggle.addEventListener('change', function() {
+            const jeUcetni = this.checked;
+            fetch('{{ route("firma.toggleUcetni") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ je_ucetni: jeUcetni ? 1 : 0 })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Chyba při přepínání.');
+                    toggle.checked = !jeUcetni;
+                }
+            })
+            .catch(() => {
+                alert('Chyba připojení.');
+                toggle.checked = !jeUcetni;
+            });
+        });
+    }
 
-        const textarea = document.getElementById('pravidlaText');
-        const counter = document.getElementById('pravidlaCounter');
+    // Kategorie - přidat řádek
+    let katIndex = {{ $kategorie->count() }};
+    window.addKategorie = function() {
+        const list = document.getElementById('kategorieList');
+        const row = document.createElement('div');
+        row.className = 'kat-row';
+        row.innerHTML = `
+            <input type="hidden" name="kategorie[${katIndex}][id]" value="">
+            <input type="text" name="kategorie[${katIndex}][nazev]" placeholder="Název" required>
+            <input type="text" name="kategorie[${katIndex}][popis]" placeholder="Popis (příklady)">
+            <button type="button" class="btn-remove" onclick="removeKategorie(this)" title="Odebrat">&times;</button>
+        `;
+        list.appendChild(row);
+        katIndex++;
+        row.querySelector('input[type="text"]').focus();
+    };
 
-        // Pre-fill with defaults if empty
-        if (!textarea.value.trim()) {
-            textarea.value = DEFAULT_PRAVIDLA;
+    window.removeKategorie = function(btn) {
+        const row = btn.closest('.kat-row');
+        if (document.querySelectorAll('.kat-row').length <= 1) {
+            alert('Musíte mít alespoň jednu kategorii.');
+            return;
         }
+        row.remove();
+        reindexKategorie();
+    };
 
+    function reindexKategorie() {
+        document.querySelectorAll('.kat-row').forEach((row, i) => {
+            row.querySelectorAll('input, select').forEach(input => {
+                const name = input.getAttribute('name');
+                if (name) {
+                    input.setAttribute('name', name.replace(/kategorie\[\d+\]/, `kategorie[${i}]`));
+                }
+            });
+        });
+        katIndex = document.querySelectorAll('.kat-row').length;
+    }
+
+    // Pravidla counter
+    const textarea = document.getElementById('pravidlaText');
+    const counter = document.getElementById('pravidlaCounter');
+    if (textarea && counter) {
         function updateCounter() {
             counter.textContent = textarea.value.length + ' / 3000';
         }
-
         textarea.addEventListener('input', updateCounter);
         updateCounter();
-
-        window.obnovitVychozi = function() {
-            if (confirm('Přepsat aktuální pravidla výchozími?')) {
-                textarea.value = DEFAULT_PRAVIDLA;
-                updateCounter();
-            }
-        };
-    })();
-    </script>
-    @endif
-</div>
+    }
+})();
+</script>
 @endsection

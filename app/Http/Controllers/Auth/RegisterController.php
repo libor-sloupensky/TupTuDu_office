@@ -28,7 +28,6 @@ class RegisterController extends Controller
             'telefon' => 'nullable|string|max:20',
             'password' => 'required|string|min:8|confirmed',
             'ico' => 'required|string|regex:/^\d{8}$/',
-            'role' => 'required|in:ucetni,firma,dodavatel',
         ]);
 
         $ares = AresController::fetchAres($request->ico);
@@ -56,15 +55,15 @@ class RegisterController extends Controller
             ]
         );
 
-        if ($request->role === 'ucetni') {
-            $firma->update(['je_ucetni' => true]);
-        }
-
         if (!$firma->email_doklady) {
             $firma->update(['email_doklady' => $request->ico . '@tuptudu.cz']);
         }
 
-        $user->firmy()->attach($firma->ico, ['role' => $request->role]);
+        if ($firma->kategorie()->count() === 0) {
+            Firma::seedDefaultKategorie($firma->ico);
+        }
+
+        $user->firmy()->attach($firma->ico, ['role' => 'firma']);
 
         Auth::login($user);
         session(['aktivni_firma_ico' => $firma->ico]);

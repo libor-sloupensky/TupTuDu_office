@@ -197,6 +197,7 @@
         var sortCol = '{{ $sort }}';
         var sortDir = '{{ $dir }}';
         var searchQ = '{{ $q }}';
+        var kategorieData = {!! json_encode($kategorieList ?? [], JSON_UNESCAPED_UNICODE) !!};
     </script>
 
     <div class="ai-search-bar">
@@ -317,7 +318,7 @@ const COLUMNS = [
     { id: 'castka',    label: 'Částka',      tip: 'Celková částka s DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_celkem' },
     { id: 'mena',      label: 'Měna',       tip: 'Měna dokladu', sortable: false, editable: 'text', fixed: false, field: 'mena' },
     { id: 'dph',       label: 'DPH',        tip: 'Částka DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_dph' },
-    { id: 'kategorie', label: 'Kategorie',  tip: 'Účetní kategorie nákladů', sortable: false, editable: 'text', fixed: false, field: 'kategorie' },
+    { id: 'kategorie', label: 'Kategorie',  tip: 'Účetní kategorie nákladů', sortable: false, editable: 'select', fixed: false, field: 'kategorie' },
     { id: 'stav',      label: 'Stav',       tip: 'Stav zpracování', sortable: false, editable: false, fixed: false, field: null },
     { id: 'typ',       label: 'Typ',        tip: 'Typ dokladu (faktura, účtenka, ...)', sortable: false, editable: false, fixed: false, field: null },
     { id: 'kvalita',   label: 'Kvalita',    tip: 'Kvalita čitelnosti dokladu', sortable: false, editable: false, fixed: false, field: null },
@@ -555,13 +556,30 @@ function startEdit(icon, id, colId) {
     valSpan.style.display = 'none';
     if (editSpan) editSpan.style.display = 'none';
 
-    const input = document.createElement('input');
-    input.className = 'edit-input';
-    input.type = c.editable === 'date' ? 'date' : 'text';
-    input.value = rawVal;
+    let input;
+    if (c.editable === 'select') {
+        input = document.createElement('select');
+        input.className = 'edit-input';
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '—';
+        input.appendChild(emptyOpt);
+        kategorieData.forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = k;
+            if (k === rawVal) opt.selected = true;
+            input.appendChild(opt);
+        });
+    } else {
+        input = document.createElement('input');
+        input.className = 'edit-input';
+        input.type = c.editable === 'date' ? 'date' : 'text';
+        input.value = rawVal;
+    }
     td.appendChild(input);
     input.focus();
-    input.select();
+    if (input.select) input.select();
 
     function save() {
         const newVal = input.value;
@@ -591,6 +609,9 @@ function startEdit(icon, id, colId) {
     function cancel() { input.remove(); valSpan.style.display = ''; if (editSpan) editSpan.style.display = ''; }
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') cancel(); });
+    if (c.editable === 'select') {
+        input.addEventListener('change', save);
+    }
     input.addEventListener('blur', save);
 }
 

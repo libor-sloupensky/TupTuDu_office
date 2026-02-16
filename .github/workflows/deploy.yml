@@ -145,6 +145,51 @@ jobs:
           } else {
             echo 'Migration: pravidla_zpracovani already exists, skipping' . PHP_EOL;
           }
+
+          // Create fak_kategorie table
+          \$pdo->exec(\"
+            CREATE TABLE IF NOT EXISTS fak_kategorie (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              firma_ico VARCHAR(20) NOT NULL,
+              nazev VARCHAR(100) NOT NULL,
+              popis VARCHAR(500) NULL,
+              poradi INT NOT NULL DEFAULT 0,
+              created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              INDEX idx_firma_ico (firma_ico),
+              FOREIGN KEY (firma_ico) REFERENCES sys_firmy(ico) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+          \");
+          echo 'Migration: fak_kategorie table ensured' . PHP_EOL;
+
+          // Seed default categories for firms that have none
+          \$firmy = \$pdo->query(\"SELECT ico FROM sys_firmy WHERE ico NOT IN (SELECT DISTINCT firma_ico FROM fak_kategorie)\")->fetchAll(PDO::FETCH_COLUMN);
+          if (!empty(\$firmy)) {
+            \$defaults = [
+              ['Pohonné hmoty', 'benzín, nafta, CNG, LPG, AdBlue', 1],
+              ['Stravování', 'potraviny, restaurace, občerstvení', 2],
+              ['Telekomunikace', 'telefon, internet, hosting', 3],
+              ['Energie', 'elektřina, plyn, voda, teplo', 4],
+              ['Doprava', 'jízdenky, parkování, mýtné, taxi, poštovné, ubytování', 5],
+              ['Kancelářské potřeby', 'tonery, papír, drobný materiál', 6],
+              ['Software', 'předplatné, cloudové služby, licence', 7],
+              ['Opravy a údržba', 'servis, náhradní díly, revize', 8],
+              ['Služby', 'poskytování služeb, účetnictví', 9],
+              ['Reklama', 'inzerce, propagace, marketing', 10],
+              ['Školení', 'kurzy, semináře, konference', 11],
+              ['Pojištění', 'vozidla, majetek, odpovědnost', 12],
+              ['Nájem', 'pronájem prostor, leasing', 13],
+              ['Dokumenty', 'smlouvy, objednávky, upomínky, protokoly', 14],
+              ['Ostatní', 'pokuty, penále', 15],
+            ];
+            \$stmt = \$pdo->prepare('INSERT INTO fak_kategorie (firma_ico, nazev, popis, poradi) VALUES (?, ?, ?, ?)');
+            foreach (\$firmy as \$ico) {
+              foreach (\$defaults as \$kat) {
+                \$stmt->execute([\$ico, \$kat[0], \$kat[1], \$kat[2]]);
+              }
+            }
+            echo 'Migration: seeded default categories for ' . count(\$firmy) . ' firms' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment

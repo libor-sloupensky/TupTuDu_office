@@ -147,7 +147,9 @@ class InvoiceController extends Controller
             return response()->json($dokladyJson);
         }
 
-        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q', 'dokladyJson'));
+        $kategorieList = $firma->kategorie()->orderBy('poradi')->pluck('nazev')->toArray();
+
+        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q', 'dokladyJson', 'kategorieList'));
     }
 
     public function show(Doklad $doklad)
@@ -441,6 +443,12 @@ class InvoiceController extends Controller
             throw new \RuntimeException('Anthropic API key not configured');
         }
 
+        $firma = $this->aktivniFirma();
+        $kategorieNames = $firma->kategorie()->orderBy('poradi')->pluck('nazev')->implode(', ');
+        if (empty($kategorieNames)) {
+            $kategorieNames = 'Ostatní';
+        }
+
         $today = now()->format('Y-m-d');
         $currentYear = now()->year;
         $currentMonth = now()->month;
@@ -451,7 +459,7 @@ Jsi asistent pro vyhledávání účetních dokladů. Uživatel napíše dotaz p
 Dnešní datum: {$today}
 
 DOSTUPNÉ FILTRY (vrať POUZE tyto klíče):
-- kategorie: pohonné_hmoty, stravování, telekomunikace, energie, doprava, kancelářské_potřeby, software, opravy_a_údržba, reklama, školení, pojištění, nájem, dokumenty, ostatní
+- kategorie: {$kategorieNames}
 - typ_dokladu: faktura, uctenka, pokladni_doklad, dobropis, zalohova_faktura, pokuta, jine
 - stav: ok, chyba, nekvalitni
 - kvalita: ok, nizka, necitelna
@@ -522,8 +530,9 @@ PROMPT;
     {
         $query = Doklad::where('firma_ico', $firmaIco);
 
-        // Enum whitelists
-        $kategorieEnum = ['pohonné_hmoty', 'stravování', 'telekomunikace', 'energie', 'doprava', 'kancelářské_potřeby', 'software', 'opravy_a_údržba', 'reklama', 'školení', 'pojištění', 'nájem', 'dokumenty', 'ostatní'];
+        // Enum whitelists - dynamic categories from DB
+        $firma = Firma::find($firmaIco);
+        $kategorieEnum = $firma ? $firma->kategorie()->pluck('nazev')->toArray() : [];
         $typEnum = ['faktura', 'uctenka', 'pokladni_doklad', 'dobropis', 'zalohova_faktura', 'pokuta', 'jine'];
         $stavEnum = ['ok', 'chyba', 'nekvalitni'];
         $kvalitaEnum = ['ok', 'nizka', 'necitelna'];

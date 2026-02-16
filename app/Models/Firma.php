@@ -46,4 +46,39 @@ class Firma extends Model
             ->withPivot('role')
             ->withTimestamps();
     }
+
+    public function kategorie(): HasMany
+    {
+        return $this->hasMany(Kategorie::class, 'firma_ico', 'ico');
+    }
+
+    public static function seedDefaultKategorie(string $ico): void
+    {
+        $defaults = [
+            ['Pohonné hmoty', 'benzín, nafta, CNG, LPG, AdBlue', 1],
+            ['Stravování', 'potraviny, restaurace, občerstvení', 2],
+            ['Telekomunikace', 'telefon, internet, hosting', 3],
+            ['Energie', 'elektřina, plyn, voda, teplo', 4],
+            ['Doprava', 'jízdenky, parkování, mýtné, taxi, poštovné, ubytování', 5],
+            ['Kancelářské potřeby', 'tonery, papír, drobný materiál', 6],
+            ['Software', 'předplatné, cloudové služby, licence', 7],
+            ['Opravy a údržba', 'servis, náhradní díly, revize', 8],
+            ['Služby', 'poskytování služeb, účetnictví', 9],
+            ['Reklama', 'inzerce, propagace, marketing', 10],
+            ['Školení', 'kurzy, semináře, konference', 11],
+            ['Pojištění', 'vozidla, majetek, odpovědnost', 12],
+            ['Nájem', 'pronájem prostor, leasing', 13],
+            ['Dokumenty', 'smlouvy, objednávky, upomínky, protokoly', 14],
+            ['Ostatní', 'pokuty, penále', 15],
+        ];
+
+        foreach ($defaults as [$nazev, $popis, $poradi]) {
+            Kategorie::create([
+                'firma_ico' => $ico,
+                'nazev' => $nazev,
+                'popis' => $popis,
+                'poradi' => $poradi,
+            ]);
+        }
+    }
 }

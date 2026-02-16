@@ -544,8 +544,7 @@ KVALITA (buď tolerantní — běžné nedokonalosti skenu jsou OK):
 - necitelna: dokument je zcela nečitelný — nelze přečíst ani částku, ani dodavatele, ani číslo dokladu.
 
 KATEGORIE NÁKLADŮ:
-služby, materiál, energie, telekomunikace, nájem, pojištění, doprava, pohonné_hmoty, stravování,
-kancelářské_potřeby, software, opravy_a_údržba, reklama, školení, dokumenty, ostatní
+{$this->buildKategoriePrompt($firma)}
 
 FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
 {
@@ -596,6 +595,23 @@ PROMPT;
         }
 
         return $prompt;
+    }
+
+    /**
+     * Sestaví seznam kategorií pro AI prompt z databáze.
+     */
+    private function buildKategoriePrompt(Firma $firma): string
+    {
+        $kategorie = $firma->kategorie()->orderBy('poradi')->get();
+
+        if ($kategorie->isEmpty()) {
+            return 'ostatní';
+        }
+
+        return $kategorie->map(function ($kat) {
+            $nazev = $kat->nazev;
+            return $kat->popis ? "{$nazev}: {$kat->popis}" : $nazev;
+        })->implode("\n");
     }
 
     /**

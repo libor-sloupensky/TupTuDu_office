@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Firma;
+use App\Models\Kategorie;
 use App\Models\UcetniVazba;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -13,9 +14,9 @@ class FirmaController extends Controller
     public function nastaveni()
     {
         $firma = auth()->user()->aktivniFirma();
+        $user = auth()->user();
 
         $vazby = collect();
-        $user = auth()->user();
         if ($firma && ($user->maRoli('firma') || $user->maRoli('dodavatel'))) {
             $vazby = UcetniVazba::where('klient_ico', $firma->ico)
                 ->with('ucetniFirma')
@@ -23,7 +24,27 @@ class FirmaController extends Controller
                 ->get();
         }
 
-        return view('firma.nastaveni', compact('firma', 'vazby'));
+        $jeUcetni = $firma ? $firma->je_ucetni : false;
+        $toggleDisabledReason = null;
+
+        if ($firma) {
+            $maUcetnihoJakoKlient = UcetniVazba::where('klient_ico', $firma->ico)
+                ->whereIn('stav', ['ceka_na_firmu', 'schvaleno'])
+                ->exists();
+            $maKlientyJakoUcetni = UcetniVazba::where('ucetni_ico', $firma->ico)
+                ->whereIn('stav', ['ceka_na_firmu', 'schvaleno'])
+                ->exists();
+
+            if ($jeUcetni && $maKlientyJakoUcetni) {
+                $toggleDisabledReason = 'Nejprve odeberte všechny klienty.';
+            } elseif (!$jeUcetni && $maUcetnihoJakoKlient) {
+                $toggleDisabledReason = 'Máte přiřazeného účetního — nelze se stát účetní firmou.';
+            }
+        }
+
+        $kategorie = $firma ? $firma->kategorie()->orderBy('poradi')->get() : collect();
+
+        return view('firma.nastaveni', compact('firma', 'vazby', 'jeUcetni', 'toggleDisabledReason', 'kategorie'));
     }
 
     public function ulozit(Request $request)
@@ -60,7 +81,6 @@ class FirmaController extends Controller
     {
         $request->validate([
             'ico' => 'required|string|regex:/^\d{8}$/',
-            'role' => 'required|in:ucetni,firma,dodavatel',
         ]);
 
         $user = auth()->user();
@@ -86,15 +106,15 @@ class FirmaController extends Controller
             ]
         );
 
-        if ($request->role === 'ucetni') {
-            $firma->update(['je_ucetni' => true]);
-        }
-
         if (!$firma->email_doklady) {
             $firma->update(['email_doklady' => $request->ico . '@tuptudu.cz']);
         }
 
-        $user->firmy()->attach($firma->ico, ['role' => $request->role]);
+        if ($firma->kategorie()->count() === 0) {
+            Firma::seedDefaultKategorie($firma->ico);
+        }
+
+        $user->firmy()->attach($firma->ico, ['role' => 'firma']);
 
         session(['aktivni_firma_ico' => $firma->ico]);
 
@@ -166,6 +186,110 @@ class FirmaController extends Controller
         $firma->update(['pravidla_zpracovani' => empty($pravidla) ? null : $pravidla]);
 
         return redirect()->route('firma.nastaveni')->with('success', 'Pravidla zpracování uložena.');
+    }
+
+    public function toggleUcetni(Request $request)
+    {
+        $firma = auth()->user()->aktivniFirma();
+        $user = auth()->user();
+
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
+        }
+
+        $request->validate(['je_ucetni' => 'required|boolean']);
+        $chceZapnout = (bool) $request->je_ucetni;
+
+        if ($chceZapnout) {
+            $maUcetniho = UcetniVazba::where('klient_ico', $firma->ico)
+                ->whereIn('stav', ['ceka_na_firmu', 'schvaleno'])
+                ->exists();
+            if ($maUcetniho) {
+                return response()->json(['ok' => false, 'error' => 'Máte přiřazeného účetního — nelze se stát účetní firmou.'], 422);
+            }
+            $firma->update(['je_ucetni' => true]);
+            $user->firmy()->updateExistingPivot($firma->ico, ['role' => 'ucetni']);
+        } else {
+            $maKlienty = UcetniVazba::where('ucetni_ico', $firma->ico)
+                ->whereIn('stav', ['ceka_na_firmu', 'schvaleno'])
+                ->exists();
+            if ($maKlienty) {
+                return response()->json(['ok' => false, 'error' => 'Nejprve odeberte všechny klienty.'], 422);
+            }
+            $firma->update(['je_ucetni' => false]);
+            $user->firmy()->updateExistingPivot($firma->ico, ['role' => 'firma']);
+        }
+
+        return response()->json(['ok' => true, 'je_ucetni' => $firma->je_ucetni]);
+    }
+
+    public function ulozitKategorie(Request $request)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return back()->withErrors(['kategorie' => 'Žádná aktivní firma.']);
+        }
+
+        $request->validate([
+            'kategorie' => 'required|array|min:1',
+            'kategorie.*.id' => 'nullable|integer',
+            'kategorie.*.nazev' => 'required|string|max:100',
+            'kategorie.*.popis' => 'nullable|string|max:500',
+        ]);
+
+        $existingIds = $firma->kategorie()->pluck('id')->toArray();
+        $submittedIds = [];
+
+        foreach ($request->kategorie as $index => $kat) {
+            if (!empty($kat['id'])) {
+                $kategorie = Kategorie::where('id', $kat['id'])
+                    ->where('firma_ico', $firma->ico)
+                    ->first();
+                if ($kategorie) {
+                    $kategorie->update([
+                        'nazev' => $kat['nazev'],
+                        'popis' => $kat['popis'] ?? null,
+                        'poradi' => $index + 1,
+                    ]);
+                    $submittedIds[] = $kategorie->id;
+                }
+            } else {
+                $nova = Kategorie::create([
+                    'firma_ico' => $firma->ico,
+                    'nazev' => $kat['nazev'],
+                    'popis' => $kat['popis'] ?? null,
+                    'poradi' => $index + 1,
+                ]);
+                $submittedIds[] = $nova->id;
+            }
+        }
+
+        $toDelete = array_diff($existingIds, $submittedIds);
+        if (!empty($toDelete)) {
+            Kategorie::whereIn('id', $toDelete)->where('firma_ico', $firma->ico)->delete();
+        }
+
+        return redirect()->route('firma.nastaveni')->with('success', 'Kategorie uloženy.');
+    }
+
+    public function smazatKategorii(int $id)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
+        }
+
+        $kategorie = Kategorie::where('id', $id)->where('firma_ico', $firma->ico)->first();
+
+        if (!$kategorie) {
+            return response()->json(['ok' => false, 'error' => 'Kategorie nenalezena.'], 404);
+        }
+
+        $kategorie->delete();
+
+        return response()->json(['ok' => true]);
     }
 
     private function validatePravidla(string $pravidla): array

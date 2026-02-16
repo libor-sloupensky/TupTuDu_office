@@ -17,13 +17,6 @@
     .ares-row { display: flex; gap: 0.5rem; align-items: flex-end; }
     .ares-row .form-group { flex: 1; }
     .ares-status { font-size: 0.85rem; margin-top: 0.3rem; }
-    .role-options { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-bottom: 1rem; }
-    .role-option { display: flex; align-items: center; padding: 0.8rem; border: 2px solid #eee; border-radius: 6px; cursor: pointer; }
-    .role-option:hover { border-color: #3498db; }
-    .role-option input[type=radio] { margin-right: 0.8rem; }
-    .role-option.selected { border-color: #3498db; background: #f0f8ff; }
-    .role-label strong { display: block; }
-    .role-label small { color: #666; }
     .error-msg { color: #e74c3c; font-size: 0.85rem; }
 </style>
 @endsection
@@ -42,24 +35,6 @@
 
     <form method="POST" action="{{ route('firma.ulozitNovou') }}">
         @csrf
-
-        <div class="form-group">
-            <label>Typ účtu *</label>
-            <div class="role-options">
-                <label class="role-option">
-                    <input type="radio" name="role" value="ucetni" {{ old('role') === 'ucetni' ? 'checked' : '' }}>
-                    <span class="role-label"><strong>Účetní firma</strong><small>Vedu účetnictví pro jiné firmy</small></span>
-                </label>
-                <label class="role-option">
-                    <input type="radio" name="role" value="firma" {{ old('role', 'firma') === 'firma' ? 'checked' : '' }}>
-                    <span class="role-label"><strong>Vlastní účetnictví</strong><small>Sám si vedu účetnictví</small></span>
-                </label>
-                <label class="role-option">
-                    <input type="radio" name="role" value="dodavatel" {{ old('role') === 'dodavatel' ? 'checked' : '' }}>
-                    <span class="role-label"><strong>Dodavatel dokladů</strong><small>Pouze nahrávám doklady</small></span>
-                </label>
-            </div>
-        </div>
 
         <div class="ares-row">
             <div class="form-group">
@@ -105,14 +80,6 @@
 
 @section('scripts')
 <script>
-document.querySelectorAll('.role-option input[type=radio]').forEach(function(r) {
-    r.addEventListener('change', function() {
-        document.querySelectorAll('.role-option').forEach(function(o){ o.classList.remove('selected'); });
-        if (r.checked) r.closest('.role-option').classList.add('selected');
-    });
-    if (r.checked) r.closest('.role-option').classList.add('selected');
-});
-
 function lookupAres() {
     var ico = document.getElementById('ico').value.trim();
     if (!/^\d{8}$/.test(ico)) { alert('IČO musí být přesně 8 číslic.'); return; }

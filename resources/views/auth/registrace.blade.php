@@ -21,13 +21,6 @@
     .step-header span { display: inline-block; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; background: #ddd; color: white; font-weight: bold; margin: 0 0.3rem; font-size: 0.85rem; }
     .step-header span.active { background: #3498db; }
     .step-header span.done { background: #27ae60; }
-    .role-options { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-bottom: 1rem; }
-    .role-option { display: flex; align-items: center; padding: 0.8rem; border: 2px solid #eee; border-radius: 6px; cursor: pointer; transition: border-color 0.2s; }
-    .role-option:hover { border-color: #3498db; }
-    .role-option input[type=radio] { margin-right: 0.8rem; }
-    .role-option.selected { border-color: #3498db; background: #f0f8ff; }
-    .role-label strong { display: block; }
-    .role-label small { color: #666; }
     .error-msg { color: #e74c3c; font-size: 0.85rem; margin-top: 0.2rem; }
     .ares-row { display: flex; gap: 0.5rem; align-items: flex-end; }
     .ares-row .form-group { flex: 1; }
@@ -104,24 +97,6 @@
         <div class="step" id="step2">
             <h3 style="margin-bottom: 1rem;">Údaje firmy</h3>
 
-            <div class="form-group">
-                <label>Typ účtu *</label>
-                <div class="role-options">
-                    <label class="role-option" id="roleOpt_ucetni">
-                        <input type="radio" name="role" value="ucetni" {{ old('role') === 'ucetni' ? 'checked' : '' }}>
-                        <span class="role-label"><strong>Účetní firma</strong><small>Vedu účetnictví pro jiné firmy</small></span>
-                    </label>
-                    <label class="role-option" id="roleOpt_firma">
-                        <input type="radio" name="role" value="firma" {{ old('role', 'firma') === 'firma' ? 'checked' : '' }}>
-                        <span class="role-label"><strong>Vlastní účetnictví</strong><small>Sám si vedu účetnictví</small></span>
-                    </label>
-                    <label class="role-option" id="roleOpt_dodavatel">
-                        <input type="radio" name="role" value="dodavatel" {{ old('role') === 'dodavatel' ? 'checked' : '' }}>
-                        <span class="role-label"><strong>Dodavatel dokladů</strong><small>Pouze nahrávám doklady</small></span>
-                    </label>
-                </div>
-            </div>
-
             <div class="ares-row">
                 <div class="form-group">
                     <label for="ico">IČO *</label>
@@ -191,14 +166,6 @@ function goStep(n) {
     document.getElementById('stepInd1').className = n >= 1 ? (n > 1 ? 'done' : 'active') : '';
     document.getElementById('stepInd2').className = n >= 2 ? 'active' : '';
 }
-
-document.querySelectorAll('.role-option input[type=radio]').forEach(function(r) {
-    r.addEventListener('change', function() {
-        document.querySelectorAll('.role-option').forEach(function(o){ o.classList.remove('selected'); });
-        if (r.checked) r.closest('.role-option').classList.add('selected');
-    });
-    if (r.checked) r.closest('.role-option').classList.add('selected');
-});
 
 function lookupAres() {
     var ico = document.getElementById('ico').value.trim();

@@ -78,6 +78,10 @@ class KlientiController extends Controller
             }
         }
 
+        if ($klientFirma->kategorie()->count() === 0) {
+            Firma::seedDefaultKategorie($klientIco);
+        }
+
         UcetniVazba::create([
             'ucetni_ico' => $firma->ico,
             'klient_ico' => $klientIco,
