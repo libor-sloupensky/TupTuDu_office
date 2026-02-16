@@ -917,7 +917,7 @@ function uploadSingleFile(file) {
         if (!ct.includes('application/json')) {
             return r.text().then(body => ({
                 status: 'error',
-                message: file.name + ' - HTTP ' + r.status + ' (' + fetchMs + 'ms): ' + body.substring(0, 100)
+                message: file.name + ' - HTTP ' + r.status + ': ' + body.substring(0, 100)
             }));
         }
         return r.json().then(data => {
@@ -925,12 +925,9 @@ function uploadSingleFile(file) {
             const firstResult = Array.isArray(results) && results.length > 0 ? results[0] : null;
             if (!firstResult) return { status: 'error', message: file.name + ' - prázdná odpověď' };
 
-            const secs = Math.round(fetchMs / 1000);
-            const timingStr = secs > 3 ? ' (' + secs + 's)' : '';
-
             return {
                 status: firstResult.status,
-                message: (firstResult.message || file.name) + timingStr,
+                message: firstResult.message || file.name,
             };
         });
     }).catch(err => {
@@ -940,8 +937,8 @@ function uploadSingleFile(file) {
         return {
             status: 'error',
             message: err.name === 'AbortError'
-                ? file.name + ' - Časový limit (' + Math.round(fetchMs/1000) + 's)'
-                : (err.message || 'Chyba sítě') + ' (' + Math.round(fetchMs/1000) + 's)'
+                ? file.name + ' - Časový limit'
+                : (err.message || 'Chyba sítě')
         };
     });
 }

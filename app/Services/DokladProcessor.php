@@ -87,7 +87,7 @@ class DokladProcessor
             // Předzpracování stránky: enhance + deskew
             $enhanced = $this->preprocessFile($pageBytes, 'pdf');
             $aiBytes = $enhanced ?? $pageBytes;
-            $aiExt = $enhanced ? 'png' : 'pdf';
+            $aiExt = $enhanced ? 'jpeg' : 'pdf';
 
             try {
                 $visionResult = $this->analyzeWithVision($aiBytes, $aiExt, $firma);
@@ -213,7 +213,7 @@ class DokladProcessor
         // Předzpracování: enhance + deskew
         $enhanced = $this->preprocessFile($fileBytes, $ext);
         $aiBytes = $enhanced ?? $fileBytes;
-        $aiExt = $enhanced ? 'png' : $ext;
+        $aiExt = $enhanced ? 'jpeg' : $ext;
 
         try {
             $visionResult = $this->analyzeWithVision($aiBytes, $aiExt, $firma);
@@ -355,7 +355,7 @@ class DokladProcessor
 
         if ($enhancedBytes) {
             // Uložit vylepšenou verzi jako hlavní soubor (PNG)
-            $enhancedName = pathinfo($nazev, PATHINFO_FILENAME) . '.png';
+            $enhancedName = pathinfo($nazev, PATHINFO_FILENAME) . '.jpg';
             $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $enhancedName, $datum);
             Storage::disk('s3')->put($s3Path, $enhancedBytes);
 
@@ -739,8 +739,30 @@ PROMPT;
             $img->sharpenImage(0, 1.0);
             $img->despeckleImage();
 
-            $img->setImageFormat('png');
+            // JPEG výstup - výrazně menší než PNG pro skenované dokumenty
+            // Claude Vision API má limit 5MB na obrázek
+            $maxBytes = 4500000;
+
+            $img->setImageFormat('jpeg');
+            $img->setImageCompressionQuality(90);
             $enhanced = $img->getImageBlob();
+
+            // Pokud stále příliš velký, snížit kvalitu
+            if (strlen($enhanced) > $maxBytes) {
+                $img->setImageCompressionQuality(75);
+                $enhanced = $img->getImageBlob();
+            }
+
+            // Pokud stále příliš velký, zmenšit rozlišení
+            if (strlen($enhanced) > $maxBytes) {
+                $w = $img->getImageWidth();
+                $h = $img->getImageHeight();
+                $ratio = sqrt($maxBytes / strlen($enhanced));
+                $img->resizeImage((int)($w * $ratio), (int)($h * $ratio), \Imagick::FILTER_LANCZOS, 1);
+                $img->setImageCompressionQuality(80);
+                $enhanced = $img->getImageBlob();
+            }
+
             $img->destroy();
 
             return $enhanced;
@@ -778,7 +800,8 @@ PROMPT;
 
             $img->cropImage($w, $h, $x, $y);
             $img->setImagePage($w, $h, 0, 0);
-            $img->setImageFormat('png');
+            $img->setImageFormat('jpeg');
+            $img->setImageCompressionQuality(90);
             $result = $img->getImageBlob();
             $img->destroy();
 
