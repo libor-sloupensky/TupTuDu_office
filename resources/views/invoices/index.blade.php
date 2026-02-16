@@ -511,7 +511,7 @@ function cellValue(d, colId) {
             return '';
         case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
         case 'soubor': return d.nazev_souboru || '-';
-        case 'smazat': return '<form action="'+d.destroy_url+'" method="POST" style="display:inline" onsubmit="return confirm(\'Smazat doklad '+(d.cislo_dokladu||d.nazev_souboru)+'?\')"><input type="hidden" name="_token" value="'+csrfToken+'"><input type="hidden" name="_method" value="DELETE"><button type="submit" class="btn-del-sm" title="Smazat">&times;</button></form>';
+        case 'smazat': return '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escHtml(d.cislo_dokladu||d.nazev_souboru).replace(/'/g, "\\'")+'\',\''+d.destroy_url+'\')">&times;</button>';
         default: return '-';
     }
 }
@@ -940,6 +940,26 @@ function uploadSingleFile(file) {
                 ? file.name + ' - Časový limit'
                 : (err.message || 'Chyba sítě')
         };
+    });
+}
+
+// ===== Delete doklad (AJAX) =====
+function deleteDoklad(id, nazev, url) {
+    if (!confirm('Smazat doklad ' + nazev + '?')) return;
+
+    fetch(url, {
+        method: 'DELETE',
+        headers: {'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            addNotification({ status: 'ok', icon: '&#10003;', name: 'Doklad ' + escHtml(data.nazev) + ' smazán' });
+            dokladyData = dokladyData.filter(d => d.id !== id);
+            renderTable();
+        } else {
+            addNotification({ status: 'error', icon: '&#10007;', name: 'Chyba při mazání ' + escHtml(nazev) });
+        }
+    }).catch(() => {
+        addNotification({ status: 'error', icon: '&#10007;', name: 'Chyba při mazání ' + escHtml(nazev) });
     });
 }
 

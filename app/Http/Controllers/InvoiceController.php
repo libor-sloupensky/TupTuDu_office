@@ -664,6 +664,10 @@ PROMPT;
         $nazev = $doklad->cislo_dokladu ?: $doklad->nazev_souboru;
         $doklad->delete();
 
+        if (request()->ajax()) {
+            return response()->json(['ok' => true, 'nazev' => $nazev]);
+        }
+
         return redirect()->route('doklady.index')->with('flash', "Doklad {$nazev} byl smazán.");
     }
 }
