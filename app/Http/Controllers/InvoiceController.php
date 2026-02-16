@@ -293,11 +293,12 @@ class InvoiceController extends Controller
                 } else {
                     $message = count($doklady) . ' dokladů z ' . $originalName;
                     if ($status === 'ok') $status = 'warning';
-                    $warnings[] = 'Nahrání více dokumentů na jedné stránce není spolehlivé. Nahrávejte pouze jeden dokument na stránku.';
+                    $warnings[] = 'Některá pole nelze přesně identifikovat';
+                    $warnings[] = 'Nahrání více dokumentů na jedné stránce není spolehlivé';
                 }
 
                 if ($warnings) {
-                    $message .= ' ⚠ ' . implode(', ', array_unique($warnings));
+                    $message .= ' ⚠ ' . implode('. ', array_unique($warnings));
                 }
 
                 $results[] = [
