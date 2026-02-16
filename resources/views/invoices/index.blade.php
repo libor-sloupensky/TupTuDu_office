@@ -159,7 +159,7 @@
             var aiSearchUrl = '{{ route("doklady.aiSearch") }}';
         </script>
         <div class="upload-zone" id="dropZone">
-            <p>Přetáhněte soubory sem nebo klikněte pro výběr</p>
+            <p>Přetáhněte soubory sem nebo klikněte pro výběr (jeden dokument = jeden soubor)</p>
             <p class="formats">PDF, JPG, PNG (max 10 MB)</p>
         </div>
         <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple style="display: none;">
@@ -890,7 +890,7 @@ function refreshTableData() {
 function onAllUploadsComplete() {
     updateNotifHeader();
     dropZone.classList.remove('compact');
-    dropZone.querySelector('p:first-child').textContent = 'Přetáhněte soubory sem nebo klikněte pro výběr';
+    dropZone.querySelector('p:first-child').textContent = 'Přetáhněte soubory sem nebo klikněte pro výběr (jeden dokument = jeden soubor)';
 }
 
 function uploadSingleFile(file) {

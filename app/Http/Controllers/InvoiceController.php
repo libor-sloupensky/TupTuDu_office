@@ -292,6 +292,8 @@ class InvoiceController extends Controller
                     if ($castka) $message .= " — {$castka}";
                 } else {
                     $message = count($doklady) . ' dokladů z ' . $originalName;
+                    if ($status === 'ok') $status = 'warning';
+                    $warnings[] = 'Nahrání více dokumentů na jedné stránce není spolehlivé. Nahrávejte pouze jeden dokument na stránku.';
                 }
 
                 if ($warnings) {
