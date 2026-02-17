@@ -19,7 +19,10 @@ class EnsureFirmaSelected
             return redirect()->route('firma.zadna');
         }
 
-        if (!session('aktivni_firma_ico') || !$user->firmy()->where('ico', session('aktivni_firma_ico'))->exists()) {
+        $aktivniIco = session('aktivni_firma_ico');
+        if (!$aktivniIco
+            || (!$user->firmy()->where('ico', $aktivniIco)->exists()
+                && !$user->jeKlientFirma($aktivniIco))) {
             $prvniFirma = $user->firmy()->first();
             session(['aktivni_firma_ico' => $prvniFirma->ico]);
         }

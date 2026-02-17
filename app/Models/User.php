@@ -50,10 +50,48 @@ class User extends Authenticatable implements MustVerifyEmail
     public function aktivniFirma(): ?Firma
     {
         $ico = session('aktivni_firma_ico');
-        if ($ico && $this->firmy()->where('ico', $ico)->exists()) {
-            return Firma::find($ico);
+        if ($ico) {
+            if ($this->firmy()->where('ico', $ico)->exists()) {
+                return Firma::find($ico);
+            }
+            if ($this->jeKlientFirma($ico)) {
+                return Firma::find($ico);
+            }
         }
         return $this->firmy()->first();
+    }
+
+    public function jeKlientFirma(?string $ico = null): bool
+    {
+        if (!$ico) return false;
+        $ucetniIcos = $this->firmy()->wherePivot('role', 'ucetni')->pluck('ico')->toArray();
+        if (empty($ucetniIcos)) return false;
+        return UcetniVazba::whereIn('ucetni_ico', $ucetniIcos)
+            ->where('klient_ico', $ico)
+            ->where('stav', 'schvaleno')
+            ->exists();
+    }
+
+    public function prohlizimKlienta(): bool
+    {
+        $ico = session('aktivni_firma_ico');
+        if (!$ico) return false;
+        if ($this->firmy()->where('ico', $ico)->exists()) {
+            return false;
+        }
+        return $this->jeKlientFirma($ico);
+    }
+
+    public function ucetniVazbaProKlienta(?string $klientIco = null): ?UcetniVazba
+    {
+        $klientIco = $klientIco ?? session('aktivni_firma_ico');
+        if (!$klientIco) return null;
+        $ucetniIcos = $this->firmy()->wherePivot('role', 'ucetni')->pluck('ico')->toArray();
+        if (empty($ucetniIcos)) return null;
+        return UcetniVazba::whereIn('ucetni_ico', $ucetniIcos)
+            ->where('klient_ico', $klientIco)
+            ->where('stav', 'schvaleno')
+            ->first();
     }
 
     public function maRoli(string $role, ?string $ico = null): bool

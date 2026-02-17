@@ -18,8 +18,14 @@ class FirmaController extends Controller
 {
     public function nastaveni(Request $request)
     {
-        $firma = auth()->user()->aktivniFirma();
         $user = auth()->user();
+
+        // Účetní prohlížející klienta nemá přístup k nastavení klienta
+        if ($user->prohlizimKlienta()) {
+            return redirect()->route('doklady.index')->with('flash', 'K nastavení klientské firmy nemáte přístup.');
+        }
+
+        $firma = $user->aktivniFirma();
 
         // Vazby kde tato firma je klient (účetní firmy napojené na nás)
         $vazby = collect();
@@ -268,11 +274,19 @@ class FirmaController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->firmy()->where('ico', $ico)->exists()) {
+        $jeVlastni = $user->firmy()->where('ico', $ico)->exists();
+        $jeKlient = !$jeVlastni && $user->jeKlientFirma($ico);
+
+        if (!$jeVlastni && !$jeKlient) {
             abort(403, 'Nemáte přístup k této firmě.');
         }
 
         session(['aktivni_firma_ico' => $ico]);
+
+        // Při přepnutí na klienta vždy na doklady (nemá přístup k nastavení)
+        if ($jeKlient) {
+            return redirect()->route('doklady.index')->with('flash', 'Přepnuto na klientskou firmu.');
+        }
 
         return redirect()->back()->with('flash', 'Firma přepnuta.');
     }

@@ -14,10 +14,16 @@ class UcetniVazba extends Model
         'klient_ico',
         'stav',
         'zadost_odeslana_at',
+        'perm_vkladat',
+        'perm_upravovat',
+        'perm_mazat',
     ];
 
     protected $casts = [
         'zadost_odeslana_at' => 'datetime',
+        'perm_vkladat' => 'boolean',
+        'perm_upravovat' => 'boolean',
+        'perm_mazat' => 'boolean',
     ];
 
     public function ucetniFirma(): BelongsTo

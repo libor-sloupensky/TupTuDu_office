@@ -19,6 +19,11 @@ class CheckRole
 
         $userRole = $user->firmy()->where('ico', $ico)->first()?->pivot?->role;
 
+        // Accounting relationship: treat as 'ucetni' role
+        if (!$userRole && $user->jeKlientFirma($ico)) {
+            $userRole = 'ucetni';
+        }
+
         if (!$userRole || !in_array($userRole, $roles)) {
             abort(403, 'Nemáte oprávnění k této akci.');
         }

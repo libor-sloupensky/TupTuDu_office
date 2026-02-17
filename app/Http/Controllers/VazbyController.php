@@ -49,4 +49,28 @@ class VazbyController extends Controller
 
         return redirect()->route('firma.nastaveni')->with('flash', "Napojení na {$nazev} bylo zrušeno.");
     }
+
+    public function updateOpravneni(Request $request, int $id)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        $vazba = UcetniVazba::where('id', $id)
+            ->where('klient_ico', $firma->ico)
+            ->where('stav', 'schvaleno')
+            ->firstOrFail();
+
+        $request->validate([
+            'perm_vkladat' => 'required|boolean',
+            'perm_upravovat' => 'required|boolean',
+            'perm_mazat' => 'required|boolean',
+        ]);
+
+        $vazba->update([
+            'perm_vkladat' => (bool) $request->perm_vkladat,
+            'perm_upravovat' => (bool) $request->perm_upravovat,
+            'perm_mazat' => (bool) $request->perm_mazat,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
 }

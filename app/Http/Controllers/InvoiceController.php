@@ -76,6 +76,30 @@ class InvoiceController extends Controller
         }
     }
 
+    private function overOpravaUcetni(string $akce): void
+    {
+        $user = auth()->user();
+        if (!$user->prohlizimKlienta()) {
+            return; // vlastní firma — bez omezení
+        }
+
+        $vazba = $user->ucetniVazbaProKlienta();
+        if (!$vazba) {
+            abort(403, 'Nemáte oprávnění k dokladům této firmy.');
+        }
+
+        $pole = 'perm_' . $akce; // perm_vkladat, perm_upravovat, perm_mazat
+        if (!$vazba->$pole) {
+            $popisAkce = match ($akce) {
+                'vkladat' => 'vkládat doklady',
+                'upravovat' => 'upravovat doklady',
+                'mazat' => 'mazat doklady',
+                default => $akce,
+            };
+            abort(403, "Nemáte oprávnění {$popisAkce} u této firmy.");
+        }
+    }
+
     private function dokladToArray(Doklad $d): array
     {
         return [
@@ -151,7 +175,20 @@ class InvoiceController extends Controller
 
         $kategorieList = $firma->kategorie()->orderBy('poradi')->pluck('nazev')->toArray();
 
-        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q', 'dokladyJson', 'kategorieList'));
+        $user = auth()->user();
+        $prohlizimKlienta = $user->prohlizimKlienta();
+        $permVkladat = true;
+        $permUpravovat = true;
+        $permMazat = true;
+
+        if ($prohlizimKlienta) {
+            $vazba = $user->ucetniVazbaProKlienta();
+            $permVkladat = $vazba ? $vazba->perm_vkladat : false;
+            $permUpravovat = $vazba ? $vazba->perm_upravovat : false;
+            $permMazat = $vazba ? $vazba->perm_mazat : false;
+        }
+
+        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q', 'dokladyJson', 'kategorieList', 'prohlizimKlienta', 'permVkladat', 'permUpravovat', 'permMazat'));
     }
 
     public function show(Doklad $doklad)
@@ -221,6 +258,8 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         try {
+            $this->overOpravaUcetni('vkladat');
+
             $storeStart = microtime(true);
 
             $request->validate([
@@ -357,6 +396,7 @@ class InvoiceController extends Controller
     public function update(Request $request, Doklad $doklad)
     {
         $this->autorizujDoklad($doklad);
+        $this->overOpravaUcetni('upravovat');
 
         $editableFields = [
             'datum_prijeti', 'duzp', 'datum_vystaveni', 'datum_splatnosti',
@@ -654,6 +694,7 @@ PROMPT;
     public function destroy(Doklad $doklad)
     {
         $this->autorizujDoklad($doklad);
+        $this->overOpravaUcetni('mazat');
 
         if ($doklad->cesta_souboru) {
             Storage::disk('s3')->delete($doklad->cesta_souboru);

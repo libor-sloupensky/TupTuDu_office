@@ -89,6 +89,12 @@
     .lookup-result.info { background: #e8f4fd; border: 1px solid #bee3f8; color: #2b6cb0; }
     .lookup-result.warning { background: #fff8e1; border: 1px solid #ffe082; color: #795548; }
     .lookup-result.error { background: #fde8e8; border: 1px solid #f5c6cb; color: #721c24; }
+    .perm-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .perm-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: #555; white-space: nowrap; }
+    .perm-item input[type="checkbox"] { margin: 0; accent-color: #27ae60; }
+    .perm-item input[type="checkbox"]:disabled { accent-color: #999; }
+    .perm-save-ok { font-size: 0.75rem; color: #27ae60; margin-left: 0.3rem; opacity: 0; transition: opacity 0.3s; }
+    .perm-save-ok.visible { opacity: 1; }
 </style>
 @endsection
 
@@ -183,6 +189,7 @@
                                 <th>IČO</th>
                                 <th>Název</th>
                                 <th>Stav</th>
+                                <th>Oprávnění</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -198,6 +205,15 @@
                                             <span class="badge badge-warning">Čeká na schválení</span>
                                         @elseif ($kv->stav === 'zamitnuto')
                                             <span class="badge badge-danger">Zamítnuto</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($kv->stav === 'schvaleno')
+                                            <div class="perm-group">
+                                                <label class="perm-item"><input type="checkbox" {{ $kv->perm_vkladat ? 'checked' : '' }} disabled> Vkládat</label>
+                                                <label class="perm-item"><input type="checkbox" {{ $kv->perm_upravovat ? 'checked' : '' }} disabled> Upravovat</label>
+                                                <label class="perm-item"><input type="checkbox" {{ $kv->perm_mazat ? 'checked' : '' }} disabled> Mazat</label>
+                                            </div>
                                         @endif
                                     </td>
                                     <td>
@@ -228,6 +244,7 @@
                             <th>Účetní firma</th>
                             <th>IČO</th>
                             <th>Stav</th>
+                            <th>Oprávnění</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -243,6 +260,22 @@
                                         <span class="badge badge-warning">Čeká na schválení</span>
                                     @elseif ($vazba->stav === 'zamitnuto')
                                         <span class="badge badge-danger">Zamítnuto</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($vazba->stav === 'schvaleno')
+                                        <div class="perm-group" data-vazba-id="{{ $vazba->id }}">
+                                            <label class="perm-item" title="Účetní firma může nahrávat nové doklady">
+                                                <input type="checkbox" data-perm="perm_vkladat" {{ $vazba->perm_vkladat ? 'checked' : '' }} onchange="savePerm(this)"> Vkládat doklady
+                                            </label>
+                                            <label class="perm-item" title="Účetní firma může měnit údaje dokladů">
+                                                <input type="checkbox" data-perm="perm_upravovat" {{ $vazba->perm_upravovat ? 'checked' : '' }} onchange="savePerm(this)"> Upravovat doklady
+                                            </label>
+                                            <label class="perm-item" title="Účetní firma může odstraňovat doklady">
+                                                <input type="checkbox" data-perm="perm_mazat" {{ $vazba->perm_mazat ? 'checked' : '' }} onchange="savePerm(this)"> Mazat doklady
+                                            </label>
+                                            <span class="perm-save-ok" id="permStatus{{ $vazba->id }}">Uloženo</span>
+                                        </div>
                                     @endif
                                 </td>
                                 <td>
@@ -914,6 +947,44 @@
         })
         .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
     };
+    // ===== Oprávnění účetní vazby =====
+    window.savePerm = function(checkbox) {
+        var group = checkbox.closest('.perm-group');
+        var vazbaId = group.dataset.vazbaId;
+        var perms = {
+            perm_vkladat: group.querySelector('[data-perm="perm_vkladat"]').checked ? 1 : 0,
+            perm_upravovat: group.querySelector('[data-perm="perm_upravovat"]').checked ? 1 : 0,
+            perm_mazat: group.querySelector('[data-perm="perm_mazat"]').checked ? 1 : 0,
+        };
+        var status = document.getElementById('permStatus' + vazbaId);
+
+        fetch('/vazby/' + vazbaId + '/opravneni', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            body: JSON.stringify(perms)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                status.textContent = 'Uloženo';
+                status.style.color = '#27ae60';
+                status.classList.add('visible');
+                setTimeout(function() { status.classList.remove('visible'); }, 2000);
+            } else {
+                status.textContent = 'Chyba';
+                status.style.color = '#e74c3c';
+                status.classList.add('visible');
+                setTimeout(function() { status.classList.remove('visible'); }, 3000);
+            }
+        })
+        .catch(function() {
+            status.textContent = 'Chyba';
+            status.style.color = '#e74c3c';
+            status.classList.add('visible');
+            setTimeout(function() { status.classList.remove('visible'); }, 3000);
+        });
+    };
+
     // ===== Email pro doklady =====
     // Systémový email toggle
     const toggleSys = document.getElementById('toggleSystemEmail');

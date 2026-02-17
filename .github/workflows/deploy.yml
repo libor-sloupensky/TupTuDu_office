@@ -317,6 +317,19 @@ jobs:
           } else {
             echo 'Migration: zadost_odeslana_at already exists, skipping' . PHP_EOL;
           }
+
+          // Add permission columns to sys_ucetni_vazby
+          \$colPerm = \$pdo->query(\"SHOW COLUMNS FROM sys_ucetni_vazby LIKE 'perm_vkladat'\")->fetchAll();
+          if (empty(\$colPerm)) {
+            \$pdo->exec(\"ALTER TABLE sys_ucetni_vazby
+              ADD COLUMN perm_vkladat BOOLEAN NOT NULL DEFAULT TRUE,
+              ADD COLUMN perm_upravovat BOOLEAN NOT NULL DEFAULT TRUE,
+              ADD COLUMN perm_mazat BOOLEAN NOT NULL DEFAULT FALSE
+            \");
+            echo 'Migration: added permission columns to sys_ucetni_vazby' . PHP_EOL;
+          } else {
+            echo 'Migration: permission columns already exist, skipping' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment

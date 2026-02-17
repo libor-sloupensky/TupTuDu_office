@@ -157,12 +157,18 @@
             var csrfToken = '{{ csrf_token() }}';
             var uploadUrl = '{{ route("invoices.store") }}';
             var aiSearchUrl = '{{ route("doklady.aiSearch") }}';
+            var permVkladat = {{ $permVkladat ? 'true' : 'false' }};
+            var permUpravovat = {{ $permUpravovat ? 'true' : 'false' }};
+            var permMazat = {{ $permMazat ? 'true' : 'false' }};
+            var prohlizimKlienta = {{ $prohlizimKlienta ? 'true' : 'false' }};
         </script>
+        @if ($permVkladat)
         <div class="upload-zone" id="dropZone">
             <p>Přetáhněte soubory sem nebo klikněte pro výběr</p>
             <p class="formats">PDF, JPG, PNG (max 10 MB)</p>
         </div>
         <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple style="display: none;">
+        @endif
         <div class="notif-history-toggle" id="notifHistoryToggle" onclick="toggleNotifHistory()">
             <span id="notifHistoryArrow">&#9654;</span> Zobrazit historii (<span id="notifHistoryCount">0</span>)
         </div>
@@ -511,7 +517,7 @@ function cellValue(d, colId) {
             return '';
         case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
         case 'soubor': return d.nazev_souboru || '-';
-        case 'smazat': return '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escHtml(d.cislo_dokladu||d.nazev_souboru).replace(/'/g, "\\'")+'\',\''+d.destroy_url+'\')">&times;</button>';
+        case 'smazat': return permMazat ? '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escHtml(d.cislo_dokladu||d.nazev_souboru).replace(/'/g, "\\'")+'\',\''+d.destroy_url+'\')">&times;</button>' : '';
         default: return '-';
     }
 }
@@ -567,8 +573,9 @@ function renderTable() {
         cols.forEach(colId => {
             const c = getColDef(colId);
             const align = colId === 'castka' ? ' class="amount"' : '';
-            const editCls = c.editable ? ' class="editable"' : '';
-            const editIcon = c.editable ? '<span class="edit-icon" onclick="startEdit(this,'+d.id+',\''+colId+'\')">&#9998;</span>' : '';
+            const canEdit = c.editable && permUpravovat;
+            const editCls = canEdit ? ' class="editable"' : '';
+            const editIcon = canEdit ? '<span class="edit-icon" onclick="startEdit(this,'+d.id+',\''+colId+'\')">&#9998;</span>' : '';
             html += '<td data-col="'+colId+'"'+align+editCls+'><span class="cell-val">'+cellValue(d, colId)+'</span>'+editIcon+'</td>';
         });
         html += '</tr>';
