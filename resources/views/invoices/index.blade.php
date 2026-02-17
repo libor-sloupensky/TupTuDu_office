@@ -417,6 +417,7 @@ const COLUMNS = [
     { id: 'typ',       label: 'Typ',        tip: 'Typ dokladu (faktura, účtenka, ...)', sortable: false, editable: false, fixed: false, field: null },
     { id: 'kvalita',   label: 'Kvalita',    tip: 'Kvalita čitelnosti dokladu', sortable: false, editable: false, fixed: false, field: null },
     { id: 'zdroj',     label: 'Zdroj',      tip: 'Způsob vložení (ruční/email)', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'nahral',    label: 'Nahrál',     tip: 'Email uživatele, který doklad nahrál', sortable: false, editable: false, fixed: false, field: null },
     { id: 'soubor',    label: 'Soubor',     tip: 'Název nahraného souboru', sortable: false, editable: false, fixed: false, field: null },
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
@@ -516,6 +517,7 @@ function cellValue(d, colId) {
             if (d.kvalita === 'necitelna') return '<span class="badge-kvalita kvalita-necitelna" title="'+(d.kvalita_poznamka||'')+'">Nečitelná</span>';
             return '';
         case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
+        case 'nahral': return d.nahral || '-';
         case 'soubor': return d.nazev_souboru || '-';
         case 'smazat': return permMazat ? '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escHtml(d.cislo_dokladu||d.nazev_souboru).replace(/'/g, "\\'")+'\',\''+d.destroy_url+'\')">&times;</button>' : '';
         default: return '-';
@@ -610,13 +612,13 @@ function toggleDetail(id, btn) {
         dodavatel_nazev: 'Dodavatel', dodavatel_ico: 'IČO dodavatele',
         cislo_dokladu: 'Číslo dokladu', datum_vystaveni: 'Datum vystavení', datum_prijeti: 'Datum příjetí',
         duzp: 'DUZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celková částka', mena: 'Měna',
-        castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', created_at_full: 'Nahráno',
-        chybova_zprava: 'Chyba'
+        castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', nahral: 'Nahrál',
+        created_at_full: 'Nahráno', chybova_zprava: 'Chyba'
     };
     const fields = ['nazev_souboru','stav','typ_dokladu','kvalita','kvalita_poznamka',
         'dodavatel_nazev','dodavatel_ico','cislo_dokladu',
         'datum_vystaveni','datum_prijeti','duzp','datum_splatnosti','castka_celkem','mena',
-        'castka_dph','kategorie','zdroj','created_at_full','chybova_zprava'];
+        'castka_dph','kategorie','zdroj','nahral','created_at_full','chybova_zprava'];
 
     let inner = '<table>';
     fields.forEach(f => {

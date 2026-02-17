@@ -128,6 +128,7 @@ class InvoiceController extends Controller
             'kvalita' => $d->kvalita,
             'kvalita_poznamka' => $d->kvalita_poznamka,
             'zdroj' => $d->zdroj,
+            'nahral' => $d->nahral,
             'cesta_souboru' => $d->cesta_souboru ? true : false,
             'duplicita_id' => $d->duplicita_id,
             'show_url' => route('doklady.show', $d),
@@ -162,6 +163,7 @@ class InvoiceController extends Controller
                     ->orWhere('dodavatel_nazev', 'like', "%{$q}%")
                     ->orWhere('nazev_souboru', 'like', "%{$q}%")
                     ->orWhere('dodavatel_ico', 'like', "%{$q}%")
+                    ->orWhere('nahral', 'like', "%{$q}%")
                     ->orWhere('raw_text', 'like', "%{$q}%");
             });
         }
@@ -293,6 +295,9 @@ class InvoiceController extends Controller
 
                 $t = microtime(true);
                 $doklady = $processor->process($tempPath, $originalName, $firma, $fileHash, 'upload');
+                foreach ($doklady as $d) {
+                    $d->update(['nahral' => auth()->user()->email]);
+                }
                 $processMs = round((microtime(true) - $t) * 1000);
 
                 // Determine overall status and build human-friendly message
@@ -531,6 +536,7 @@ DOSTUPNÉ FILTRY (vrať POUZE tyto klíče):
 - kvalita: ok, nizka, necitelna
 - mena: CZK, EUR, USD (vždy velkými)
 - zdroj: upload, email
+- nahral: email uživatele který doklad nahrál (hledá se částečně)
 - dodavatel_nazev: textový řetězec (hledá se částečně)
 - dodavatel_ico: přesné IČO
 - cislo_dokladu: textový řetězec (hledá se částečně)
@@ -671,6 +677,9 @@ PROMPT;
                     break;
                 case 'datum_splatnosti_do':
                     if (preg_match($dateRegex, $value)) $query->where('datum_splatnosti', '<=', $value);
+                    break;
+                case 'nahral':
+                    $query->where('nahral', 'like', '%' . $value . '%');
                     break;
                 case 'text':
                     $query->where('raw_text', 'like', '%' . $value . '%');

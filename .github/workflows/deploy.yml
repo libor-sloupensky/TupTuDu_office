@@ -330,6 +330,15 @@ jobs:
           } else {
             echo 'Migration: permission columns already exist, skipping' . PHP_EOL;
           }
+
+          // Add nahral column to fak_doklady
+          \$colNahral = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'nahral'\")->fetchAll();
+          if (empty(\$colNahral)) {
+            \$pdo->exec(\"ALTER TABLE fak_doklady ADD COLUMN nahral VARCHAR(255) NULL AFTER zdroj\");
+            echo 'Migration: added nahral column to fak_doklady' . PHP_EOL;
+          } else {
+            echo 'Migration: nahral already exists, skipping' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment

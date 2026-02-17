@@ -225,8 +225,20 @@ class ProcessEmailDoklady extends Command
                 continue;
             }
 
+            // Extract sender email
+            $senderEmail = null;
             try {
-                $doklad = $processor->process(
+                $from = $message->getFrom();
+                if ($from) {
+                    foreach ($from as $addr) {
+                        $senderEmail = is_string($addr) ? $addr : ($addr->mail ?? (string) $addr);
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            try {
+                $vysledky = $processor->process(
                     $tempPath,
                     $originalName,
                     $firma,
@@ -234,7 +246,12 @@ class ProcessEmailDoklady extends Command
                     'email'
                 );
 
-                $this->line("    Zpracován: {$originalName} -> doklad #{$doklad->id} ({$doklad->stav})");
+                foreach ($vysledky as $dok) {
+                    if ($senderEmail) {
+                        $dok->update(['nahral' => $senderEmail]);
+                    }
+                    $this->line("    Zpracován: {$originalName} -> doklad #{$dok->id} ({$dok->stav})");
+                }
                 $processed++;
             } catch (\Exception $e) {
                 $this->error("    Chyba při zpracování {$originalName}: {$e->getMessage()}");

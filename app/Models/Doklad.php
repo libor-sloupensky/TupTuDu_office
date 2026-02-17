@@ -16,7 +16,7 @@ class Doklad extends Model
         'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti',
         'castka_celkem', 'mena', 'castka_dph', 'kategorie',
         'adresni', 'overeno_adresat', 'raw_text', 'raw_ai_odpoved',
-        'stav', 'chybova_zprava', 'zdroj', 'duplicita_id',
+        'stav', 'chybova_zprava', 'zdroj', 'nahral', 'duplicita_id',
         'typ_dokladu', 'kvalita', 'kvalita_poznamka', 'poradi_v_souboru',
     ];
 
