@@ -115,9 +115,9 @@ class FirmaController extends Controller
             return response()->json(['error' => 'IČO nebylo nalezeno v ARES.']);
         }
 
-        // Check zda firma existuje v systému
+        // Check zda firma existuje v systému (= má alespoň jednoho uživatele)
         $firma = Firma::find($ico);
-        if (!$firma) {
+        if (!$firma || !$firma->users()->exists()) {
             return response()->json([
                 'ok' => true,
                 'nazev' => $nazev,

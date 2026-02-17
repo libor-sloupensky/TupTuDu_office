@@ -139,10 +139,10 @@ class KlientiController extends Controller
             return response()->json(['error' => 'IČO nebylo nalezeno v ARES.']);
         }
 
-        // Check zda firma existuje v systému
+        // Check zda firma existuje v systému (= má alespoň jednoho uživatele)
         $klientFirma = Firma::find($ico);
-        if ($klientFirma) {
-            // Firma je registrována - najdi superadminy
+        if ($klientFirma && $klientFirma->users()->exists()) {
+            // Firma je registrována a má uživatele - najdi superadminy
             $superadmins = $klientFirma->users()
                 ->wherePivot('interni_role', 'superadmin')
                 ->get()
@@ -215,7 +215,7 @@ class KlientiController extends Controller
 
         // Zjisti stav firmy
         $klientFirma = Firma::find($ico);
-        $vSystemu = (bool) $klientFirma;
+        $vSystemu = $klientFirma && $klientFirma->users()->exists();
 
         // Pokud neexistuje, vytvoř ji z ARES
         if (!$klientFirma) {
