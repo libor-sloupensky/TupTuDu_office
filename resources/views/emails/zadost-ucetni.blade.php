@@ -14,6 +14,12 @@
             <p style="text-align: center; margin: 2rem 0;">
                 <a href="{{ url('/nastaveni?ucetni=1') }}" style="background: #27ae60; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Schválit v nastavení</a>
             </p>
+        @elseif (!empty($prijemceJeUzivatel))
+            <p>Přihlaste se do systému TupTuDu a přiřaďte si firmu s IČO {{ $klientFirma->ico }}:</p>
+            <p style="text-align: center; margin: 2rem 0;">
+                <a href="{{ url('/prihlaseni') }}" style="background: #3498db; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Přihlásit se</a>
+            </p>
+            <p style="font-size: 0.9rem; color: #666;">Po přihlášení zadejte IČO {{ $klientFirma->ico }} a vytvořte si firmu. Žádost o vedení účetnictví se poté zobrazí ve vašem nastavení.</p>
         @else
             <p>Pro správu dokladů vaší firmy se zaregistrujte v systému TupTuDu:</p>
             <p style="text-align: center; margin: 2rem 0;">

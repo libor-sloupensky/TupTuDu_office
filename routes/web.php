@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/firma/zadna', [FirmaController::class, 'zadnaFirma'])->name('firma.zadna');
     Route::post('/firma/lookup-pristup', [FirmaController::class, 'lookupPristup'])->name('firma.lookupPristup');
+    Route::post('/firma/vytvorit', [FirmaController::class, 'vytvorFirmu'])->name('firma.vytvorFirmu');
     Route::post('/firma/prepnout/{ico}', [FirmaController::class, 'prepnout'])->name('firma.prepnout');
 });
 

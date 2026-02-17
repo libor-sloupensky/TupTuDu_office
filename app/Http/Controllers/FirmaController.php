@@ -138,6 +138,7 @@ class FirmaController extends Controller
                 'ok' => true,
                 'nazev' => $nazev,
                 'v_systemu' => false,
+                'can_create' => true,
             ]);
         }
 
@@ -156,6 +157,71 @@ class FirmaController extends Controller
             'v_systemu' => true,
             'superadmins' => $superadmins->values(),
         ]);
+    }
+
+    /**
+     * Vytvoří/přihlásí firmu pro uživatele bez firmy.
+     */
+    public function vytvorFirmu(Request $request)
+    {
+        $request->validate(['ico' => 'required|string|regex:/^\d{8}$/']);
+        $ico = $request->ico;
+        $user = auth()->user();
+
+        // Nelze pokud uživatel už je členem
+        if ($user->firmy()->where('ico', $ico)->exists()) {
+            return back()->withErrors(['ico' => 'Již jste členem této firmy.']);
+        }
+
+        $firma = Firma::find($ico);
+
+        // Pokud firma existuje a má uživatele → nelze převzít
+        if ($firma && $firma->users()->exists()) {
+            return back()->withErrors(['ico' => 'Tato firma již má správce. Požádejte o přiřazení.']);
+        }
+
+        // Pokud firma neexistuje, vytvoř z ARES
+        if (!$firma) {
+            try {
+                $ares = Http::timeout(10)->get(
+                    "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{$ico}"
+                );
+                if ($ares->successful()) {
+                    $data = $ares->json();
+                    $sidlo = $data['sidlo'] ?? [];
+                    $firma = Firma::create([
+                        'ico' => $ico,
+                        'nazev' => $data['obchodniJmeno'] ?? 'IČO ' . $ico,
+                        'dic' => $data['dic'] ?? null,
+                        'ulice' => $sidlo['nazevUlice'] ?? ($sidlo['textovaAdresa'] ?? null),
+                        'mesto' => $sidlo['nazevObce'] ?? null,
+                        'psc' => isset($sidlo['psc']) ? (string) $sidlo['psc'] : null,
+                    ]);
+                } else {
+                    return back()->withErrors(['ico' => 'IČO nebylo nalezeno v ARES.']);
+                }
+            } catch (\Exception $e) {
+                return back()->withErrors(['ico' => 'Nepodařilo se ověřit IČO v ARES.']);
+            }
+        }
+
+        // Seed default kategorie
+        if ($firma->kategorie()->count() === 0) {
+            Firma::seedDefaultKategorie($ico);
+        }
+
+        // Nastav email pro doklady
+        if (!$firma->email_doklady) {
+            $firma->update(['email_doklady' => $ico . '@doklady.tuptudu.cz']);
+        }
+
+        // Připoj uživatele jako superadmin
+        $firma->users()->attach($user->id, ['interni_role' => 'superadmin']);
+
+        // Nastav jako aktivní firmu
+        session(['aktivni_firma_ico' => $ico]);
+
+        return redirect()->route('doklady.index')->with('flash', "Firma {$firma->nazev} byla vytvořena a přiřazena.");
     }
 
     public function zadostOPristup(Request $request)

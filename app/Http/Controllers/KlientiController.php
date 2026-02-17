@@ -285,12 +285,16 @@ class KlientiController extends Controller
             return response()->json(['ok' => true, 'message' => "Žádost vytvořena. Nebylo možné odeslat email (firma nemá správce)."]);
         }
 
+        // Check zda příjemce je existující uživatel (pro rozlišení v emailu)
+        $prijemceJeUzivatel = !$vSystemu && User::where('email', $prijemce)->exists();
+
         // Odešli email
         try {
             Mail::send('emails.zadost-ucetni', [
                 'ucetniFirma' => $firma,
                 'klientFirma' => $klientFirma,
                 'vSystemu' => $vSystemu,
+                'prijemceJeUzivatel' => $prijemceJeUzivatel,
                 'user' => auth()->user(),
             ], function ($m) use ($prijemce, $firma) {
                 $m->to($prijemce)

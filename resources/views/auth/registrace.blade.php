@@ -22,8 +22,6 @@
     .step-header span.active { background: #3498db; }
     .step-header span.done { background: #27ae60; }
     .error-msg { color: #e74c3c; font-size: 0.85rem; margin-top: 0.2rem; }
-    .ares-row { display: flex; gap: 0.5rem; align-items: flex-end; }
-    .ares-row .form-group { flex: 1; }
     .ares-status { font-size: 0.85rem; margin-top: 0.3rem; }
     .link { color: #3498db; text-decoration: none; }
     .link:hover { text-decoration: underline; }
@@ -131,12 +129,9 @@
         <div class="step" id="step2">
             <h3 style="margin-bottom: 1rem;">Údaje firmy</h3>
 
-            <div class="ares-row">
-                <div class="form-group">
-                    <label for="ico">IČO *</label>
-                    <input type="text" name="ico" id="ico" value="{{ old('ico') }}" maxlength="8" pattern="\d{8}" required>
-                </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="lookupAres()" style="margin-bottom: 1rem; white-space: nowrap;">Vyhledat v ARES</button>
+            <div class="form-group">
+                <label for="ico">IČO *</label>
+                <input type="text" name="ico" id="ico" value="{{ old('ico') }}" maxlength="8" pattern="\d{8}" required>
             </div>
             <div id="aresStatus" class="ares-status"></div>
 
@@ -244,26 +239,41 @@ function pozadatOPristup() {
     });
 }
 
-function lookupAres() {
-    var ico = document.getElementById('ico').value.trim();
-    if (!/^\d{8}$/.test(ico)) { alert('IČO musí být přesně 8 číslic.'); return; }
-    var st = document.getElementById('aresStatus');
-    st.textContent = 'Hledám...';
-    st.style.color = '#666';
-    fetch('/api/ares/' + ico)
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            if (data.error) { st.textContent = data.error; st.style.color = '#e74c3c'; return; }
-            document.getElementById('nazev').value = data.nazev || '';
-            document.getElementById('dic').value = data.dic || '';
-            document.getElementById('ulice').value = data.ulice || '';
-            document.getElementById('mesto').value = data.mesto || '';
-            document.getElementById('psc').value = data.psc || '';
-            document.getElementById('firmaFields').style.opacity = '1';
-            st.textContent = 'Nalezeno: ' + (data.nazev || ico);
-            st.style.color = '#27ae60';
-        })
-        .catch(function(){ st.textContent = 'Chyba při komunikaci s ARES.'; st.style.color = '#e74c3c'; });
+var aresTimer = null;
+var icoInput = document.getElementById('ico');
+if (icoInput) {
+    icoInput.addEventListener('input', function() {
+        clearTimeout(aresTimer);
+        var ico = this.value.trim().replace(/\D/g, '');
+        this.value = ico;
+        var st = document.getElementById('aresStatus');
+        if (ico.length < 8) {
+            st.textContent = '';
+            document.getElementById('firmaFields').style.opacity = '0.5';
+            document.getElementById('firmaFields').style.pointerEvents = 'none';
+            return;
+        }
+        if (ico.length > 8) { this.value = ico.substring(0, 8); ico = this.value; }
+        st.textContent = 'Hledám v ARES...';
+        st.style.color = '#666';
+        aresTimer = setTimeout(function() {
+            fetch('/api/ares/' + ico)
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    if (data.error) { st.textContent = data.error; st.style.color = '#e74c3c'; return; }
+                    document.getElementById('nazev').value = data.nazev || '';
+                    document.getElementById('dic').value = data.dic || '';
+                    document.getElementById('ulice').value = data.ulice || '';
+                    document.getElementById('mesto').value = data.mesto || '';
+                    document.getElementById('psc').value = data.psc || '';
+                    document.getElementById('firmaFields').style.opacity = '1';
+                    document.getElementById('firmaFields').style.pointerEvents = 'auto';
+                    st.textContent = 'Nalezeno: ' + (data.nazev || ico);
+                    st.style.color = '#27ae60';
+                })
+                .catch(function(){ st.textContent = 'Chyba při komunikaci s ARES.'; st.style.color = '#e74c3c'; });
+        }, 400);
+    });
 }
 </script>
 @endsection

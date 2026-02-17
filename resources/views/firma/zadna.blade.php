@@ -17,7 +17,7 @@
 <div class="card" style="max-width: 550px; margin: 0 auto; text-align: center; padding: 2rem;">
     <h2 style="margin-bottom: 1rem;">Nemáte přiřazenou žádnou firmu</h2>
     <p style="color: #666; margin-bottom: 1.5rem;">
-        Zadejte IČO firmy, ke které se chcete přihlásit. Správci firmy bude odeslána žádost o přiřazení.
+        Zadejte IČO firmy. Pokud firma již má správce, bude mu odeslána žádost o přiřazení. Pokud ne, můžete firmu převzít.
     </p>
 
     <div style="margin-bottom: 1rem;">
@@ -39,6 +39,7 @@
     var csrfToken = '{{ csrf_token() }}';
     var lookupUrl = '{{ route("firma.lookupPristup") }}';
     var zadostUrl = '{{ route("firma.zadostOPristup") }}';
+    var vytvorUrl = '{{ route("firma.vytvorFirmu") }}';
     var userName = @json(auth()->user()->cele_jmeno);
     var userEmail = @json(auth()->user()->email);
     var input = document.getElementById('ico_input');
@@ -105,8 +106,21 @@
                     resultDiv.className = 'lookup-result info';
                     resultDiv.innerHTML = html;
                 } else {
-                    resultDiv.className = 'lookup-result warning';
-                    resultDiv.innerHTML = '<div><strong>' + escHtml(data.nazev) + '</strong></div><div style="margin-top: 0.3rem;">Tato firma není registrována v systému TupTuDu. Požádejte správce firmy o registraci.</div>';
+                    var html = '<div><strong>' + escHtml(data.nazev) + '</strong></div>';
+                    if (data.can_create) {
+                        html += '<div style="margin-top: 0.3rem;">Tato firma zatím nemá správce v systému TupTuDu.</div>';
+                        html += '<div style="margin-top: 0.5rem;">Můžete ji převzít a stát se jejím správcem:</div>';
+                        html += '<form method="POST" action="' + vytvorUrl + '" style="margin-top: 0.75rem;">';
+                        html += '<input type="hidden" name="_token" value="' + csrfToken + '">';
+                        html += '<input type="hidden" name="ico" value="' + escHtml(ico) + '">';
+                        html += '<button type="submit" class="btn btn-success">Vytvořit firmu a převzít správu</button>';
+                        html += '</form>';
+                        resultDiv.className = 'lookup-result info';
+                    } else {
+                        html += '<div style="margin-top: 0.3rem;">Tato firma není registrována v systému TupTuDu. Požádejte správce firmy o registraci.</div>';
+                        resultDiv.className = 'lookup-result warning';
+                    }
+                    resultDiv.innerHTML = html;
                 }
             })
             .catch(function() {
