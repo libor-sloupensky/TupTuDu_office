@@ -103,38 +103,47 @@
         <div class="success-msg">{{ session('flash') }}</div>
     @endif
 
-    {{-- Firma info as plain text --}}
+    {{-- Nastavení firmy --}}
     @if ($firma)
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-        <dl class="firma-info">
-            <dt>IČO:</dt><dd>{{ $firma->ico }}</dd>
-            <dt>DIČ:</dt><dd>{{ $firma->dic ?? '—' }}</dd>
-            <dt>Název:</dt><dd>{{ $firma->nazev }}</dd>
-            <dt>Ulice:</dt><dd>{{ $firma->ulice ?? '—' }}</dd>
-            <dt>Město:</dt><dd>{{ $firma->mesto ?? '—' }}</dd>
-            <dt>PSČ:</dt><dd>{{ $firma->psc ?? '—' }}</dd>
-        </dl>
-        <form method="POST" action="{{ route('firma.obnovitAres') }}" style="margin: 0; flex-shrink: 0;">
-            @csrf
-            <button type="submit" style="padding: 0.5rem 0.75rem; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">Obnovit z ARES</button>
-        </form>
-    </div>
-
-    {{-- Editable email + telefon --}}
-    <form method="POST" action="{{ route('firma.ulozit') }}">
-        @csrf
-        <div class="form-row">
-            <div class="form-group">
-                <label for="email">E-mail</label>
-                <input type="email" id="email" name="email" value="{{ old('email', $firma->email ?? '') }}">
-            </div>
-            <div class="form-group">
-                <label for="telefon">Telefon</label>
-                <input type="text" id="telefon" name="telefon" value="{{ old('telefon', $firma->telefon ?? '') }}">
-            </div>
+    <div class="section" style="margin-top: 0; padding-top: 0; border-top: none;">
+        <div class="kat-section-header" onclick="toggleSection('firmaInfo')">
+            <span class="kat-arrow" id="firmaInfoArrow">&#9654;</span>
+            <h3>Údaje firmy</h3>
         </div>
-        <button type="submit" class="btn-save">Uložit nastavení</button>
-    </form>
+        <p class="kat-desc">Základní údaje firmy, kontaktní informace</p>
+
+        <div class="kat-body" id="firmaInfoBody">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <dl class="firma-info">
+                    <dt>IČO:</dt><dd>{{ $firma->ico }}</dd>
+                    <dt>DIČ:</dt><dd>{{ $firma->dic ?? '—' }}</dd>
+                    <dt>Název:</dt><dd>{{ $firma->nazev }}</dd>
+                    <dt>Ulice:</dt><dd>{{ $firma->ulice ?? '—' }}</dd>
+                    <dt>Město:</dt><dd>{{ $firma->mesto ?? '—' }}</dd>
+                    <dt>PSČ:</dt><dd>{{ $firma->psc ?? '—' }}</dd>
+                </dl>
+                <form method="POST" action="{{ route('firma.obnovitAres') }}" style="margin: 0; flex-shrink: 0;">
+                    @csrf
+                    <button type="submit" style="padding: 0.5rem 0.75rem; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">Obnovit z ARES</button>
+                </form>
+            </div>
+
+            <form method="POST" action="{{ route('firma.ulozit') }}">
+                @csrf
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">E-mail</label>
+                        <input type="email" id="email" name="email" value="{{ old('email', $firma->email ?? '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="telefon">Telefon</label>
+                        <input type="text" id="telefon" name="telefon" value="{{ old('telefon', $firma->telefon ?? '') }}">
+                    </div>
+                </div>
+                <button type="submit" class="btn-save">Uložit nastavení</button>
+            </form>
+        </div>
+    </div>
     @endif
 
     {{-- Účetní napojení --}}
@@ -147,6 +156,7 @@
                 <span class="badge-pending">{{ $cekajiciVazby }}</span>
             @endif
         </div>
+        <p class="kat-desc">Napojení na účetní firmu nebo správa klientů</p>
 
         <div class="kat-body {{ $expandUcetni ? 'open' : '' }}" id="ucetniBody">
 
@@ -284,10 +294,13 @@
     {{-- Email pro doklady --}}
     @if ($firma)
     <div class="section">
-        <h3>Email pro zasílání dokladů</h3>
-        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
-            Doklady zasílejte jako přílohy emailem. Podporované formáty: PDF, JPG, PNG (max 10 MB).
-        </p>
+        <div class="kat-section-header" onclick="toggleSection('emailDoklady')">
+            <span class="kat-arrow" id="emailDokladyArrow">&#9654;</span>
+            <h3>Email pro zasílání dokladů</h3>
+        </div>
+        <p class="kat-desc">Příjem dokladů emailem — systémová adresa nebo vlastní IMAP schránka</p>
+
+        <div class="kat-body" id="emailDokladyBody">
 
         {{-- Systémový email --}}
         <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
@@ -361,6 +374,7 @@
                 <div id="vlastniEmailStatus" style="font-size: 0.85rem; margin-top: 0.5rem; display: none;"></div>
             </div>
         </div>
+        </div>
     </div>
     @endif
 
@@ -407,7 +421,13 @@
     {{-- Správa uživatelů (pouze superadmin) --}}
     @if ($firma && $jeSuperadmin)
     <div class="section">
-        <h3>Uživatelé firmy</h3>
+        <div class="kat-section-header" onclick="toggleSection('uzivatele')">
+            <span class="kat-arrow" id="uzivateleArrow">&#9654;</span>
+            <h3>Uživatelé firmy</h3>
+        </div>
+        <p class="kat-desc">Správa uživatelů a jejich oprávnění k firmě</p>
+
+        <div class="kat-body" id="uzivateleBody">
 
         @if ($errors->has('email') || $errors->has('jmeno'))
             <div class="error-msg" style="margin-bottom: 0.75rem;">{{ $errors->first('email') ?: $errors->first('jmeno') }}</div>
@@ -467,6 +487,7 @@
             </tbody>
         </table>
         <span class="usr-save-status" id="usrSaveStatus"></span>
+        </div>
     </div>
     @endif
 </div>
@@ -475,12 +496,17 @@
 (function() {
     const csrfToken = '{{ csrf_token() }}';
 
+    // ===== Generic section toggle =====
+    window.toggleSection = function(name) {
+        var body = document.getElementById(name + 'Body');
+        var arrow = document.getElementById(name + 'Arrow');
+        if (body) body.classList.toggle('open');
+        if (arrow) arrow.classList.toggle('open');
+    };
+
     // ===== Účetní napojení =====
     window.toggleUcetniNapojeni = function() {
-        var body = document.getElementById('ucetniBody');
-        var arrow = document.getElementById('ucetniArrow');
-        body.classList.toggle('open');
-        arrow.classList.toggle('open');
+        toggleSection('ucetni');
     };
 
     // Toggle účetní ON (stav C → zapnutí)
@@ -634,10 +660,7 @@
     const SAVE_DELAY = 800; // ms after last change
 
     window.toggleKategorie = function() {
-        const body = document.getElementById('katBody');
-        const arrow = document.getElementById('katArrow');
-        body.classList.toggle('open');
-        arrow.classList.toggle('open');
+        toggleSection('kat');
     };
 
     function showSaveStatus(text, color) {
