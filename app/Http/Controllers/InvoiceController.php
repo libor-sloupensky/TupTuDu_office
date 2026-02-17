@@ -297,6 +297,7 @@ class InvoiceController extends Controller
                 }
 
                 $t = microtime(true);
+                $processor->hadMultiDocPage = false;
                 $doklady = $processor->process($tempPath, $originalName, $firma, $fileHash, 'upload');
                 foreach ($doklady as $d) {
                     $d->update(['nahral' => auth()->user()->email]);
@@ -340,14 +341,18 @@ class InvoiceController extends Controller
                 $dodavatel = $prvni->dodavatel_nazev ?: 'neznámý dodavatel';
                 $castka = $prvni->castka_celkem ? number_format($prvni->castka_celkem, 2, ',', ' ') . ' ' . ($prvni->mena ?: 'CZK') : '';
 
-                if (count($doklady) === 1) {
-                    $message = "{$typLabel}: {$dodavatel}";
-                    if ($castka) $message .= " — {$castka}";
-                } else {
+                if ($processor->hadMultiDocPage) {
+                    // Více dokladů na jedné stránce = chyba
                     $message = count($doklady) . ' dokladů z ' . $originalName;
                     $status = 'error';
                     $warnings[] = 'Nahrání více dokumentů na jedné stránce není spolehlivé';
                     $warnings[] = '!!!Nahrávejte pouze jeden dokument v jednom souboru!!!';
+                } elseif (count($doklady) === 1) {
+                    $message = "{$typLabel}: {$dodavatel}";
+                    if ($castka) $message .= " — {$castka}";
+                } else {
+                    // Multi-page PDF, 1 doklad na stránku = OK
+                    $message = count($doklady) . '× ' . $typLabel . ' z ' . $originalName;
                 }
 
                 if ($warnings) {

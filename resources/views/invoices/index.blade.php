@@ -93,7 +93,7 @@
     .stav-dokonceno { color: #27ae60; }
     .stav-chyba { color: #e74c3c; font-weight: 600; cursor: help; }
     .stav-zpracovava { color: #f39c12; font-weight: 600; }
-    .stav-nekvalitni { color: #e67e22; font-weight: 600; cursor: help; }
+    .stav-nekvalitni { color: #e74c3c; font-weight: 600; cursor: help; }
     .badge-kvalita { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600; margin-left: 0.2rem; vertical-align: middle; }
     .kvalita-nizka { background: #fff3cd; color: #856404; }
     .kvalita-necitelna { background: #f8d7da; color: #721c24; }

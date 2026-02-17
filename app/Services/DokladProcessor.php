@@ -12,6 +12,9 @@ use setasign\Fpdi\Fpdi;
 
 class DokladProcessor
 {
+    /** Indikátor, zda byla na některé stránce detekována více než 1 doklad. */
+    public bool $hadMultiDocPage = false;
+
     /**
      * Zpracuje soubor dokladu - rozdělí PDF na stránky, Claude Vision AI + upload na S3 + uložení do DB.
      * Vrací pole Doklad objektů (může být víc dokladů z jednoho souboru).
@@ -118,6 +121,10 @@ class DokladProcessor
             }
 
             $docsOnPage = count($documents);
+            $multiDocOnThisPage = $docsOnPage > 1;
+            if ($multiDocOnThisPage) {
+                $this->hadMultiDocPage = true;
+            }
 
             foreach ($documents as $docIdx => $docData) {
                 $globalIndex++;
@@ -131,7 +138,8 @@ class DokladProcessor
                 try {
                     $doklad = $this->createDokladFromPage(
                         $docData, $firma, $nazev, $fileHash,
-                        $zdroj, $pageTempPath, $pageBytes, $globalIndex
+                        $zdroj, $pageTempPath, $pageBytes, $globalIndex,
+                        $multiDocOnThisPage
                     );
                     $doklady[] = $doklad;
                 } catch (\Exception $e) {
@@ -235,6 +243,10 @@ class DokladProcessor
 
         $doklady = [];
         $celkem = count($documents);
+        $multiDocPage = $celkem > 1;
+        if ($multiDocPage) {
+            $this->hadMultiDocPage = true;
+        }
 
         foreach ($documents as $index => $docData) {
             $poradi = $index + 1;
@@ -245,7 +257,8 @@ class DokladProcessor
             try {
                 $doklad = $this->createDokladFromPage(
                     $docData, $firma, $nazev, $fileHash,
-                    $zdroj, $tempS3Path, $fileBytes, $poradi
+                    $zdroj, $tempS3Path, $fileBytes, $poradi,
+                    $multiDocPage
                 );
                 $doklady[] = $doklad;
             } catch (\Exception $e) {
@@ -289,10 +302,12 @@ class DokladProcessor
         string $zdroj,
         string $tempS3Path,
         string $pageBytes,
-        int $poradi
+        int $poradi,
+        bool $multiDocPage = false
     ): Doklad {
         $kvalita = $docData['kvalita'] ?? 'dobra';
         $typDokladu = $docData['typ_dokladu'] ?? 'faktura';
+        $kvalitaPoznamka = $docData['kvalita_poznamka'] ?? null;
 
         // Stav podle kvality
         $stav = match ($kvalita) {
@@ -300,6 +315,13 @@ class DokladProcessor
             'nizka' => 'nekvalitni',
             default => 'dokonceno',
         };
+
+        // Multi-doc na jedné stránce → vždy nekvalitní (červená)
+        if ($multiDocPage) {
+            $stav = 'nekvalitni';
+            $multiDocMsg = 'Více dokladů na jedné stránce – data nemusí být spolehlivá';
+            $kvalitaPoznamka = $kvalitaPoznamka ? $kvalitaPoznamka . '. ' . $multiDocMsg : $multiDocMsg;
+        }
 
         $ext = strtolower(pathinfo($nazev, PATHINFO_EXTENSION)) ?: 'pdf';
         $datum = $docData['datum_vystaveni'] ?? null;
@@ -313,7 +335,7 @@ class DokladProcessor
             'zdroj' => $zdroj,
             'typ_dokladu' => $typDokladu,
             'kvalita' => $kvalita,
-            'kvalita_poznamka' => $docData['kvalita_poznamka'] ?? null,
+            'kvalita_poznamka' => $kvalitaPoznamka,
             'poradi_v_souboru' => $poradi,
             'raw_text' => $docData['raw_text'] ?? null,
             'raw_ai_odpoved' => json_encode($docData, JSON_UNESCAPED_UNICODE),
@@ -511,7 +533,7 @@ class DokladProcessor
                         $contentBlock,
                         [
                             'type' => 'text',
-                            'text' => 'Analyzuj tento sken. POZOR: stránka může obsahovat VÍCE samostatných dokladů (účtenek/paragonů nalepených na papíře). Každý fyzicky oddělený doklad vrať jako samostatný objekt v poli "dokumenty". Vrať POUZE validní JSON.',
+                            'text' => 'Analyzuj tento sken. DŮLEŽITÉ: Stránka může obsahovat VÍCE fyzicky samostatných dokladů (účtenek/paragonů nalepených na papíře, různé doklady vedle sebe nebo pod sebou). Pokud vidíš více hlaviček firem, více celkových částek nebo jiné příznaky více dokladů, MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Vrať POUZE validní JSON.',
                         ],
                     ],
                 ],
@@ -617,7 +639,14 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
 }
 
 DŮLEŽITÁ PRAVIDLA:
-- KRITICKÉ: Na naskenované stránce bývá VÍCE samostatných dokladů! Pokud vidíš 2 nebo více účtenek, paragonů nebo faktur na jedné stránce (vedle sebe, nad sebou, nalepené na papíru), MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Typický sken A4 obsahuje 2-4 účtenky. Nestačí je sloučit do jednoho záznamu!
+- KRITICKÉ - ROZLIŠENÍ VÍCE DOKLADŮ NA STRÁNCE: Na jednom skenu/stránce mohou být VÍCE FYZICKY SAMOSTATNÝCH dokladů (účtenky nalepené na papír, několik paragonů vedle sebe). Příznaky více dokladů:
+  * Více odlišných hlaviček/log firem na jedné stránce
+  * Více celkových částek „Celkem" / „K úhradě" / „Total" na stránce
+  * Různé formáty dokladů na jednom skenu (termální tisk + faktura)
+  * Účtenky nalepené na papíře vedle sebe nebo pod sebou
+  * Různá data vystavení od různých dodavatelů
+  Pokud vidíš tyto příznaky, MUSÍŠ každý doklad vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Nestačí je sloučit do jednoho záznamu!
+  POZOR: Jeden doklad správně zabírá celou stránku nebo její většinu. Pokud je na stránce jen JEDEN doklad, vrať pole s JEDNÍM objektem.
 - ODBĚRATEL (příjemce/kupující): Hledej sekci odběratele na dokladu. Na českých dokladech bývá označen jako: Odběratel, Příjemce, Kupující, Zákazník, Fakturační údaje, Fakturovat na, Klient, Objednatel. Na fakturách je typicky v pravém sloupci (dodavatel vlevo, odběratel vpravo). Pokud najdeš sekci odběratele, vyplň odberatel_ico a/nebo odberatel_nazev. Pokud žádná sekce odběratele NENÍ (účtenka, paragon, pokladní doklad), ponech OBĚ pole jako null.
 - odberatel_nazev: název firmy/osoby odběratele PŘESNĚ jak je uveden na dokladu
 - odberatel_ico: pouze číslice. Pokud odběratel existuje ale IČO není uvedeno, ponech null a vyplň alespoň odberatel_nazev.
