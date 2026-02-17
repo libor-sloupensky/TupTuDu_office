@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Firma;
 use App\Models\UcetniVazba;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 
 class KlientiController extends Controller
 {
@@ -89,6 +91,183 @@ class KlientiController extends Controller
         ]);
 
         return redirect()->route('klienti.index')->with('flash', "Klient {$klientFirma->nazev} přidán. Čeká na schválení.");
+    }
+
+    /**
+     * AJAX: Lookup IČO — ARES + check existence v systému.
+     */
+    public function lookup(Request $request)
+    {
+        $request->validate(['ico' => 'required|string|regex:/^\d{8}$/']);
+
+        $firma = auth()->user()->aktivniFirma();
+        $ico = $request->ico;
+
+        if ($ico === $firma->ico) {
+            return response()->json(['error' => 'Nemůžete přidat sami sebe jako klienta.']);
+        }
+
+        // Check zda už je v seznamu klientů
+        $existujeVazba = UcetniVazba::where('ucetni_ico', $firma->ico)
+            ->where('klient_ico', $ico)
+            ->first();
+        if ($existujeVazba) {
+            return response()->json(['error' => 'Tato firma je již ve vašem seznamu klientů.']);
+        }
+
+        // Check zda má jiného účetního
+        $jinyUcetni = UcetniVazba::where('klient_ico', $ico)
+            ->whereIn('stav', ['ceka_na_firmu', 'schvaleno'])
+            ->where('ucetni_ico', '!=', $firma->ico)
+            ->exists();
+        if ($jinyUcetni) {
+            return response()->json(['error' => 'Tato firma již má přiřazeného účetního.']);
+        }
+
+        // ARES lookup
+        $nazev = null;
+        try {
+            $ares = Http::timeout(10)->get(
+                "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{$ico}"
+            );
+            if ($ares->successful()) {
+                $nazev = $ares->json('obchodniJmeno');
+            }
+        } catch (\Exception $e) {}
+
+        if (!$nazev) {
+            return response()->json(['error' => 'IČO nebylo nalezeno v ARES.']);
+        }
+
+        // Check zda firma existuje v systému
+        $klientFirma = Firma::find($ico);
+        if ($klientFirma) {
+            // Firma je registrována - najdi superadmina
+            $superadmin = $klientFirma->users()
+                ->wherePivot('interni_role', 'superadmin')
+                ->first();
+            $maskedEmail = $superadmin ? User::maskEmail($superadmin->email) : null;
+
+            return response()->json([
+                'ok' => true,
+                'nazev' => $klientFirma->nazev,
+                'v_systemu' => true,
+                'masked_email' => $maskedEmail,
+            ]);
+        }
+
+        // Firma neexistuje v systému
+        return response()->json([
+            'ok' => true,
+            'nazev' => $nazev,
+            'v_systemu' => false,
+        ]);
+    }
+
+    /**
+     * AJAX: Pošle žádost o přiřazení klienta emailem.
+     */
+    public function poslZadost(Request $request)
+    {
+        $request->validate([
+            'ico' => 'required|string|regex:/^\d{8}$/',
+            'email' => 'nullable|email',
+        ]);
+
+        $firma = auth()->user()->aktivniFirma();
+        $ico = $request->ico;
+        $email = $request->email;
+
+        if ($ico === $firma->ico) {
+            return response()->json(['error' => 'Nemůžete přidat sami sebe.']);
+        }
+
+        // Zjisti stav firmy
+        $klientFirma = Firma::find($ico);
+        $vSystemu = (bool) $klientFirma;
+
+        // Pokud neexistuje, vytvoř ji z ARES
+        if (!$klientFirma) {
+            try {
+                $ares = Http::timeout(10)->get(
+                    "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{$ico}"
+                );
+                if ($ares->successful()) {
+                    $data = $ares->json();
+                    $sidlo = $data['sidlo'] ?? [];
+                    $klientFirma = Firma::create([
+                        'ico' => $ico,
+                        'nazev' => $data['obchodniJmeno'] ?? 'IČO ' . $ico,
+                        'dic' => $data['dic'] ?? null,
+                        'ulice' => $sidlo['nazevUlice'] ?? ($sidlo['textovaAdresa'] ?? null),
+                        'mesto' => $sidlo['nazevObce'] ?? null,
+                        'psc' => isset($sidlo['psc']) ? (string) $sidlo['psc'] : null,
+                    ]);
+                } else {
+                    $klientFirma = Firma::create([
+                        'ico' => $ico,
+                        'nazev' => 'IČO ' . $ico,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $klientFirma = Firma::create([
+                    'ico' => $ico,
+                    'nazev' => 'IČO ' . $ico,
+                ]);
+            }
+
+            if ($klientFirma->kategorie()->count() === 0) {
+                Firma::seedDefaultKategorie($ico);
+            }
+        }
+
+        // Vytvoř vazbu
+        $existujeVazba = UcetniVazba::where('ucetni_ico', $firma->ico)
+            ->where('klient_ico', $ico)
+            ->first();
+        if (!$existujeVazba) {
+            UcetniVazba::create([
+                'ucetni_ico' => $firma->ico,
+                'klient_ico' => $ico,
+                'stav' => 'ceka_na_firmu',
+            ]);
+        }
+
+        // Urči příjemce emailu
+        $prijemce = null;
+        if ($vSystemu) {
+            // Firma v systému → pošli superadminovi
+            $superadmin = $klientFirma->users()
+                ->wherePivot('interni_role', 'superadmin')
+                ->first();
+            if ($superadmin) {
+                $prijemce = $superadmin->email;
+            }
+        } else {
+            // Firma mimo systém → pošli na zadaný email
+            $prijemce = $email;
+        }
+
+        if (!$prijemce) {
+            return response()->json(['ok' => true, 'message' => "Žádost vytvořena. Nebylo možné odeslat email (firma nemá správce)."]);
+        }
+
+        // Odešli email
+        try {
+            Mail::send('emails.zadost-ucetni', [
+                'ucetniFirma' => $firma,
+                'klientFirma' => $klientFirma,
+                'vSystemu' => $vSystemu,
+                'user' => auth()->user(),
+            ], function ($m) use ($prijemce, $firma) {
+                $m->to($prijemce)
+                  ->subject("TupTuDu - Žádost o vedení účetnictví od {$firma->nazev}");
+            });
+        } catch (\Exception $e) {
+            return response()->json(['ok' => true, 'message' => "Žádost vytvořena, ale email se nepodařilo odeslat: {$e->getMessage()}"]);
+        }
+
+        return response()->json(['ok' => true, 'message' => "Žádost odeslána na email."]);
     }
 
     public function destroy(string $klientIco)

@@ -10,6 +10,8 @@
     .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
     .btn-primary { background: #3498db; color: white; }
     .btn-primary:hover { background: #2980b9; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-success:hover { background: #219a52; }
     .btn-danger { background: #e74c3c; color: white; }
     .btn-danger:hover { background: #c0392b; }
     .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
@@ -22,9 +24,10 @@
     .badge-danger { background: #f8d7da; color: #721c24; }
     .flash { background: #e8f8f0; border: 1px solid #27ae60; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem; color: #27ae60; }
     .error-msg { color: #e74c3c; font-size: 0.85rem; }
-    .ares-row { display: flex; gap: 0.5rem; align-items: flex-end; }
-    .ares-row .form-group { flex: 1; margin-bottom: 0; }
-    .ares-status { font-size: 0.85rem; margin-top: 0.3rem; }
+    .lookup-result { margin-top: 0.75rem; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; }
+    .lookup-result.info { background: #e8f4fd; border: 1px solid #bee3f8; color: #2b6cb0; }
+    .lookup-result.warning { background: #fff8e1; border: 1px solid #ffe082; color: #795548; }
+    .lookup-result.error { background: #fde8e8; border: 1px solid #f5c6cb; color: #721c24; }
 </style>
 @endsection
 
@@ -36,24 +39,14 @@
         <div class="flash">{{ session('flash') }}</div>
     @endif
 
-    @if ($errors->any())
-        @foreach ($errors->all() as $error)
-            <div class="error-msg" style="margin-bottom: 0.5rem;">{{ $error }}</div>
-        @endforeach
-    @endif
-
-    <form method="POST" action="{{ route('klienti.store') }}" style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
-        @csrf
+    <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
         <h3 style="margin-bottom: 0.8rem; font-size: 1rem;">Přidat klienta</h3>
-        <div class="ares-row">
-            <div class="form-group">
-                <label for="klient_ico">IČO klienta</label>
-                <input type="text" name="klient_ico" id="klient_ico" value="{{ old('klient_ico') }}" maxlength="8" pattern="\d{8}" required placeholder="12345678">
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-bottom: 0; white-space: nowrap;">Přidat</button>
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label for="klient_ico">IČO klienta</label>
+            <input type="text" id="klient_ico" maxlength="8" placeholder="12345678" style="max-width: 250px;">
         </div>
-        <div id="aresStatus" class="ares-status"></div>
-    </form>
+        <div id="lookupResult" style="display: none;"></div>
+    </div>
 
     @if ($vazby->isEmpty())
         <p style="color: #666;">Zatím nemáte žádné klienty.</p>
@@ -98,23 +91,118 @@
 
 @section('scripts')
 <script>
-var aresTimer = null;
-document.getElementById('klient_ico').addEventListener('input', function() {
-    clearTimeout(aresTimer);
-    var ico = this.value.trim();
-    var st = document.getElementById('aresStatus');
-    if (ico.length < 8) { st.textContent = ''; return; }
-    if (!/^\d{8}$/.test(ico)) return;
-    st.textContent = 'Hledám...'; st.style.color = '#666';
-    aresTimer = setTimeout(function() {
-        fetch('/api/ares/' + ico)
-            .then(function(r){ return r.json(); })
-            .then(function(data){
-                if (data.error) { st.textContent = data.error; st.style.color = '#e74c3c'; return; }
-                st.textContent = data.nazev || ico; st.style.color = '#27ae60';
+(function() {
+    var csrfToken = '{{ csrf_token() }}';
+    var lookupUrl = '{{ route("klienti.lookup") }}';
+    var zadostUrl = '{{ route("klienti.poslZadost") }}';
+    var input = document.getElementById('klient_ico');
+    var resultDiv = document.getElementById('lookupResult');
+    var lookupTimer = null;
+    var currentIco = '';
+
+    input.addEventListener('input', function() {
+        clearTimeout(lookupTimer);
+        var ico = this.value.trim().replace(/\D/g, '');
+        this.value = ico;
+        resultDiv.style.display = 'none';
+        resultDiv.innerHTML = '';
+        currentIco = '';
+
+        if (ico.length < 8) return;
+        if (ico.length > 8) { this.value = ico.substring(0, 8); ico = this.value; }
+
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'lookup-result info';
+        resultDiv.textContent = 'Hledám v ARES...';
+
+        lookupTimer = setTimeout(function() {
+            fetch(lookupUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+                body: JSON.stringify({ ico: ico })
             })
-            .catch(function(){ st.textContent = 'Chyba při komunikaci s ARES.'; st.style.color = '#e74c3c'; });
-    }, 300);
-});
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                resultDiv.style.display = 'block';
+
+                if (data.error) {
+                    resultDiv.className = 'lookup-result error';
+                    resultDiv.textContent = data.error;
+                    return;
+                }
+
+                currentIco = ico;
+
+                if (data.v_systemu) {
+                    // Firma je registrována v systému
+                    var html = '<div style="margin-bottom: 0.5rem;"><strong>' + escHtml(data.nazev) + '</strong></div>';
+                    html += '<div style="margin-bottom: 0.75rem;">Firma je již v systému registrována. Žádost bude odeslána na <strong>' + escHtml(data.masked_email || '—') + '</strong></div>';
+                    html += '<button type="button" class="btn btn-success" onclick="poslZadost()">Odeslat žádost</button>';
+                    html += '<span id="zadostStatus" style="margin-left: 0.75rem; font-size: 0.85rem;"></span>';
+                    resultDiv.className = 'lookup-result info';
+                    resultDiv.innerHTML = html;
+                } else {
+                    // Firma neexistuje v systému
+                    var html = '<div style="margin-bottom: 0.5rem;"><strong>' + escHtml(data.nazev) + '</strong></div>';
+                    html += '<div style="margin-bottom: 0.75rem;">Zadejte email oprávněné osoby ve firmě ' + escHtml(data.nazev) + ':</div>';
+                    html += '<div style="display: flex; gap: 0.5rem; align-items: center;">';
+                    html += '<input type="email" id="zadostEmail" placeholder="email@firma.cz" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; flex: 1; max-width: 300px;">';
+                    html += '<button type="button" class="btn btn-success" onclick="poslZadost()">Odeslat žádost</button>';
+                    html += '</div>';
+                    html += '<span id="zadostStatus" style="display: block; margin-top: 0.5rem; font-size: 0.85rem;"></span>';
+                    resultDiv.className = 'lookup-result warning';
+                    resultDiv.innerHTML = html;
+                }
+            })
+            .catch(function() {
+                resultDiv.className = 'lookup-result error';
+                resultDiv.textContent = 'Chyba při komunikaci se serverem.';
+            });
+        }, 400);
+    });
+
+    window.poslZadost = function() {
+        if (!currentIco) return;
+        var emailInput = document.getElementById('zadostEmail');
+        var email = emailInput ? emailInput.value.trim() : null;
+        var status = document.getElementById('zadostStatus');
+
+        if (emailInput && !email) {
+            status.textContent = 'Vyplňte email.';
+            status.style.color = '#e74c3c';
+            return;
+        }
+
+        status.textContent = 'Odesílám...';
+        status.style.color = '#666';
+
+        fetch(zadostUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+            body: JSON.stringify({ ico: currentIco, email: email })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                status.textContent = data.message;
+                status.style.color = '#27ae60';
+                setTimeout(function() { window.location.reload(); }, 2000);
+            } else {
+                status.textContent = data.error || 'Chyba';
+                status.style.color = '#e74c3c';
+            }
+        })
+        .catch(function() {
+            status.textContent = 'Chyba připojení.';
+            status.style.color = '#e74c3c';
+        });
+    };
+
+    function escHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+})();
 </script>
 @endsection

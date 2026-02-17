@@ -132,8 +132,8 @@
         @if ($toggleDisabledReason)
             <p style="font-size: 0.85rem; color: #e67e22; margin-top: 0.5rem;">{{ $toggleDisabledReason }}</p>
         @endif
-        <p style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
-            Zapnutím získáte přístup k záložce Klienti, kde můžete spravovat firmy, kterým vedete účetnictví.
+        <p style="font-size: 0.85rem; color: {{ $jeUcetni ? '#27ae60' : '#888' }}; margin-top: 0.5rem;">
+            {{ $jeUcetni ? 'Máte přístup k záložce Klienti, kde můžete spravovat firmy, kterým vedete účetnictví.' : 'Zapnutím získáte přístup k záložce Klienti, kde můžete spravovat firmy, kterým vedete účetnictví.' }}
         </p>
     </div>
     @endif

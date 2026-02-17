@@ -80,6 +80,8 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::middleware('role:ucetni')->group(function () {
         Route::get('/klienti', [KlientiController::class, 'index'])->name('klienti.index');
         Route::post('/klienti', [KlientiController::class, 'store'])->name('klienti.store');
+        Route::post('/klienti/lookup', [KlientiController::class, 'lookup'])->name('klienti.lookup');
+        Route::post('/klienti/zadost', [KlientiController::class, 'poslZadost'])->name('klienti.poslZadost');
         Route::delete('/klienti/{klientIco}', [KlientiController::class, 'destroy'])->name('klienti.destroy');
     });
 
