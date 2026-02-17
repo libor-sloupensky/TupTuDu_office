@@ -41,9 +41,6 @@
                 @if (auth()->user()->firmy()->count() > 0)
                     <a href="{{ route('doklady.index') }}">Doklady</a>
                     <a href="{{ route('firma.nastaveni') }}">Nastavení</a>
-                    @if (auth()->user()->maRoli('ucetni'))
-                        <a href="{{ route('klienti.index') }}">Klienti</a>
-                    @endif
                 @endif
 
                 @php

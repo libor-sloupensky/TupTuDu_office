@@ -12,7 +12,7 @@
         @if ($vSystemu)
             <p>Žádost můžete schválit nebo zamítnout přímo v nastavení vaší firmy:</p>
             <p style="text-align: center; margin: 2rem 0;">
-                <a href="{{ url('/nastaveni') }}" style="background: #27ae60; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Schválit v nastavení</a>
+                <a href="{{ url('/nastaveni?ucetni=1') }}" style="background: #27ae60; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Schválit v nastavení</a>
             </p>
         @else
             <p>Pro správu dokladů vaší firmy se zaregistrujte v systému TupTuDu:</p>

@@ -16,13 +16,14 @@ use Webklex\IMAP\ClientManager;
 
 class FirmaController extends Controller
 {
-    public function nastaveni()
+    public function nastaveni(Request $request)
     {
         $firma = auth()->user()->aktivniFirma();
         $user = auth()->user();
 
+        // Vazby kde tato firma je klient (účetní firmy napojené na nás)
         $vazby = collect();
-        if ($firma && ($user->maRoli('firma') || $user->maRoli('dodavatel'))) {
+        if ($firma) {
             $vazby = UcetniVazba::where('klient_ico', $firma->ico)
                 ->with('ucetniFirma')
                 ->orderByRaw("FIELD(stav, 'ceka_na_firmu', 'schvaleno', 'zamitnuto')")
@@ -47,13 +48,28 @@ class FirmaController extends Controller
             }
         }
 
+        // Klienti (pokud jsme účetní firma)
+        $klientVazby = collect();
+        if ($firma && $jeUcetni) {
+            $klientVazby = UcetniVazba::where('ucetni_ico', $firma->ico)
+                ->with('klientFirma')
+                ->orderByRaw("FIELD(stav, 'schvaleno', 'ceka_na_firmu', 'zamitnuto')")
+                ->get();
+        }
+
+        // Počet čekajících žádostí (pro badge)
+        $cekajiciVazby = $vazby->where('stav', 'ceka_na_firmu')->count();
+
+        // Auto-rozbalení sekce z emailu nebo při čekajících žádostech
+        $expandUcetni = $request->has('ucetni') || $cekajiciVazby > 0;
+
         $kategorie = $firma ? $firma->kategorie()->orderBy('poradi')->get() : collect();
 
         $jeSuperadmin = $firma && $user->jeSuperadmin($firma->ico);
         $uzivatele = $firma ? $firma->users()->withPivot('role', 'interni_role')->get() : collect();
         $pozvani = $firma ? Pozvani::where('firma_ico', $firma->ico)->whereNull('accepted_at')->where('expires_at', '>', now())->get() : collect();
 
-        return view('firma.nastaveni', compact('firma', 'vazby', 'jeUcetni', 'toggleDisabledReason', 'kategorie', 'jeSuperadmin', 'uzivatele', 'pozvani'));
+        return view('firma.nastaveni', compact('firma', 'vazby', 'jeUcetni', 'toggleDisabledReason', 'klientVazby', 'cekajiciVazby', 'expandUcetni', 'kategorie', 'jeSuperadmin', 'uzivatele', 'pozvani'));
     }
 
     public function ulozit(Request $request)

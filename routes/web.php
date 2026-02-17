@@ -90,5 +90,6 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::middleware('role:firma,dodavatel')->group(function () {
         Route::post('/vazby/{id}/schvalit', [VazbyController::class, 'approve'])->name('vazby.approve');
         Route::post('/vazby/{id}/zamitnout', [VazbyController::class, 'reject'])->name('vazby.reject');
+        Route::post('/vazby/{id}/odpojit', [VazbyController::class, 'disconnect'])->name('vazby.disconnect');
     });
 });

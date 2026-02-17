@@ -71,6 +71,24 @@
     .usr-new .usr-input::placeholder { color: #ccc; }
     .usr-save-status { font-size: 0.9rem; color: #27ae60; opacity: 0; transition: opacity 0.3s; display: inline-block; margin-top: 0.5rem; font-weight: 600; }
     .usr-save-status.visible { opacity: 1; }
+
+    .badge-pending { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; background: #e74c3c; color: white; margin-left: 0.3rem; }
+    .client-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; }
+    .client-table th, .client-table td { padding: 0.5rem 0.6rem; text-align: left; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    .client-table th { background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .btn-sm { padding: 0.3rem 0.7rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+    .btn-sm-success { background: #27ae60; color: white; }
+    .btn-sm-danger { background: #e74c3c; color: white; }
+    .btn-sm-outline { background: white; color: #e74c3c; border: 1px solid #e74c3c; }
+    .btn-sm-outline:hover { background: #fde8e8; }
+    .lookup-result { margin-top: 0.75rem; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; }
+    .lookup-result.info { background: #e8f4fd; border: 1px solid #bee3f8; color: #2b6cb0; }
+    .lookup-result.warning { background: #fff8e1; border: 1px solid #ffe082; color: #795548; }
+    .lookup-result.error { background: #fde8e8; border: 1px solid #f5c6cb; color: #721c24; }
 </style>
 @endsection
 
@@ -119,22 +137,147 @@
     </form>
     @endif
 
-    {{-- Toggle "Jsem účetní" --}}
+    {{-- Účetní napojení --}}
     @if ($firma)
     <div class="section">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <label class="toggle-switch">
-                <input type="checkbox" id="toggleUcetni" {{ $jeUcetni ? 'checked' : '' }} {{ $toggleDisabledReason ? 'disabled' : '' }}>
-                <span class="toggle-slider"></span>
-            </label>
-            <span style="font-weight: 600; font-size: 1rem;">Jsem účetní firma</span>
+        <div class="kat-section-header" onclick="toggleUcetniNapojeni()">
+            <span class="kat-arrow {{ $expandUcetni ? 'open' : '' }}" id="ucetniArrow">&#9654;</span>
+            <h3>Účetní napojení</h3>
+            @if ($cekajiciVazby > 0)
+                <span class="badge-pending">{{ $cekajiciVazby }}</span>
+            @endif
         </div>
-        @if ($toggleDisabledReason)
-            <p style="font-size: 0.85rem; color: #e67e22; margin-top: 0.5rem;">{{ $toggleDisabledReason }}</p>
-        @endif
-        <p style="font-size: 0.85rem; color: {{ $jeUcetni ? '#27ae60' : '#888' }}; margin-top: 0.5rem;">
-            {{ $jeUcetni ? 'Máte přístup k záložce Klienti, kde můžete spravovat firmy, kterým vedete účetnictví.' : 'Zapnutím získáte přístup k záložce Klienti, kde můžete spravovat firmy, kterým vedete účetnictví.' }}
-        </p>
+
+        <div class="kat-body {{ $expandUcetni ? 'open' : '' }}" id="ucetniBody">
+
+            {{-- Stav A: Jsem účetní firma → správa klientů --}}
+            @if ($jeUcetni)
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                    <span style="font-weight: 600; color: #27ae60;">Jste účetní firma</span>
+                    <button type="button" class="btn-sm btn-sm-outline" onclick="toggleUcetniOff()">Přestat být účetní</button>
+                </div>
+                @if ($toggleDisabledReason)
+                    <p style="font-size: 0.85rem; color: #e67e22; margin-bottom: 0.75rem;">{{ $toggleDisabledReason }}</p>
+                @endif
+
+                <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #f8f9fa; border-radius: 6px;">
+                    <label for="klient_ico" style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.4rem;">Přidat klienta</label>
+                    <input type="text" id="klient_ico" maxlength="8" placeholder="IČO klienta (8 číslic)" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem; max-width: 250px; width: 100%;">
+                    <div id="lookupResult" style="display: none;"></div>
+                </div>
+
+                @if ($klientVazby->isNotEmpty())
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>IČO</th>
+                                <th>Název</th>
+                                <th>Stav</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($klientVazby as $kv)
+                                <tr>
+                                    <td>{{ $kv->klient_ico }}</td>
+                                    <td>{{ $kv->klientFirma?->nazev ?? '—' }}</td>
+                                    <td>
+                                        @if ($kv->stav === 'schvaleno')
+                                            <span class="badge badge-success">Schváleno</span>
+                                        @elseif ($kv->stav === 'ceka_na_firmu')
+                                            <span class="badge badge-warning">Čeká na schválení</span>
+                                        @elseif ($kv->stav === 'zamitnuto')
+                                            <span class="badge badge-danger">Zamítnuto</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ route('klienti.destroy', $kv->klient_ico) }}" onsubmit="return confirm('Opravdu odebrat klienta?');" style="margin: 0;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn-sm btn-sm-danger">Odebrat</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p style="color: #888; font-size: 0.9rem;">Zatím nemáte žádné klienty.</p>
+                @endif
+            @endif
+
+            {{-- Stav B: Napojení na účetní firmu (příchozí vazby) --}}
+            @if ($vazby->isNotEmpty())
+                @if ($jeUcetni)
+                    <div style="border-top: 1px solid #eee; margin-top: 1rem; padding-top: 1rem;"></div>
+                @endif
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem;">Napojení na účetní firmu</h4>
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Účetní firma</th>
+                            <th>IČO</th>
+                            <th>Stav</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($vazby as $vazba)
+                            <tr>
+                                <td>{{ $vazba->ucetniFirma?->nazev ?? '—' }}</td>
+                                <td>{{ $vazba->ucetni_ico }}</td>
+                                <td>
+                                    @if ($vazba->stav === 'schvaleno')
+                                        <span class="badge badge-success">Schváleno</span>
+                                    @elseif ($vazba->stav === 'ceka_na_firmu')
+                                        <span class="badge badge-warning">Čeká na schválení</span>
+                                    @elseif ($vazba->stav === 'zamitnuto')
+                                        <span class="badge badge-danger">Zamítnuto</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($vazba->stav === 'ceka_na_firmu')
+                                        <div style="display: flex; gap: 0.4rem;">
+                                            <form method="POST" action="{{ route('vazby.approve', $vazba->id) }}" style="margin:0;">
+                                                @csrf
+                                                <button type="submit" class="btn-sm btn-sm-success">Schválit</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('vazby.reject', $vazba->id) }}" style="margin:0;">
+                                                @csrf
+                                                <button type="submit" class="btn-sm btn-sm-danger">Zamítnout</button>
+                                            </form>
+                                        </div>
+                                    @elseif ($vazba->stav === 'schvaleno')
+                                        <form method="POST" action="{{ route('vazby.disconnect', $vazba->id) }}" onsubmit="return confirm('Opravdu odpojit účetní firmu {{ addslashes($vazba->ucetniFirma?->nazev) }}?');" style="margin:0;">
+                                            @csrf
+                                            <button type="submit" class="btn-sm btn-sm-outline">Odpojit</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            {{-- Stav C: Ani jedno → toggle pro zapnutí účetního režimu --}}
+            @if (!$jeUcetni && $vazby->isEmpty())
+                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggleUcetni" {{ $toggleDisabledReason ? 'disabled' : '' }}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span style="font-weight: 600;">Jsem účetní firma</span>
+                </div>
+                @if ($toggleDisabledReason)
+                    <p style="font-size: 0.85rem; color: #e67e22; margin-top: 0.5rem;">{{ $toggleDisabledReason }}</p>
+                @endif
+                <p style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+                    Zapnutím získáte možnost spravovat firmy, kterým vedete účetnictví.
+                </p>
+            @endif
+
+        </div>
     </div>
     @endif
 
@@ -218,55 +361,6 @@
                 <div id="vlastniEmailStatus" style="font-size: 0.85rem; margin-top: 0.5rem; display: none;"></div>
             </div>
         </div>
-    </div>
-    @endif
-
-    {{-- Účetní vazby --}}
-    @if ($vazby->isNotEmpty())
-    <div class="section">
-        <h3>Účetní vazby</h3>
-
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr>
-                    <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.9rem;">Účetní firma</th>
-                    <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.9rem;">IČO</th>
-                    <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 2px solid #eee; background: #f8f9fa; font-weight: 600; color: #555; font-size: 0.9rem;">Stav</th>
-                    <th style="padding: 0.6rem 0.8rem; border-bottom: 2px solid #eee; background: #f8f9fa;"></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($vazby as $vazba)
-                    <tr>
-                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $vazba->ucetniFirma?->nazev ?? '—' }}</td>
-                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">{{ $vazba->ucetni_ico }}</td>
-                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee; font-size: 0.9rem;">
-                            @if ($vazba->stav === 'schvaleno')
-                                <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#d4edda; color:#155724;">Schváleno</span>
-                            @elseif ($vazba->stav === 'ceka_na_firmu')
-                                <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#fff3cd; color:#856404;">Čeká na schválení</span>
-                            @elseif ($vazba->stav === 'zamitnuto')
-                                <span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.75rem; font-weight:600; background:#f8d7da; color:#721c24;">Zamítnuto</span>
-                            @endif
-                        </td>
-                        <td style="padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee;">
-                            @if ($vazba->stav === 'ceka_na_firmu')
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <form method="POST" action="{{ route('vazby.approve', $vazba->id) }}">
-                                        @csrf
-                                        <button type="submit" style="padding:0.3rem 0.7rem; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600; background:#27ae60; color:white;">Schválit</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('vazby.reject', $vazba->id) }}">
-                                        @csrf
-                                        <button type="submit" style="padding:0.3rem 0.7rem; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:600; background:#e74c3c; color:white;">Zamítnout</button>
-                                    </form>
-                                </div>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
     </div>
     @endif
 
@@ -381,35 +475,159 @@
 (function() {
     const csrfToken = '{{ csrf_token() }}';
 
-    // Toggle účetní
-    const toggle = document.getElementById('toggleUcetni');
+    // ===== Účetní napojení =====
+    window.toggleUcetniNapojeni = function() {
+        var body = document.getElementById('ucetniBody');
+        var arrow = document.getElementById('ucetniArrow');
+        body.classList.toggle('open');
+        arrow.classList.toggle('open');
+    };
+
+    // Toggle účetní ON (stav C → zapnutí)
+    var toggle = document.getElementById('toggleUcetni');
     if (toggle && !toggle.disabled) {
         toggle.addEventListener('change', function() {
-            const jeUcetni = this.checked;
+            var jeUcetni = this.checked;
             fetch('{{ route("firma.toggleUcetni") }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                 body: JSON.stringify({ je_ucetni: jeUcetni ? 1 : 0 })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) {
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'Chyba při přepínání.');
-                    toggle.checked = !jeUcetni;
-                }
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) { window.location.reload(); }
+                else { alert(data.error || 'Chyba.'); toggle.checked = !jeUcetni; }
             })
-            .catch(() => {
-                alert('Chyba připojení.');
-                toggle.checked = !jeUcetni;
-            });
+            .catch(function() { alert('Chyba připojení.'); toggle.checked = !jeUcetni; });
         });
     }
+
+    // Toggle účetní OFF (stav A → vypnutí)
+    window.toggleUcetniOff = function() {
+        if (!confirm('Opravdu chcete přestat být účetní firma?')) return;
+        fetch('{{ route("firma.toggleUcetni") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            body: JSON.stringify({ je_ucetni: 0 })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) { window.location.reload(); }
+            else { alert(data.error || 'Chyba.'); }
+        })
+        .catch(function() { alert('Chyba připojení.'); });
+    };
+
+    // ===== Klienti — IČO lookup =====
+    var klientInput = document.getElementById('klient_ico');
+    var lookupResult = document.getElementById('lookupResult');
+    var lookupTimer = null;
+    var currentIco = '';
+
+    if (klientInput) {
+        klientInput.addEventListener('input', function() {
+            clearTimeout(lookupTimer);
+            var ico = this.value.trim().replace(/\D/g, '');
+            this.value = ico;
+            lookupResult.style.display = 'none';
+            lookupResult.innerHTML = '';
+            currentIco = '';
+
+            if (ico.length < 8) return;
+            if (ico.length > 8) { this.value = ico.substring(0, 8); ico = this.value; }
+
+            lookupResult.style.display = 'block';
+            lookupResult.className = 'lookup-result info';
+            lookupResult.textContent = 'Hledám v ARES...';
+
+            lookupTimer = setTimeout(function() {
+                fetch('{{ route("klienti.lookup") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                    body: JSON.stringify({ ico: ico })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    lookupResult.style.display = 'block';
+                    if (data.error) {
+                        lookupResult.className = 'lookup-result error';
+                        lookupResult.textContent = data.error;
+                        return;
+                    }
+                    currentIco = ico;
+                    if (data.v_systemu) {
+                        var html = '<div style="margin-bottom: 0.5rem;"><strong>' + escHtml(data.nazev) + '</strong></div>';
+                        html += '<div style="margin-bottom: 0.5rem;">Firma je již v systému registrována.</div>';
+                        if (data.superadmins && data.superadmins.length > 1) {
+                            html += '<div style="margin-bottom: 0.5rem;">Vyberte příjemce žádosti:</div>';
+                            for (var i = 0; i < data.superadmins.length; i++) {
+                                var sa = data.superadmins[i];
+                                html += '<label style="display: block; margin-bottom: 0.3rem; cursor: pointer;">';
+                                html += '<input type="radio" name="superadmin_id" value="' + sa.id + '"' + (i === 0 ? ' checked' : '') + ' style="margin-right: 0.4rem;">';
+                                html += escHtml(sa.masked_email) + '</label>';
+                            }
+                        } else if (data.superadmins && data.superadmins.length === 1) {
+                            html += '<div style="margin-bottom: 0.5rem;">Žádost bude odeslána na <strong>' + escHtml(data.superadmins[0].masked_email) + '</strong></div>';
+                        }
+                        if (data.cooldown) {
+                            html += '<div style="color: #856404; margin-top: 0.5rem;">Žádost byla odeslána nedávno. Další za 24 hodin.</div>';
+                        } else {
+                            html += '<button type="button" class="btn-sm btn-sm-success" onclick="poslZadost()" style="margin-top: 0.3rem;">Odeslat žádost</button>';
+                        }
+                        html += '<span id="zadostStatus" style="margin-left: 0.75rem; font-size: 0.85rem;"></span>';
+                        lookupResult.className = 'lookup-result info';
+                        lookupResult.innerHTML = html;
+                    } else {
+                        var html = '<div style="margin-bottom: 0.5rem;"><strong>' + escHtml(data.nazev) + '</strong></div>';
+                        html += '<div style="margin-bottom: 0.5rem;">Zadejte email oprávněné osoby:</div>';
+                        html += '<div style="display: flex; gap: 0.5rem; align-items: center;">';
+                        html += '<input type="email" id="zadostEmail" placeholder="email@firma.cz" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; flex: 1; max-width: 300px;">';
+                        if (data.cooldown) {
+                            html += '</div>';
+                            html += '<div style="color: #856404; margin-top: 0.5rem;">Žádost byla odeslána nedávno. Další za 24 hodin.</div>';
+                        } else {
+                            html += '<button type="button" class="btn-sm btn-sm-success" onclick="poslZadost()">Odeslat žádost</button>';
+                            html += '</div>';
+                        }
+                        html += '<span id="zadostStatus" style="display: block; margin-top: 0.5rem; font-size: 0.85rem;"></span>';
+                        lookupResult.className = 'lookup-result warning';
+                        lookupResult.innerHTML = html;
+                    }
+                })
+                .catch(function() {
+                    lookupResult.className = 'lookup-result error';
+                    lookupResult.textContent = 'Chyba při komunikaci se serverem.';
+                });
+            }, 400);
+        });
+    }
+
+    window.poslZadost = function() {
+        if (!currentIco) return;
+        var emailInput = document.getElementById('zadostEmail');
+        var email = emailInput ? emailInput.value.trim() : null;
+        var status = document.getElementById('zadostStatus');
+        if (emailInput && !email) { status.textContent = 'Vyplňte email.'; status.style.color = '#e74c3c'; return; }
+        var superadminId = null;
+        var radios = document.querySelectorAll('input[name="superadmin_id"]');
+        for (var i = 0; i < radios.length; i++) { if (radios[i].checked) { superadminId = parseInt(radios[i].value); break; } }
+        status.textContent = 'Odesílám...'; status.style.color = '#666';
+        var body = { ico: currentIco, email: email };
+        if (superadminId) body.superadmin_id = superadminId;
+        fetch('{{ route("klienti.poslZadost") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            body: JSON.stringify(body)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) { status.textContent = data.message; status.style.color = '#27ae60'; setTimeout(function() { window.location.reload(); }, 2000); }
+            else { status.textContent = data.error || 'Chyba'; status.style.color = '#e74c3c'; }
+        })
+        .catch(function() { status.textContent = 'Chyba připojení.'; status.style.color = '#e74c3c'; });
+    };
+
+    function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     // ===== Kategorie =====
     let saveTimer = null;

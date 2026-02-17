@@ -34,4 +34,19 @@ class VazbyController extends Controller
 
         return redirect()->route('firma.nastaveni')->with('flash', 'Žádost byla zamítnuta.');
     }
+
+    public function disconnect(int $id)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        $vazba = UcetniVazba::where('id', $id)
+            ->where('klient_ico', $firma->ico)
+            ->where('stav', 'schvaleno')
+            ->firstOrFail();
+
+        $nazev = $vazba->ucetniFirma->nazev ?? 'Účetní firma';
+        $vazba->delete();
+
+        return redirect()->route('firma.nastaveni')->with('flash', "Napojení na {$nazev} bylo zrušeno.");
+    }
 }
