@@ -6,7 +6,7 @@ use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Webklex\IMAP\ClientManager;
+use Webklex\PHPIMAP\ClientManager;
 
 class ProcessEmailDoklady extends Command
 {
@@ -172,23 +172,21 @@ class ProcessEmailDoklady extends Command
         // Check To, CC headers for {8-digit}@tuptudu.cz pattern
         $recipients = [];
 
-        try {
-            $to = $message->getTo();
-            if ($to) {
-                foreach ($to as $addr) {
-                    $recipients[] = is_string($addr) ? $addr : ($addr->mail ?? (string) $addr);
-                }
-            }
-        } catch (\Throwable $e) {}
+        // getTo() vrací Attribute – použij toString() a parsuj emaily regexem
+        foreach (['getTo', 'getCc'] as $method) {
+            try {
+                $header = $message->$method();
+                if (!$header) continue;
 
-        try {
-            $cc = $message->getCc();
-            if ($cc) {
-                foreach ($cc as $addr) {
-                    $recipients[] = is_string($addr) ? $addr : ($addr->mail ?? (string) $addr);
+                $raw = $header->toString();
+                // Extrahuj všechny email adresy z headeru
+                if (preg_match_all('/[\w.+-]+@[\w.-]+/', $raw, $matches)) {
+                    foreach ($matches[0] as $email) {
+                        $recipients[] = $email;
+                    }
                 }
-            }
-        } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {}
+        }
 
         foreach ($recipients as $email) {
             if (preg_match('/^(\d{8})@tuptudu\.cz$/i', trim($email), $m)) {
