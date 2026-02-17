@@ -87,8 +87,8 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
         Route::delete('/klienti/{klientIco}', [KlientiController::class, 'destroy'])->name('klienti.destroy');
     });
 
-    // Vazby (firma, dodavatel) - approve/reject actions
-    Route::middleware('role:firma,dodavatel')->group(function () {
+    // Vazby - approve/reject actions (klient může mít libovolnou roli)
+    Route::middleware('role:firma,dodavatel,ucetni')->group(function () {
         Route::post('/vazby/{id}/schvalit', [VazbyController::class, 'approve'])->name('vazby.approve');
         Route::post('/vazby/{id}/zamitnout', [VazbyController::class, 'reject'])->name('vazby.reject');
         Route::post('/vazby/{id}/odpojit', [VazbyController::class, 'disconnect'])->name('vazby.disconnect');
