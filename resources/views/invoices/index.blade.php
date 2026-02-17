@@ -514,7 +514,14 @@ function cellValue(d, colId) {
         case 'dph': return d.castka_dph ? Number(d.castka_dph).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
         case 'kategorie': return d.kategorie || '-';
         case 'stav':
-            if (d.stav === 'dokonceno') return '<span class="stav-dokonceno" title="V pořádku">&#10003;</span>';
+            if (d.stav === 'dokonceno') {
+                if (d.adresni && !d.overeno_adresat) {
+                    var adTxt = 'Jiný odběratel';
+                    if (d.odberatel_nazev) adTxt += ': ' + d.odberatel_nazev;
+                    return '<span class="stav-chyba" title="'+adTxt.replace(/"/g,'&quot;')+'">&#9888;</span>';
+                }
+                return '<span class="stav-dokonceno" title="V pořádku">&#10003;</span>';
+            }
             if (d.stav === 'nekvalitni') {
                 var nkTip = (d.kvalita_poznamka||'Nízká kvalita').replace(/"/g,'&quot;');
                 var nkSerious = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
@@ -640,7 +647,10 @@ function toggleDetail(id, btn) {
         let val = d[f];
         if (val === null || val === undefined || val === '') val = '-';
         if (f === 'stav') {
-            if (val === 'dokonceno') val = '<span class="stav-dokonceno">V pořádku</span>';
+            if (val === 'dokonceno') {
+                if (d.adresni && !d.overeno_adresat) val = '<span class="stav-chyba">Jiný odběratel</span>';
+                else val = '<span class="stav-dokonceno">V pořádku</span>';
+            }
             else if (val === 'nekvalitni') {
                 var dtSerious = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
                 val = '<span class="'+(dtSerious ? 'stav-chyba' : 'stav-nekvalitni')+'">Nekvalitní</span>';

@@ -113,7 +113,9 @@
         <tr>
             <th>Stav</th>
             <td>
-                @if ($doklad->stav === 'dokonceno')
+                @if ($doklad->stav === 'dokonceno' && $doklad->adresni && !$doklad->overeno_adresat)
+                    <span class="stav-chyba">Jiný odběratel</span>
+                @elseif ($doklad->stav === 'dokonceno')
                     <span class="stav-dokonceno">Dokončeno</span>
                 @elseif ($doklad->stav === 'nekvalitni')
                     @if ($doklad->kvalita === 'necitelna' || ($doklad->kvalita_poznamka && str_contains($doklad->kvalita_poznamka, 'Více dokladů')))
