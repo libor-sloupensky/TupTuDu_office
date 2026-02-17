@@ -28,6 +28,15 @@ Route::middleware('guest')->group(function () {
 // --- ARES (bez auth) ---
 Route::get('/api/ares/{ico}', [AresController::class, 'lookup'])->middleware('throttle:30,1')->name('ares.lookup');
 
+// --- Cron endpoint (tajný token) ---
+Route::get('/cron/{token}', function (string $token) {
+    if ($token !== 'f8k2Ld9xQm4vR7nW') {
+        abort(404);
+    }
+    Illuminate\Support\Facades\Artisan::call('doklady:process-email');
+    return response('OK', 200);
+})->middleware('throttle:6,1');
+
 // --- Žádost o přístup k firmě (bez auth, throttle) ---
 Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->middleware('throttle:3,60')->name('firma.zadostOPristup');
 
