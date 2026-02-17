@@ -93,7 +93,7 @@
     .stav-dokonceno { color: #27ae60; }
     .stav-chyba { color: #e74c3c; font-weight: 600; cursor: help; }
     .stav-zpracovava { color: #f39c12; font-weight: 600; }
-    .stav-nekvalitni { color: #e74c3c; font-weight: 600; cursor: help; }
+    .stav-nekvalitni { color: #d4a017; font-weight: 600; cursor: help; }
     .badge-kvalita { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600; margin-left: 0.2rem; vertical-align: middle; }
     .kvalita-nizka { background: #fff3cd; color: #856404; }
     .kvalita-necitelna { background: #f8d7da; color: #721c24; }
@@ -515,7 +515,11 @@ function cellValue(d, colId) {
         case 'kategorie': return d.kategorie || '-';
         case 'stav':
             if (d.stav === 'dokonceno') return '<span class="stav-dokonceno" title="V pořádku">&#10003;</span>';
-            if (d.stav === 'nekvalitni') return '<span class="stav-nekvalitni" title="'+(d.kvalita_poznamka||'Nízká kvalita')+'">&#9888;</span>';
+            if (d.stav === 'nekvalitni') {
+                var nkTip = (d.kvalita_poznamka||'Nízká kvalita').replace(/"/g,'&quot;');
+                var nkSerious = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
+                return '<span class="'+(nkSerious ? 'stav-chyba' : 'stav-nekvalitni')+'" title="'+nkTip+'">&#9888;</span>';
+            }
             if (d.stav === 'chyba') return '<span class="stav-chyba" title="'+(d.chybova_zprava||'Chyba zpracování').replace(/"/g,'&quot;')+'">Chyba</span>';
             return '<span class="stav-zpracovava">'+d.stav+'</span>';
         case 'typ':
@@ -637,7 +641,10 @@ function toggleDetail(id, btn) {
         if (val === null || val === undefined || val === '') val = '-';
         if (f === 'stav') {
             if (val === 'dokonceno') val = '<span class="stav-dokonceno">V pořádku</span>';
-            else if (val === 'nekvalitni') val = '<span class="stav-nekvalitni">Nekvalitní</span>';
+            else if (val === 'nekvalitni') {
+                var dtSerious = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
+                val = '<span class="'+(dtSerious ? 'stav-chyba' : 'stav-nekvalitni')+'">Nekvalitní</span>';
+            }
             else if (val === 'chyba') val = '<span class="stav-chyba">Chyba</span>';
         }
         if (f === 'typ_dokladu') {

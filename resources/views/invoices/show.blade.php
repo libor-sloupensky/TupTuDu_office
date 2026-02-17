@@ -24,6 +24,7 @@
     .category-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; background: #e8f5e9; color: #2e7d32; font-size: 0.8rem; }
     .stav-dokonceno { color: #27ae60; font-weight: 600; }
     .stav-chyba { color: #e74c3c; font-weight: 600; }
+    .stav-nekvalitni { color: #d4a017; font-weight: 600; }
     .stav-zpracovava { color: #f39c12; font-weight: 600; }
     .error-box { background: #ffeaea; color: #c0392b; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
 
@@ -115,7 +116,11 @@
                 @if ($doklad->stav === 'dokonceno')
                     <span class="stav-dokonceno">Dokončeno</span>
                 @elseif ($doklad->stav === 'nekvalitni')
-                    <span class="stav-zpracovava">Nekvalitní</span>
+                    @if ($doklad->kvalita === 'necitelna' || ($doklad->kvalita_poznamka && str_contains($doklad->kvalita_poznamka, 'Více dokladů')))
+                        <span class="stav-chyba">Nekvalitní</span>
+                    @else
+                        <span class="stav-nekvalitni">Nekvalitní</span>
+                    @endif
                 @elseif ($doklad->stav === 'chyba')
                     <span class="stav-chyba">Chyba</span>
                 @else
