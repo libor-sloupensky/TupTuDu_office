@@ -136,8 +136,26 @@
                 if (data.v_systemu) {
                     // Firma je registrována v systému
                     var html = '<div style="margin-bottom: 0.5rem;"><strong>' + escHtml(data.nazev) + '</strong></div>';
-                    html += '<div style="margin-bottom: 0.75rem;">Firma je již v systému registrována. Žádost bude odeslána na <strong>' + escHtml(data.masked_email || '—') + '</strong></div>';
-                    html += '<button type="button" class="btn btn-success" onclick="poslZadost()">Odeslat žádost</button>';
+                    html += '<div style="margin-bottom: 0.5rem;">Firma je již v systému registrována.</div>';
+
+                    if (data.superadmins && data.superadmins.length > 1) {
+                        html += '<div style="margin-bottom: 0.75rem;">Vyberte příjemce žádosti:</div>';
+                        for (var i = 0; i < data.superadmins.length; i++) {
+                            var sa = data.superadmins[i];
+                            html += '<label style="display: block; margin-bottom: 0.3rem; cursor: pointer;">';
+                            html += '<input type="radio" name="superadmin_id" value="' + sa.id + '"' + (i === 0 ? ' checked' : '') + ' style="margin-right: 0.4rem;">';
+                            html += escHtml(sa.masked_email);
+                            html += '</label>';
+                        }
+                    } else if (data.superadmins && data.superadmins.length === 1) {
+                        html += '<div style="margin-bottom: 0.75rem;">Žádost bude odeslána na <strong>' + escHtml(data.superadmins[0].masked_email) + '</strong></div>';
+                    }
+
+                    if (data.cooldown) {
+                        html += '<div style="color: #856404; margin-top: 0.5rem;">Žádost byla odeslána nedávno. Další odeslání bude možné za 24 hodin.</div>';
+                    } else {
+                        html += '<button type="button" class="btn btn-success" onclick="poslZadost()">Odeslat žádost</button>';
+                    }
                     html += '<span id="zadostStatus" style="margin-left: 0.75rem; font-size: 0.85rem;"></span>';
                     resultDiv.className = 'lookup-result info';
                     resultDiv.innerHTML = html;
@@ -147,8 +165,13 @@
                     html += '<div style="margin-bottom: 0.75rem;">Zadejte email oprávněné osoby ve firmě ' + escHtml(data.nazev) + ':</div>';
                     html += '<div style="display: flex; gap: 0.5rem; align-items: center;">';
                     html += '<input type="email" id="zadostEmail" placeholder="email@firma.cz" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; flex: 1; max-width: 300px;">';
-                    html += '<button type="button" class="btn btn-success" onclick="poslZadost()">Odeslat žádost</button>';
-                    html += '</div>';
+                    if (data.cooldown) {
+                        html += '</div>';
+                        html += '<div style="color: #856404; margin-top: 0.5rem;">Žádost byla odeslána nedávno. Další odeslání bude možné za 24 hodin.</div>';
+                    } else {
+                        html += '<button type="button" class="btn btn-success" onclick="poslZadost()">Odeslat žádost</button>';
+                        html += '</div>';
+                    }
                     html += '<span id="zadostStatus" style="display: block; margin-top: 0.5rem; font-size: 0.85rem;"></span>';
                     resultDiv.className = 'lookup-result warning';
                     resultDiv.innerHTML = html;
@@ -173,13 +196,25 @@
             return;
         }
 
+        // Get selected superadmin if radio buttons exist
+        var superadminId = null;
+        var radios = document.querySelectorAll('input[name="superadmin_id"]');
+        if (radios.length > 0) {
+            for (var i = 0; i < radios.length; i++) {
+                if (radios[i].checked) { superadminId = parseInt(radios[i].value); break; }
+            }
+        }
+
         status.textContent = 'Odesílám...';
         status.style.color = '#666';
+
+        var body = { ico: currentIco, email: email };
+        if (superadminId) body.superadmin_id = superadminId;
 
         fetch(zadostUrl, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
-            body: JSON.stringify({ ico: currentIco, email: email })
+            body: JSON.stringify(body)
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {

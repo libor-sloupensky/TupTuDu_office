@@ -9,6 +9,7 @@ use App\Models\Pozvani;
 use App\Models\UcetniVazba;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Webklex\IMAP\ClientManager;
@@ -85,12 +86,69 @@ class FirmaController extends Controller
         return view('firma.zadna');
     }
 
+    /**
+     * AJAX: Lookup IČO pro stránku "žádná firma" — ARES + systém check.
+     */
+    public function lookupPristup(Request $request)
+    {
+        $request->validate(['ico' => 'required|string|regex:/^\d{8}$/']);
+        $ico = $request->ico;
+        $user = auth()->user();
+
+        // Check zda uživatel už není členem této firmy
+        if ($user->firmy()->where('ico', $ico)->exists()) {
+            return response()->json(['error' => 'Již jste členem této firmy.']);
+        }
+
+        // ARES lookup
+        $nazev = null;
+        try {
+            $ares = Http::timeout(10)->get(
+                "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{$ico}"
+            );
+            if ($ares->successful()) {
+                $nazev = $ares->json('obchodniJmeno');
+            }
+        } catch (\Exception $e) {}
+
+        if (!$nazev) {
+            return response()->json(['error' => 'IČO nebylo nalezeno v ARES.']);
+        }
+
+        // Check zda firma existuje v systému
+        $firma = Firma::find($ico);
+        if (!$firma) {
+            return response()->json([
+                'ok' => true,
+                'nazev' => $nazev,
+                'v_systemu' => false,
+            ]);
+        }
+
+        // Najdi superadminy
+        $superadmins = $firma->users()
+            ->wherePivot('interni_role', 'superadmin')
+            ->get()
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'masked_email' => User::maskEmail($u->email),
+            ]);
+
+        return response()->json([
+            'ok' => true,
+            'nazev' => $firma->nazev,
+            'v_systemu' => true,
+            'superadmins' => $superadmins->values(),
+        ]);
+    }
+
     public function zadostOPristup(Request $request)
     {
         $request->validate([
             'ico' => 'required|string|regex:/^\d{8}$/',
             'jmeno' => 'required|string|max:255',
             'email' => 'required|email|max:255',
+            'superadmin_id' => 'nullable|integer',
         ]);
 
         $firma = Firma::find($request->ico);
@@ -98,8 +156,15 @@ class FirmaController extends Controller
             return response()->json(['ok' => false, 'error' => 'Firma nenalezena.'], 404);
         }
 
-        $superadmin = $firma->users()->withPivot('interni_role')
-            ->wherePivot('interni_role', 'superadmin')->first();
+        if ($request->superadmin_id) {
+            $superadmin = $firma->users()->withPivot('interni_role')
+                ->wherePivot('interni_role', 'superadmin')
+                ->where('sys_users.id', $request->superadmin_id)
+                ->first();
+        } else {
+            $superadmin = $firma->users()->withPivot('interni_role')
+                ->wherePivot('interni_role', 'superadmin')->first();
+        }
 
         if (!$superadmin) {
             return response()->json(['ok' => false, 'error' => 'Správce firmy nenalezen.'], 404);

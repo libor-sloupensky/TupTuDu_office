@@ -142,25 +142,47 @@ class KlientiController extends Controller
         // Check zda firma existuje v systému
         $klientFirma = Firma::find($ico);
         if ($klientFirma) {
-            // Firma je registrována - najdi superadmina
-            $superadmin = $klientFirma->users()
+            // Firma je registrována - najdi superadminy
+            $superadmins = $klientFirma->users()
                 ->wherePivot('interni_role', 'superadmin')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'masked_email' => User::maskEmail($u->email),
+                ]);
+
+            // Check rate-limit: existuje vazba s žádostí < 24h?
+            $existujeVazba = UcetniVazba::where('ucetni_ico', $firma->ico)
+                ->where('klient_ico', $ico)
                 ->first();
-            $maskedEmail = $superadmin ? User::maskEmail($superadmin->email) : null;
+            $cooldown = false;
+            if ($existujeVazba && $existujeVazba->zadost_odeslana_at && $existujeVazba->zadost_odeslana_at->gt(now()->subHours(24))) {
+                $cooldown = true;
+            }
 
             return response()->json([
                 'ok' => true,
                 'nazev' => $klientFirma->nazev,
                 'v_systemu' => true,
-                'masked_email' => $maskedEmail,
+                'superadmins' => $superadmins->values(),
+                'cooldown' => $cooldown,
             ]);
         }
 
-        // Firma neexistuje v systému
+        // Firma neexistuje v systému - check cooldown
+        $existujeVazba = UcetniVazba::where('ucetni_ico', $firma->ico)
+            ->where('klient_ico', $ico)
+            ->first();
+        $cooldown = false;
+        if ($existujeVazba && $existujeVazba->zadost_odeslana_at && $existujeVazba->zadost_odeslana_at->gt(now()->subHours(24))) {
+            $cooldown = true;
+        }
+
         return response()->json([
             'ok' => true,
             'nazev' => $nazev,
             'v_systemu' => false,
+            'cooldown' => $cooldown,
         ]);
     }
 
@@ -172,6 +194,7 @@ class KlientiController extends Controller
         $request->validate([
             'ico' => 'required|string|regex:/^\d{8}$/',
             'email' => 'nullable|email',
+            'superadmin_id' => 'nullable|integer',
         ]);
 
         $firma = auth()->user()->aktivniFirma();
@@ -180,6 +203,14 @@ class KlientiController extends Controller
 
         if ($ico === $firma->ico) {
             return response()->json(['error' => 'Nemůžete přidat sami sebe.']);
+        }
+
+        // Rate-limit: check existing vazba
+        $existujeVazba = UcetniVazba::where('ucetni_ico', $firma->ico)
+            ->where('klient_ico', $ico)
+            ->first();
+        if ($existujeVazba && $existujeVazba->zadost_odeslana_at && $existujeVazba->zadost_odeslana_at->gt(now()->subHours(24))) {
+            return response()->json(['error' => 'Žádost byla odeslána nedávno. Další odeslání bude možné za 24 hodin.']);
         }
 
         // Zjisti stav firmy
@@ -221,12 +252,9 @@ class KlientiController extends Controller
             }
         }
 
-        // Vytvoř vazbu
-        $existujeVazba = UcetniVazba::where('ucetni_ico', $firma->ico)
-            ->where('klient_ico', $ico)
-            ->first();
+        // Vytvoř vazbu nebo aktualizuj existující
         if (!$existujeVazba) {
-            UcetniVazba::create([
+            $existujeVazba = UcetniVazba::create([
                 'ucetni_ico' => $firma->ico,
                 'klient_ico' => $ico,
                 'stav' => 'ceka_na_firmu',
@@ -236,15 +264,20 @@ class KlientiController extends Controller
         // Urči příjemce emailu
         $prijemce = null;
         if ($vSystemu) {
-            // Firma v systému → pošli superadminovi
-            $superadmin = $klientFirma->users()
-                ->wherePivot('interni_role', 'superadmin')
-                ->first();
+            if ($request->superadmin_id) {
+                $superadmin = $klientFirma->users()
+                    ->wherePivot('interni_role', 'superadmin')
+                    ->where('sys_users.id', $request->superadmin_id)
+                    ->first();
+            } else {
+                $superadmin = $klientFirma->users()
+                    ->wherePivot('interni_role', 'superadmin')
+                    ->first();
+            }
             if ($superadmin) {
                 $prijemce = $superadmin->email;
             }
         } else {
-            // Firma mimo systém → pošli na zadaný email
             $prijemce = $email;
         }
 
@@ -263,6 +296,8 @@ class KlientiController extends Controller
                 $m->to($prijemce)
                   ->subject("TupTuDu - Žádost o vedení účetnictví od {$firma->nazev}");
             });
+
+            $existujeVazba->update(['zadost_odeslana_at' => now()]);
         } catch (\Exception $e) {
             return response()->json(['ok' => true, 'message' => "Žádost vytvořena, ale email se nepodařilo odeslat: {$e->getMessage()}"]);
         }

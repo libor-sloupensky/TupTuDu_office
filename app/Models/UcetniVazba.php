@@ -13,6 +13,11 @@ class UcetniVazba extends Model
         'ucetni_ico',
         'klient_ico',
         'stav',
+        'zadost_odeslana_at',
+    ];
+
+    protected $casts = [
+        'zadost_odeslana_at' => 'datetime',
     ];
 
     public function ucetniFirma(): BelongsTo

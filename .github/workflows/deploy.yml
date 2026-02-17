@@ -316,6 +316,15 @@ jobs:
           } else {
             echo 'Migration: email columns already exist, skipping' . PHP_EOL;
           }
+
+          // Add zadost_odeslana_at column to sys_ucetni_vazby if missing
+          \$colVazba = \$pdo->query("SHOW COLUMNS FROM sys_ucetni_vazby LIKE 'zadost_odeslana_at'")->fetchAll();
+          if (empty(\$colVazba)) {
+            \$pdo->exec("ALTER TABLE sys_ucetni_vazby ADD COLUMN zadost_odeslana_at DATETIME NULL");
+            echo 'Migration: added zadost_odeslana_at column to sys_ucetni_vazby' . PHP_EOL;
+          } else {
+            echo 'Migration: zadost_odeslana_at already exists, skipping' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment
