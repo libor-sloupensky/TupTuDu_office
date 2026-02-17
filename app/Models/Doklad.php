@@ -12,7 +12,7 @@ class Doklad extends Model
 
     protected $fillable = [
         'firma_ico', 'dodavatel_ico', 'nazev_souboru', 'cesta_souboru', 'cesta_originalu', 'hash_souboru',
-        'dodavatel_nazev', 'cislo_dokladu',
+        'dodavatel_nazev', 'odberatel_ico', 'odberatel_nazev', 'cislo_dokladu',
         'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti',
         'castka_celkem', 'mena', 'castka_dph', 'kategorie',
         'adresni', 'overeno_adresat', 'raw_text', 'raw_ai_odpoved',

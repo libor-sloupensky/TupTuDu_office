@@ -96,6 +96,14 @@
         </div>
     @endif
 
+    @if ($doklad->adresni && !$doklad->overeno_adresat)
+        <div style="background:#ffeaea;border:1px solid #f5c6cb;color:#721c24;padding:0.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-weight:600;">
+            Tento doklad je adresován jinému odběrateli
+            ({{ $doklad->odberatel_nazev ?? '' }}{{ $doklad->odberatel_nazev && $doklad->odberatel_ico ? ', ' : '' }}{{ $doklad->odberatel_ico ? 'IČO: ' . $doklad->odberatel_ico : '' }})
+            a nepatří do účetnictví Vaší firmy.
+        </div>
+    @endif
+
     <table class="invoice-table">
         <tr>
             <th>Soubor</th>
@@ -174,15 +182,26 @@
                 @endif
             </td>
         </tr>
+        @if ($doklad->odberatel_nazev || $doklad->odberatel_ico)
+        <tr>
+            <th>Odběratel</th>
+            <td>
+                {{ $doklad->odberatel_nazev ?: '-' }}
+                @if ($doklad->odberatel_ico)
+                    <span style="color:#888; margin-left:0.5rem;">IČO: {{ $doklad->odberatel_ico }}</span>
+                @endif
+            </td>
+        </tr>
+        @endif
         <tr>
             <th>Adresát</th>
             <td>
                 @if (!$doklad->adresni)
-                    <span style="color: #95a5a6;">Neadresní doklad</span>
+                    <span style="color: #27ae60; font-weight: 600;">&#10003; Neadresní doklad</span>
                 @elseif ($doklad->overeno_adresat)
-                    <span style="color: #27ae60; font-weight: 600;">Adresováno na naši firmu</span>
+                    <span style="color: #27ae60; font-weight: 600;">&#10003; Adresováno na naši firmu</span>
                 @else
-                    <span style="color: #e74c3c; font-weight: 600;">Jiný adresát</span>
+                    <span style="color: #e74c3c; font-weight: 600;">&#9888; Jiný adresát</span>
                 @endif
             </td>
         </tr>

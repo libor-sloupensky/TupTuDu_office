@@ -339,6 +339,18 @@ jobs:
           } else {
             echo 'Migration: nahral already exists, skipping' . PHP_EOL;
           }
+
+          // Add odberatel columns to fak_doklady
+          \$colOdbNazev = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'odberatel_nazev'\")->fetchAll();
+          if (empty(\$colOdbNazev)) {
+            \$pdo->exec(\"ALTER TABLE fak_doklady
+              ADD COLUMN odberatel_ico VARCHAR(20) NULL AFTER dodavatel_nazev,
+              ADD COLUMN odberatel_nazev VARCHAR(255) NULL AFTER odberatel_ico
+            \");
+            echo 'Migration: added odberatel columns to fak_doklady' . PHP_EOL;
+          } else {
+            echo 'Migration: odberatel columns already exist, skipping' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment

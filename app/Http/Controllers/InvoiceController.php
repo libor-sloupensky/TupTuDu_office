@@ -140,6 +140,8 @@ class InvoiceController extends Controller
             'preview_original_ext' => $d->cesta_originalu ? strtolower(pathinfo($d->cesta_originalu, PATHINFO_EXTENSION)) : null,
             'adresni' => $d->adresni,
             'overeno_adresat' => $d->overeno_adresat,
+            'odberatel_ico' => $d->odberatel_ico,
+            'odberatel_nazev' => $d->odberatel_nazev,
             'chybova_zprava' => $d->chybova_zprava,
             'raw_ai_odpoved' => $d->raw_ai_odpoved,
             'created_at_full' => $d->created_at->format('d.m.Y H:i'),
@@ -164,6 +166,7 @@ class InvoiceController extends Controller
                     ->orWhere('nazev_souboru', 'like', "%{$q}%")
                     ->orWhere('dodavatel_ico', 'like', "%{$q}%")
                     ->orWhere('nahral', 'like', "%{$q}%")
+                    ->orWhere('odberatel_nazev', 'like', "%{$q}%")
                     ->orWhere('raw_text', 'like', "%{$q}%");
             });
         }
@@ -322,6 +325,12 @@ class InvoiceController extends Controller
                     } elseif ($doklad->duplicita_id) {
                         if ($status === 'ok') $status = 'warning';
                         $warnings[] = 'Možná duplicita (č. ' . ($doklad->cislo_dokladu ?: '?') . ')';
+                    }
+
+                    if ($doklad->adresni && !$doklad->overeno_adresat) {
+                        $status = 'error';
+                        $odberatel = $doklad->odberatel_nazev ?: ($doklad->odberatel_ico ?: 'neznámý');
+                        $warnings[] = "Doklad je adresován jinému odběrateli ({$odberatel})";
                     }
                 }
 
@@ -546,6 +555,8 @@ DOSTUPNÉ FILTRY (vrať POUZE tyto klíče):
 - datum_vystaveni_od, datum_vystaveni_do: datum vystavení od/do (YYYY-MM-DD)
 - datum_prijeti_od, datum_prijeti_do: datum přijetí od/do (YYYY-MM-DD)
 - datum_splatnosti_od, datum_splatnosti_do: datum splatnosti od/do (YYYY-MM-DD)
+- overeno_adresat: true/false (true = odběratel je naše firma, false = jiný odběratel)
+- odberatel_nazev: textový řetězec odběratele (hledá se částečně)
 - text: fulltext v raw_text dokladu
 - sort_by: created_at, datum_vystaveni, datum_prijeti, duzp, datum_splatnosti, castka_celkem
 - sort_dir: asc, desc
@@ -557,6 +568,7 @@ PRAVIDLA:
 - "od Alza" = dodavatel_nazev: "Alza"
 - "s chybou" = stav: chyba
 - "nekvalitní" = kvalita: nizka NEBO necitelna (použij kvalita: nizka)
+- "cizí doklady" / "jiný adresát" = overeno_adresat: false
 - "minulý měsíc" = vypočítej z dnešního data
 - Pokud uživatel nespecifikuje typ data, použij DUZP (duzp_od, duzp_do)
 - Vrať POUZE filtry, které odpovídají dotazu. Nepoužité filtry nevkládej.
@@ -680,6 +692,17 @@ PROMPT;
                     break;
                 case 'nahral':
                     $query->where('nahral', 'like', '%' . $value . '%');
+                    break;
+                case 'overeno_adresat':
+                    $boolVal = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                    if ($boolVal) {
+                        $query->where('overeno_adresat', true);
+                    } else {
+                        $query->where('adresni', true)->where('overeno_adresat', false);
+                    }
+                    break;
+                case 'odberatel_nazev':
+                    $query->where('odberatel_nazev', 'like', '%' . $value . '%');
                     break;
                 case 'text':
                     $query->where('raw_text', 'like', '%' . $value . '%');

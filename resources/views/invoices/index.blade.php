@@ -409,6 +409,7 @@ const COLUMNS = [
     { id: 'cislo',     label: 'Číslo',      tip: 'Číslo/variabilní symbol dokladu', sortable: false, editable: 'text', fixed: false, field: 'cislo_dokladu' },
     { id: 'dodavatel', label: 'Dodavatel',  tip: 'Název dodavatele/vystavitele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_nazev' },
     { id: 'ico',       label: 'IČ',         tip: 'IČO dodavatele', sortable: false, editable: 'text', fixed: false, field: 'dodavatel_ico' },
+    { id: 'adresat',   label: 'Adresát',    tip: 'Ověření odběratele', sortable: false, editable: false, fixed: false, field: null },
     { id: 'castka',    label: 'Částka',      tip: 'Celková částka s DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_celkem' },
     { id: 'mena',      label: 'Měna',       tip: 'Měna dokladu', sortable: false, editable: 'text', fixed: false, field: 'mena' },
     { id: 'dph',       label: 'DPH',        tip: 'Částka DPH', sortable: false, editable: 'text', fixed: false, field: 'castka_dph' },
@@ -500,6 +501,14 @@ function cellValue(d, colId) {
         }
         case 'dodavatel': return d.dodavatel_nazev || '-';
         case 'ico': return d.dodavatel_ico || '-';
+        case 'adresat': {
+            if (!d.adresni) return '<span style="color:#27ae60" title="Neadresní doklad">&#10003;</span>';
+            if (d.overeno_adresat) return '<span style="color:#27ae60" title="Odběratel = naše firma">&#10003;</span>';
+            let adTip = 'Doklad je adresován jinému odběrateli!';
+            if (d.odberatel_nazev) adTip += '\nOdběratel: ' + d.odberatel_nazev;
+            if (d.odberatel_ico) adTip += '\nIČO: ' + d.odberatel_ico;
+            return '<span style="color:#e74c3c;font-weight:600" title="'+adTip.replace(/"/g,'&quot;')+'">&#9888;</span>';
+        }
         case 'castka': return d.castka_celkem ? Number(d.castka_celkem).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
         case 'mena': return d.mena || '-';
         case 'dph': return d.castka_dph ? Number(d.castka_dph).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
@@ -610,13 +619,15 @@ function toggleDetail(id, btn) {
         nazev_souboru: 'Soubor', stav: 'Stav', typ_dokladu: 'Typ dokladu', kvalita: 'Kvalita',
         kvalita_poznamka: 'Poznámka ke kvalitě',
         dodavatel_nazev: 'Dodavatel', dodavatel_ico: 'IČO dodavatele',
+        odberatel_nazev: 'Odběratel', odberatel_ico: 'IČO odběratele', adresat_overeni: 'Ověření adresáta',
         cislo_dokladu: 'Číslo dokladu', datum_vystaveni: 'Datum vystavení', datum_prijeti: 'Datum příjetí',
         duzp: 'DUZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celková částka', mena: 'Měna',
         castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', nahral: 'Nahrál',
         created_at_full: 'Nahráno', chybova_zprava: 'Chyba'
     };
     const fields = ['nazev_souboru','stav','typ_dokladu','kvalita','kvalita_poznamka',
-        'dodavatel_nazev','dodavatel_ico','cislo_dokladu',
+        'dodavatel_nazev','dodavatel_ico','odberatel_nazev','odberatel_ico','adresat_overeni',
+        'cislo_dokladu',
         'datum_vystaveni','datum_prijeti','duzp','datum_splatnosti','castka_celkem','mena',
         'castka_dph','kategorie','zdroj','nahral','created_at_full','chybova_zprava'];
 
@@ -639,6 +650,11 @@ function toggleDetail(id, btn) {
             else if (val === 'necitelna') val = '<span class="stav-chyba">Nečitelná</span>';
         }
         if (f === 'zdroj') val = val === 'email' ? 'Email' : 'Ruční nahrání';
+        if (f === 'adresat_overeni') {
+            if (!d.adresni) val = '<span style="color:#27ae60">&#10003; Neadresní doklad</span>';
+            else if (d.overeno_adresat) val = '<span style="color:#27ae60">&#10003; Adresováno na naši firmu</span>';
+            else val = '<span style="color:#e74c3c;font-weight:600">&#9888; Jiný adresát</span>';
+        }
         if ((f === 'castka_celkem' || f === 'castka_dph') && val !== '-') {
             val = Number(val).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + (d.mena || '');
         }

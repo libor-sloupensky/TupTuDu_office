@@ -354,16 +354,24 @@ class DokladProcessor
         }
 
         // Ověření adresáta
-        $adresni = !empty($dodavatelIco);
+        $odberatelIco = $docData['odberatel_ico'] ?? null;
+        $odberatelNazev = $docData['odberatel_nazev'] ?? null;
+
+        $adresni = !empty($odberatelIco) || !empty($odberatelNazev);
         $overenoAdresat = false;
         if ($adresni) {
-            $odberatelIco = $docData['odberatel_ico'] ?? null;
-            $overenoAdresat = $odberatelIco === $firma->ico;
+            if (!empty($odberatelIco) && $odberatelIco === $firma->ico) {
+                $overenoAdresat = true;
+            } elseif (empty($odberatelIco) && !empty($odberatelNazev) && !empty($firma->nazev)) {
+                $overenoAdresat = $this->matchFirmName($odberatelNazev, $firma->nazev);
+            }
         }
 
         $doklad->update([
             'dodavatel_ico' => $dodavatelIco,
             'dodavatel_nazev' => $docData['dodavatel_nazev'] ?? null,
+            'odberatel_ico' => $odberatelIco,
+            'odberatel_nazev' => $odberatelNazev,
             'cislo_dokladu' => $cisloDokladu,
             'duplicita_id' => $duplicitaId,
             'datum_vystaveni' => $docData['datum_vystaveni'] ?? null,
@@ -381,6 +389,42 @@ class DokladProcessor
         ]);
 
         return $doklad->fresh();
+    }
+
+    private function matchFirmName(string $documentName, string $firmName): bool
+    {
+        $normalize = function (string $s): string {
+            $s = mb_strtolower($s);
+            $s = preg_replace('/\b(s\.?\s*r\.?\s*o\.?|a\.?\s*s\.?|v\.?\s*o\.?\s*s\.?|k\.?\s*s\.?|spol\.\s*s\s*r\.?\s*o\.?|z\.?\s*s\.?)\b/u', '', $s);
+            $s = preg_replace('/[^\p{L}\p{N}\s]/u', '', $s);
+            $s = preg_replace('/\s+/', ' ', trim($s));
+            return $s;
+        };
+
+        $a = $normalize($documentName);
+        $b = $normalize($firmName);
+
+        if ($a === '' || $b === '') {
+            return false;
+        }
+        if ($a === $b) {
+            return true;
+        }
+        if (str_contains($a, $b) || str_contains($b, $a)) {
+            return true;
+        }
+
+        $lenA = mb_strlen($a);
+        $lenB = mb_strlen($b);
+        if (abs($lenA - $lenB) <= 3) {
+            $dist = levenshtein($a, $b);
+            $maxLen = max($lenA, $lenB);
+            if ($dist <= max(2, (int) ($maxLen * 0.15))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -559,6 +603,7 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
       "dodavatel_ico": "12345678",
       "dodavatel_dic": "CZ12345678",
       "odberatel_ico": "IČO odběratele",
+      "odberatel_nazev": "název odběratele/příjemce",
       "cislo_dokladu": "číslo faktury/dokladu",
       "datum_vystaveni": "YYYY-MM-DD",
       "duzp": "YYYY-MM-DD",
@@ -573,7 +618,10 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
 
 DŮLEŽITÁ PRAVIDLA:
 - KRITICKÉ: Na naskenované stránce bývá VÍCE samostatných dokladů! Pokud vidíš 2 nebo více účtenek, paragonů nebo faktur na jedné stránce (vedle sebe, nad sebou, nalepené na papíru), MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Typický sken A4 obsahuje 2-4 účtenky. Nestačí je sloučit do jednoho záznamu!
-- U neadresních dokladů (účtenky, paragony bez IČO odběratele) bude odberatel_ico null
+- ODBĚRATEL (příjemce/kupující): Hledej sekci odběratele na dokladu. Na českých dokladech bývá označen jako: Odběratel, Příjemce, Kupující, Zákazník, Fakturační údaje, Fakturovat na, Klient, Objednatel. Na fakturách je typicky v pravém sloupci (dodavatel vlevo, odběratel vpravo). Pokud najdeš sekci odběratele, vyplň odberatel_ico a/nebo odberatel_nazev. Pokud žádná sekce odběratele NENÍ (účtenka, paragon, pokladní doklad), ponech OBĚ pole jako null.
+- odberatel_nazev: název firmy/osoby odběratele PŘESNĚ jak je uveden na dokladu
+- odberatel_ico: pouze číslice. Pokud odběratel existuje ale IČO není uvedeno, ponech null a vyplň alespoň odberatel_nazev.
+- U neadresních dokladů (účtenky, paragony bez odběratele) budou odberatel_ico i odberatel_nazev null
 - Pokud je doklad v cizí měně, uveď správnou měnu (EUR, USD, GBP, PLN atd.)
 - Pokud údaj nelze z dokumentu zjistit, použij null - nikdy nevymýšlej data
 - castka_celkem = celková částka K ÚHRADĚ (včetně DPH)
