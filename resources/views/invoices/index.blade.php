@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Doklady')
+{{-- v1.4 --}}
 
 @section('styles')
 <style>
