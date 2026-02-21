@@ -99,10 +99,11 @@ return [
 
         'doklady' => [
             'transport' => 'smtp',
+            'scheme' => env('MAIL_SCHEME'),
             'host' => env('MAIL_HOST', 'mailproxy.webglobe.cz'),
             'port' => env('MAIL_PORT', 587),
-            'username' => env('IMAP_SYSTEM_USERNAME', 'faktury@tuptudu.cz'),
-            'password' => env('IMAP_SYSTEM_PASSWORD'),
+            'username' => env('MAIL_USERNAME'),
+            'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
