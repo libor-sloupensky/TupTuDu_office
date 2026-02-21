@@ -34,7 +34,8 @@ Route::get('/cron/{token}', function (string $token) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('doklady:process-email');
-    return response('OK', 200);
+    $output = Illuminate\Support\Facades\Artisan::output();
+    return response($output, 200)->header('Content-Type', 'text/plain');
 })->middleware('throttle:6,1');
 
 // --- Žádost o přístup k firmě (bez auth, throttle) ---
