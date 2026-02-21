@@ -72,7 +72,28 @@ class ProcessEmailDoklady extends Command
             $processed = 0;
 
             foreach ($messages as $message) {
-                $processed += $this->handleSystemMessage($message, $processor);
+                try {
+                    $processed += $this->handleSystemMessage($message, $processor);
+                } catch (\Throwable $e) {
+                    $this->error("  Chyba zprávy: {$e->getMessage()}");
+                    Log::error('ProcessEmailDoklady: message error', ['error' => $e->getMessage()]);
+
+                    // Pokusit se odeslat chybovou odpověď odesílateli
+                    $senderEmail = $this->extractSenderEmail($message);
+                    if ($senderEmail) {
+                        $ico = $this->extractIcoFromRecipients($message);
+                        $subject = '';
+                        try { $subject = $message->getSubject()?->toString() ?? ''; } catch (\Throwable $ex) {}
+                        $analysis = $this->buildAnalysis(
+                            icoFound: !empty($ico),
+                            firmaFound: false,
+                            ico: $ico,
+                            errors: ['Interní chyba při zpracování emailu'],
+                        );
+                        $this->tryAutoReply($analysis, $senderEmail, $ico ?: 'faktury', $subject);
+                    }
+                    $message->setFlag('Seen');
+                }
             }
 
             $client->disconnect();
