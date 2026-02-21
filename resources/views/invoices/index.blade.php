@@ -104,8 +104,6 @@
     .badge-dup { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; background: #fff3cd; color: #856404; font-size: 0.65rem; font-weight: 600; margin-left: 0.2rem; vertical-align: middle; }
     .btn-del-sm { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.4rem; line-height: 1; }
     .btn-del-sm:hover { color: #e74c3c; }
-    .btn-preview { color: #95a5a6; text-decoration: none; font-size: 0.85rem; }
-    .btn-preview:hover { color: #3498db; text-decoration: none; }
 
     .expand-btn { background: none; border: none; cursor: pointer; color: #95a5a6; font-size: 0.7rem; padding: 0; line-height: 1; }
     .expand-btn:hover { color: #555; }
@@ -414,7 +412,6 @@ function updateNotifHeader() {
 // ===== Column definitions =====
 const COLUMNS = [
     { id: 'expand',    label: '',           tip: null, sortable: false, editable: false, fixed: true,  field: null },
-    { id: 'nahled',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
     { id: 'nahrano',   label: 'Nahráno',    tip: 'Datum a čas vložení do systému', sortable: 'created_at', editable: false, fixed: false, field: null },
     { id: 'cas_nahrani', label: 'Čas',      tip: 'Čas nahrání dokladu', sortable: false, editable: false, fixed: false, field: null },
     { id: 'datum_prijeti', label: 'Příjetí', tip: 'Datum příjetí dokladu do účetnictví', sortable: 'datum_prijeti', editable: 'date', fixed: false, field: 'datum_prijeti' },
@@ -438,8 +435,8 @@ const COLUMNS = [
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
 
-const DEFAULT_VISIBLE = ['expand','nahled','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
-const FIXED_COLS = ['expand','nahled','smazat'];
+const DEFAULT_VISIBLE = ['expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
+const FIXED_COLS = ['expand','smazat'];
 
 function loadPref(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
 function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -503,12 +500,6 @@ function cellValue(d, colId) {
         case 'vystaveni': return d.datum_vystaveni || '-';
         case 'splatnost': return d.datum_splatnosti || '-';
         case 'cislo': return escHtml(d.cislo_dokladu || d.nazev_souboru) + (d.duplicita_id ? '<span class="badge-dup" title="Možná duplicita">DUP</span>' : '');
-        case 'nahled': {
-            var url = d.preview_original_url || d.preview_url;
-            var ext = d.preview_original_url ? d.preview_original_ext : d.preview_ext;
-            if (url) return '<a href="#" class="btn-preview" title="Náhled" onclick="openPreview(\''+url+'\',\''+ext+'\');return false;">&#128196;</a>';
-            return '';
-        }
         case 'dodavatel': return d.dodavatel_nazev || '-';
         case 'ico': return d.dodavatel_ico || '-';
         case 'adresat': {
@@ -554,22 +545,6 @@ function cellValue(d, colId) {
     }
 }
 
-function editRawValue(d, colId) {
-    switch(colId) {
-        case 'datum_prijeti': return d.datum_prijeti_raw || '';
-        case 'duzp': return d.duzp_raw || '';
-        case 'vystaveni': return d.datum_vystaveni_raw || '';
-        case 'splatnost': return d.datum_splatnosti_raw || '';
-        case 'cislo': return d.cislo_dokladu || '';
-        case 'dodavatel': return d.dodavatel_nazev || '';
-        case 'ico': return d.dodavatel_ico || '';
-        case 'castka': return d.castka_celkem || '';
-        case 'mena': return d.mena || '';
-        case 'dph': return d.castka_dph || '';
-        case 'kategorie': return d.kategorie || '';
-        default: return '';
-    }
-}
 
 // ===== Render table =====
 function renderTable() {
@@ -603,12 +578,8 @@ function renderTable() {
     dokladyData.forEach(d => {
         html += '<tr data-id="'+d.id+'">';
         cols.forEach(colId => {
-            const c = getColDef(colId);
             const align = colId === 'castka' ? ' class="amount"' : '';
-            const canEdit = c.editable && permUpravovat;
-            const editCls = canEdit ? ' class="editable"' : '';
-            const editIcon = canEdit ? '<span class="edit-icon" onclick="startEdit(this,'+d.id+',\''+colId+'\')">&#9998;</span>' : '';
-            html += '<td data-col="'+colId+'"'+align+editCls+'><span class="cell-val">'+cellValue(d, colId)+'</span>'+editIcon+'</td>';
+            html += '<td data-col="'+colId+'"'+align+'>'+cellValue(d, colId)+'</td>';
         });
         html += '</tr>';
     });
@@ -617,6 +588,72 @@ function renderTable() {
 
     container.innerHTML = html;
     initDragDrop();
+}
+
+// ===== Detail field config =====
+const EDITABLE_FIELDS = {
+    dodavatel_nazev: 'text', dodavatel_ico: 'text', cislo_dokladu: 'text',
+    castka_celkem: 'text', castka_dph: 'text', mena: 'text',
+    datum_vystaveni: 'date', datum_splatnosti: 'date', datum_prijeti: 'date', duzp: 'date',
+    kategorie: 'select',
+};
+
+const DETAIL_LABELS = {
+    stav:'Stav', typ_dokladu:'Typ', dodavatel_nazev:'Dodavatel', dodavatel_ico:'IČO dodavatele',
+    cislo_dokladu:'Číslo dokladu', castka_celkem:'Celková částka', castka_dph:'DPH',
+    datum_vystaveni:'Vystavení', datum_splatnosti:'Splatnost', kategorie:'Kategorie',
+    kvalita:'Kvalita', kvalita_poznamka:'Poznámka ke kvalitě',
+    odberatel_nazev:'Odběratel', odberatel_ico:'IČO odběratele', adresat_overeni:'Ověření adresáta',
+    datum_prijeti:'Datum příjetí', duzp:'DUZP', mena:'Měna',
+    zdroj:'Zdroj', nahral:'Nahrál', nazev_souboru:'Soubor',
+    created_at_full:'Nahráno', chybova_zprava:'Chyba'
+};
+
+function fmtVal(f, d) {
+    let val = d[f];
+    if (val === null || val === undefined || val === '') return '-';
+    if (f === 'stav') {
+        if (val === 'dokonceno') {
+            if (d.adresni && !d.overeno_adresat) return '<span class="stav-chyba">Jiný odběratel</span>';
+            return '<span class="stav-dokonceno">V pořádku</span>';
+        }
+        if (val === 'nekvalitni') {
+            var s = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
+            return '<span class="'+(s ? 'stav-chyba' : 'stav-nekvalitni')+'">Nekvalitní</span>';
+        }
+        if (val === 'chyba') return '<span class="stav-chyba">Chyba</span>';
+        return val;
+    }
+    if (f === 'typ_dokladu') {
+        const t = {faktura:'Faktura',uctenka:'Účtenka',pokladni_doklad:'Pokladní doklad',dobropis:'Dobropis',zalohova_faktura:'Zálohová faktura',pokuta:'Pokuta',jine:'Jiné'};
+        return t[val] || val;
+    }
+    if (f === 'kvalita') {
+        if (val === 'dobra') return 'Dobrá';
+        if (val === 'nizka') return '<span class="stav-nekvalitni">Nízká</span>';
+        if (val === 'necitelna') return '<span class="stav-chyba">Nečitelná</span>';
+        return val;
+    }
+    if (f === 'zdroj') return val === 'email' ? 'Email' : 'Ruční nahrání';
+    if (f === 'adresat_overeni') {
+        if (!d.adresni) return '<span style="color:#27ae60">&#10003; Neadresní doklad</span>';
+        if (d.overeno_adresat) return '<span style="color:#27ae60">&#10003; Adresováno na naši firmu</span>';
+        return '<span style="color:#e74c3c;font-weight:600">&#9888; Jiný adresát</span>';
+    }
+    if ((f === 'castka_celkem' || f === 'castka_dph') && val !== '-') {
+        return Number(val).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + (d.mena || '');
+    }
+    return escHtml(String(val));
+}
+
+function buildRows(fields, d) {
+    return fields.map(f => {
+        const editType = EDITABLE_FIELDS[f];
+        const canEdit = editType && permUpravovat;
+        const editCls = canEdit ? ' class="editable"' : '';
+        const editIcon = canEdit ? '<span class="edit-icon" onclick="startDetailEdit(this,'+d.id+',\''+f+'\',\''+editType+'\')">&#9998;</span>' : '';
+        return '<tr><th>'+DETAIL_LABELS[f]+'</th><td'+editCls+'><span class="cell-val">'+fmtVal(f, d)+'</span>'+editIcon+'</td></tr>';
+    }).join('');
 }
 
 // ===== Expand detail row =====
@@ -635,59 +672,6 @@ function toggleDetail(id, btn) {
     const colCount = getOrderedVisible().length;
     const detailTr = document.createElement('tr');
     detailTr.className = 'detail-row';
-
-    // === Helper: format field value ===
-    function fmtVal(f, d) {
-        let val = d[f];
-        if (val === null || val === undefined || val === '') return '-';
-        if (f === 'stav') {
-            if (val === 'dokonceno') {
-                if (d.adresni && !d.overeno_adresat) return '<span class="stav-chyba">Jiný odběratel</span>';
-                return '<span class="stav-dokonceno">V pořádku</span>';
-            }
-            if (val === 'nekvalitni') {
-                var s = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
-                return '<span class="'+(s ? 'stav-chyba' : 'stav-nekvalitni')+'">Nekvalitní</span>';
-            }
-            if (val === 'chyba') return '<span class="stav-chyba">Chyba</span>';
-            return val;
-        }
-        if (f === 'typ_dokladu') {
-            const t = {faktura:'Faktura',uctenka:'Účtenka',pokladni_doklad:'Pokladní doklad',dobropis:'Dobropis',zalohova_faktura:'Zálohová faktura',pokuta:'Pokuta',jine:'Jiné'};
-            return t[val] || val;
-        }
-        if (f === 'kvalita') {
-            if (val === 'dobra') return 'Dobrá';
-            if (val === 'nizka') return '<span class="stav-nekvalitni">Nízká</span>';
-            if (val === 'necitelna') return '<span class="stav-chyba">Nečitelná</span>';
-            return val;
-        }
-        if (f === 'zdroj') return val === 'email' ? 'Email' : 'Ruční nahrání';
-        if (f === 'adresat_overeni') {
-            if (!d.adresni) return '<span style="color:#27ae60">&#10003; Neadresní doklad</span>';
-            if (d.overeno_adresat) return '<span style="color:#27ae60">&#10003; Adresováno na naši firmu</span>';
-            return '<span style="color:#e74c3c;font-weight:600">&#9888; Jiný adresát</span>';
-        }
-        if ((f === 'castka_celkem' || f === 'castka_dph') && val !== '-') {
-            return Number(val).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + (d.mena || '');
-        }
-        return escHtml(String(val));
-    }
-
-    function buildRows(fields, labels, d) {
-        return fields.map(f => '<tr><th>'+labels[f]+'</th><td>'+fmtVal(f, d)+'</td></tr>').join('');
-    }
-
-    const labels = {
-        stav:'Stav', typ_dokladu:'Typ', dodavatel_nazev:'Dodavatel', dodavatel_ico:'IČO dodavatele',
-        cislo_dokladu:'Číslo dokladu', castka_celkem:'Celková částka', castka_dph:'DPH',
-        datum_vystaveni:'Vystavení', datum_splatnosti:'Splatnost', kategorie:'Kategorie',
-        kvalita:'Kvalita', kvalita_poznamka:'Poznámka ke kvalitě',
-        odberatel_nazev:'Odběratel', odberatel_ico:'IČO odběratele', adresat_overeni:'Ověření adresáta',
-        datum_prijeti:'Datum příjetí', duzp:'DUZP', mena:'Měna',
-        zdroj:'Zdroj', nahral:'Nahrál', nazev_souboru:'Soubor',
-        created_at_full:'Nahráno', chybova_zprava:'Chyba'
-    };
 
     // Right column: main info
     const mainFields = ['stav','typ_dokladu','dodavatel_nazev','dodavatel_ico',
@@ -712,32 +696,31 @@ function toggleDetail(id, btn) {
     // === Assemble ===
     let inner = '<div class="detail-top">';
     inner += previewHtml;
-    inner += '<div class="detail-info"><table>' + buildRows(mainFields, labels, d) + '</table>';
+    inner += '<div class="detail-info"><table>' + buildRows(mainFields, d) + '</table>';
     if (d.download_url) {
         inner += '<div class="detail-actions"><a href="'+d.download_url+'" class="btn-detail-download">Stáhnout</a></div>';
     }
     inner += '</div></div>';
-    inner += '<div class="detail-extra"><table>' + buildRows(extraFields, labels, d) + '</table></div>';
+    inner += '<div class="detail-extra"><table>' + buildRows(extraFields, d) + '</table></div>';
 
     detailTr.innerHTML = '<td colspan="'+colCount+'"><div class="detail-inner">'+inner+'</div></td>';
     tr.after(detailTr);
 }
 
-// ===== Inline edit =====
-function startEdit(icon, id, colId) {
+// ===== Detail inline edit =====
+function startDetailEdit(icon, id, field, editType) {
     const td = icon.closest('td');
     if (td.querySelector('.edit-input')) return;
     const d = dokladyData.find(x => x.id === id);
-    const c = getColDef(colId);
-    const rawVal = editRawValue(d, colId);
-
+    if (!d) return;
+    const rawVal = editType === 'date' ? (d[field + '_raw'] || '') : (d[field] || '');
     const valSpan = td.querySelector('.cell-val');
     const editSpan = td.querySelector('.edit-icon');
     valSpan.style.display = 'none';
     if (editSpan) editSpan.style.display = 'none';
 
     let input;
-    if (c.editable === 'select') {
+    if (editType === 'select') {
         input = document.createElement('select');
         input.className = 'edit-input';
         const emptyOpt = document.createElement('option');
@@ -754,7 +737,7 @@ function startEdit(icon, id, colId) {
     } else {
         input = document.createElement('input');
         input.className = 'edit-input';
-        input.type = c.editable === 'date' ? 'date' : 'text';
+        input.type = editType === 'date' ? 'date' : 'text';
         input.value = rawVal;
     }
     td.appendChild(input);
@@ -770,18 +753,18 @@ function startEdit(icon, id, colId) {
         fetch(d.update_url, {
             method: 'PATCH',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},
-            body: JSON.stringify({field: c.field, value: newVal || null})
+            body: JSON.stringify({field: field, value: newVal || null})
         }).then(r => r.json()).then(res => {
             if (res.ok) {
-                if (c.editable === 'date' && newVal) {
+                if (editType === 'date' && newVal) {
                     const parts = newVal.split('-');
-                    d[colId === 'vystaveni' ? 'datum_vystaveni' : colId === 'splatnost' ? 'datum_splatnosti' : colId] = parts[2]+'.'+parts[1]+'.'+parts[0].slice(2);
-                    d[(colId === 'vystaveni' ? 'datum_vystaveni' : colId === 'splatnost' ? 'datum_splatnosti' : colId) + '_raw'] = newVal;
+                    d[field] = parts[2]+'.'+parts[1]+'.'+parts[0].slice(2);
+                    d[field + '_raw'] = newVal;
                 } else {
-                    const keyMap = {dodavatel_nazev:'dodavatel_nazev', dodavatel_ico:'dodavatel_ico', cislo_dokladu:'cislo_dokladu', castka_celkem:'castka_celkem', mena:'mena', castka_dph:'castka_dph', kategorie:'kategorie'};
-                    if (keyMap[c.field]) d[keyMap[c.field]] = newVal;
+                    d[field] = newVal;
                 }
-                valSpan.innerHTML = cellValue(d, colId);
+                valSpan.innerHTML = fmtVal(field, d);
+                updateTableRow(d);
             }
         }).catch(() => {});
     }
@@ -789,10 +772,23 @@ function startEdit(icon, id, colId) {
     function cancel() { input.remove(); valSpan.style.display = ''; if (editSpan) editSpan.style.display = ''; }
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') cancel(); });
-    if (c.editable === 'select') {
-        input.addEventListener('change', save);
-    }
+    if (editType === 'select') input.addEventListener('change', save);
     input.addEventListener('blur', save);
+}
+
+function updateTableRow(d) {
+    const tr = document.querySelector('tr[data-id="'+d.id+'"]');
+    if (!tr) return;
+    const cols = getOrderedVisible();
+    const tds = tr.querySelectorAll('td');
+    tds.forEach((td, i) => {
+        if (i < cols.length) {
+            const colId = cols[i];
+            if (colId !== 'expand' && colId !== 'smazat') {
+                td.innerHTML = cellValue(d, colId);
+            }
+        }
+    });
 }
 
 // ===== Drag & Drop column reorder =====
