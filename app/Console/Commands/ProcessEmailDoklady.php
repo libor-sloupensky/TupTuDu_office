@@ -276,7 +276,7 @@ class ProcessEmailDoklady extends Command
             }
         }
 
-        return compact('processedOk', 'errors', 'duplicates');
+        return ['processed_ok' => $processedOk, 'errors' => $errors, 'duplicates' => $duplicates];
     }
 
     /**
