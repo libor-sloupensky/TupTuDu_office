@@ -38,6 +38,21 @@ Route::get('/cron/{token}', function (string $token) {
     return response($output, 200)->header('Content-Type', 'text/plain');
 })->middleware('throttle:6,1');
 
+// --- Dočasný test odchozí pošty ---
+Route::get('/test-mail/{token}', function (string $token) {
+    if ($token !== 'f8k2Ld9xQm4vR7nW') {
+        abort(404);
+    }
+    try {
+        Illuminate\Support\Facades\Mail::mailer('doklady')
+            ->to('libor@sloupensky.net')
+            ->send(new App\Mail\OdpovedNaDoklad('Toto je testovací email z TupTuDu.', 'Test'));
+        return response("OK - email odeslán", 200)->header('Content-Type', 'text/plain');
+    } catch (\Throwable $e) {
+        return response("CHYBA: " . $e->getMessage(), 200)->header('Content-Type', 'text/plain');
+    }
+});
+
 // --- Žádost o přístup k firmě (bez auth, throttle) ---
 Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->middleware('throttle:3,60')->name('firma.zadostOPristup');
 
