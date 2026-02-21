@@ -111,9 +111,23 @@
     .expand-btn:hover { color: #555; }
     .detail-row td { padding: 0; background: #fafbfc; }
     .detail-inner { padding: 0.75rem 1rem 0.75rem 2rem; }
-    .detail-inner table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    .detail-inner th { text-align: left; padding: 0.3rem 0.6rem; color: #777; font-weight: 600; width: 140px; background: transparent; border-bottom: 1px solid #eee; border-right: none; }
-    .detail-inner td { padding: 0.3rem 0.6rem; border-bottom: 1px solid #eee; border-right: none; }
+    .detail-top { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
+    .detail-preview { flex: 0 0 45%; max-height: 450px; overflow: hidden; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
+    .detail-preview iframe { width: 100%; height: 450px; border: none; pointer-events: none; }
+    .detail-preview img { width: 100%; height: auto; display: block; }
+    .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
+    .detail-info { flex: 1; min-width: 0; }
+    .detail-info table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .detail-info th { text-align: left; padding: 0.3rem 0.6rem; color: #777; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #eee; border-right: none; }
+    .detail-info td { padding: 0.3rem 0.6rem; border-bottom: 1px solid #eee; border-right: none; }
+    .detail-extra { border-top: 1px solid #e0e0e0; padding-top: 0.75rem; margin-top: 0.25rem; }
+    .detail-extra table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .detail-extra th { text-align: left; padding: 0.25rem 0.6rem; color: #999; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #f0f0f0; border-right: none; }
+    .detail-extra td { padding: 0.25rem 0.6rem; border-bottom: 1px solid #f0f0f0; border-right: none; }
+    .detail-actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
+    .detail-actions a { font-size: 0.8rem; padding: 0.3rem 0.7rem; border-radius: 4px; text-decoration: none; }
+    .btn-detail-download { background: #3498db; color: white; }
+    .btn-detail-download:hover { background: #2980b9; color: white; }
 
     .editable { position: relative; cursor: default; }
     .edit-icon { color: #ccc; font-size: 0.65rem; margin-left: 0.3rem; visibility: hidden; cursor: pointer; }
@@ -488,17 +502,12 @@ function cellValue(d, colId) {
         case 'duzp': return d.duzp || '-';
         case 'vystaveni': return d.datum_vystaveni || '-';
         case 'splatnost': return d.datum_splatnosti || '-';
-        case 'cislo': return '<a href="'+d.show_url+'">'+(d.cislo_dokladu || d.nazev_souboru)+'</a>' + (d.duplicita_id ? '<span class="badge-dup" title="Možná duplicita">DUP</span>' : '');
+        case 'cislo': return escHtml(d.cislo_dokladu || d.nazev_souboru) + (d.duplicita_id ? '<span class="badge-dup" title="Možná duplicita">DUP</span>' : '');
         case 'nahled': {
-            var ph = '';
-            if (d.preview_original_url) {
-                ph += '<a href="#" class="btn-preview" title="Originál" onclick="openPreview(\''+d.preview_original_url+'\',\''+d.preview_original_ext+'\');return false;">&#128196;</a>';
-                ph += '<br>';
-                ph += '<a href="#" class="btn-preview" title="Vylepšeno" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>';
-            } else if (d.preview_url) {
-                ph += '<a href="#" class="btn-preview" title="Náhled" onclick="openPreview(\''+d.preview_url+'\',\''+d.preview_ext+'\');return false;">&#128065;</a>';
-            }
-            return ph;
+            var url = d.preview_original_url || d.preview_url;
+            var ext = d.preview_original_url ? d.preview_original_ext : d.preview_ext;
+            if (url) return '<a href="#" class="btn-preview" title="Náhled" onclick="openPreview(\''+url+'\',\''+ext+'\');return false;">&#128196;</a>';
+            return '';
         }
         case 'dodavatel': return d.dodavatel_nazev || '-';
         case 'ico': return d.dodavatel_ico || '-';
@@ -627,58 +636,88 @@ function toggleDetail(id, btn) {
     const detailTr = document.createElement('tr');
     detailTr.className = 'detail-row';
 
-    const labels = {
-        nazev_souboru: 'Soubor', stav: 'Stav', typ_dokladu: 'Typ dokladu', kvalita: 'Kvalita',
-        kvalita_poznamka: 'Poznámka ke kvalitě',
-        dodavatel_nazev: 'Dodavatel', dodavatel_ico: 'IČO dodavatele',
-        odberatel_nazev: 'Odběratel', odberatel_ico: 'IČO odběratele', adresat_overeni: 'Ověření adresáta',
-        cislo_dokladu: 'Číslo dokladu', datum_vystaveni: 'Datum vystavení', datum_prijeti: 'Datum příjetí',
-        duzp: 'DUZP', datum_splatnosti: 'Datum splatnosti', castka_celkem: 'Celková částka', mena: 'Měna',
-        castka_dph: 'DPH', kategorie: 'Kategorie', zdroj: 'Zdroj', nahral: 'Nahrál',
-        created_at_full: 'Nahráno', chybova_zprava: 'Chyba'
-    };
-    const fields = ['nazev_souboru','stav','typ_dokladu','kvalita','kvalita_poznamka',
-        'dodavatel_nazev','dodavatel_ico','odberatel_nazev','odberatel_ico','adresat_overeni',
-        'cislo_dokladu',
-        'datum_vystaveni','datum_prijeti','duzp','datum_splatnosti','castka_celkem','mena',
-        'castka_dph','kategorie','zdroj','nahral','created_at_full','chybova_zprava'];
-
-    let inner = '<table>';
-    fields.forEach(f => {
+    // === Helper: format field value ===
+    function fmtVal(f, d) {
         let val = d[f];
-        if (val === null || val === undefined || val === '') val = '-';
+        if (val === null || val === undefined || val === '') return '-';
         if (f === 'stav') {
             if (val === 'dokonceno') {
-                if (d.adresni && !d.overeno_adresat) val = '<span class="stav-chyba">Jiný odběratel</span>';
-                else val = '<span class="stav-dokonceno">V pořádku</span>';
+                if (d.adresni && !d.overeno_adresat) return '<span class="stav-chyba">Jiný odběratel</span>';
+                return '<span class="stav-dokonceno">V pořádku</span>';
             }
-            else if (val === 'nekvalitni') {
-                var dtSerious = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
-                val = '<span class="'+(dtSerious ? 'stav-chyba' : 'stav-nekvalitni')+'">Nekvalitní</span>';
+            if (val === 'nekvalitni') {
+                var s = d.kvalita === 'necitelna' || (d.kvalita_poznamka && d.kvalita_poznamka.indexOf('Více dokladů') !== -1);
+                return '<span class="'+(s ? 'stav-chyba' : 'stav-nekvalitni')+'">Nekvalitní</span>';
             }
-            else if (val === 'chyba') val = '<span class="stav-chyba">Chyba</span>';
+            if (val === 'chyba') return '<span class="stav-chyba">Chyba</span>';
+            return val;
         }
         if (f === 'typ_dokladu') {
-            const typL = {faktura:'Faktura', uctenka:'Účtenka', pokladni_doklad:'Pokladní doklad', dobropis:'Dobropis', zalohova_faktura:'Zálohová faktura', pokuta:'Pokuta', jine:'Jiné'};
-            val = typL[val] || val || '-';
+            const t = {faktura:'Faktura',uctenka:'Účtenka',pokladni_doklad:'Pokladní doklad',dobropis:'Dobropis',zalohova_faktura:'Zálohová faktura',pokuta:'Pokuta',jine:'Jiné'};
+            return t[val] || val;
         }
         if (f === 'kvalita') {
-            if (val === 'dobra') val = 'Dobrá';
-            else if (val === 'nizka') val = '<span class="stav-nekvalitni">Nízká</span>';
-            else if (val === 'necitelna') val = '<span class="stav-chyba">Nečitelná</span>';
+            if (val === 'dobra') return 'Dobrá';
+            if (val === 'nizka') return '<span class="stav-nekvalitni">Nízká</span>';
+            if (val === 'necitelna') return '<span class="stav-chyba">Nečitelná</span>';
+            return val;
         }
-        if (f === 'zdroj') val = val === 'email' ? 'Email' : 'Ruční nahrání';
+        if (f === 'zdroj') return val === 'email' ? 'Email' : 'Ruční nahrání';
         if (f === 'adresat_overeni') {
-            if (!d.adresni) val = '<span style="color:#27ae60">&#10003; Neadresní doklad</span>';
-            else if (d.overeno_adresat) val = '<span style="color:#27ae60">&#10003; Adresováno na naši firmu</span>';
-            else val = '<span style="color:#e74c3c;font-weight:600">&#9888; Jiný adresát</span>';
+            if (!d.adresni) return '<span style="color:#27ae60">&#10003; Neadresní doklad</span>';
+            if (d.overeno_adresat) return '<span style="color:#27ae60">&#10003; Adresováno na naši firmu</span>';
+            return '<span style="color:#e74c3c;font-weight:600">&#9888; Jiný adresát</span>';
         }
         if ((f === 'castka_celkem' || f === 'castka_dph') && val !== '-') {
-            val = Number(val).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + (d.mena || '');
+            return Number(val).toLocaleString('cs-CZ', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + (d.mena || '');
         }
-        inner += '<tr><th>'+labels[f]+'</th><td>'+val+'</td></tr>';
-    });
-    inner += '</table>';
+        return escHtml(String(val));
+    }
+
+    function buildRows(fields, labels, d) {
+        return fields.map(f => '<tr><th>'+labels[f]+'</th><td>'+fmtVal(f, d)+'</td></tr>').join('');
+    }
+
+    const labels = {
+        stav:'Stav', typ_dokladu:'Typ', dodavatel_nazev:'Dodavatel', dodavatel_ico:'IČO dodavatele',
+        cislo_dokladu:'Číslo dokladu', castka_celkem:'Celková částka', castka_dph:'DPH',
+        datum_vystaveni:'Vystavení', datum_splatnosti:'Splatnost', kategorie:'Kategorie',
+        kvalita:'Kvalita', kvalita_poznamka:'Poznámka ke kvalitě',
+        odberatel_nazev:'Odběratel', odberatel_ico:'IČO odběratele', adresat_overeni:'Ověření adresáta',
+        datum_prijeti:'Datum příjetí', duzp:'DUZP', mena:'Měna',
+        zdroj:'Zdroj', nahral:'Nahrál', nazev_souboru:'Soubor',
+        created_at_full:'Nahráno', chybova_zprava:'Chyba'
+    };
+
+    // Right column: main info
+    const mainFields = ['stav','typ_dokladu','dodavatel_nazev','dodavatel_ico',
+        'cislo_dokladu','castka_celkem','castka_dph','datum_vystaveni','datum_splatnosti','kategorie'];
+
+    // Bottom: additional details
+    const extraFields = ['kvalita','kvalita_poznamka','odberatel_nazev','odberatel_ico','adresat_overeni',
+        'datum_prijeti','duzp','mena','zdroj','nahral','nazev_souboru','created_at_full','chybova_zprava'];
+
+    // === Build preview ===
+    let previewHtml = '';
+    const pvUrl = d.preview_original_url || d.preview_url;
+    const pvExt = d.preview_original_url ? d.preview_original_ext : d.preview_ext;
+    if (pvUrl) {
+        if (pvExt === 'pdf') {
+            previewHtml = '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><iframe src="'+pvUrl+'"></iframe></div>';
+        } else {
+            previewHtml = '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><img src="'+pvUrl+'" alt="Náhled"></div>';
+        }
+    }
+
+    // === Assemble ===
+    let inner = '<div class="detail-top">';
+    inner += previewHtml;
+    inner += '<div class="detail-info"><table>' + buildRows(mainFields, labels, d) + '</table>';
+    if (d.download_url) {
+        inner += '<div class="detail-actions"><a href="'+d.download_url+'" class="btn-detail-download">Stáhnout</a></div>';
+    }
+    inner += '</div></div>';
+    inner += '<div class="detail-extra"><table>' + buildRows(extraFields, labels, d) + '</table></div>';
 
     detailTr.innerHTML = '<td colspan="'+colCount+'"><div class="detail-inner">'+inner+'</div></td>';
     tr.after(detailTr);

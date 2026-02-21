@@ -138,6 +138,7 @@ class InvoiceController extends Controller
             'preview_ext' => $d->cesta_souboru ? strtolower(pathinfo($d->cesta_souboru, PATHINFO_EXTENSION)) : null,
             'preview_original_url' => $d->cesta_originalu ? route('doklady.previewOriginal', $d) : null,
             'preview_original_ext' => $d->cesta_originalu ? strtolower(pathinfo($d->cesta_originalu, PATHINFO_EXTENSION)) : null,
+            'download_url' => $d->cesta_souboru ? route('doklady.download', $d) : null,
             'adresni' => $d->adresni,
             'overeno_adresat' => $d->overeno_adresat,
             'odberatel_ico' => $d->odberatel_ico,
