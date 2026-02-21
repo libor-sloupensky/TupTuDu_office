@@ -442,9 +442,12 @@ function loadPref(key, def) { try { const v = localStorage.getItem(key); return 
 function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
 let visibleCols = loadPref('doklady_columns', DEFAULT_VISIBLE);
+const knownIds = COLUMNS.map(c => c.id);
+visibleCols = visibleCols.filter(id => knownIds.includes(id));
 FIXED_COLS.forEach(c => { if (!visibleCols.includes(c)) visibleCols.push(c); });
 
 let colOrder = loadPref('doklady_column_order', COLUMNS.map(c => c.id));
+colOrder = colOrder.filter(id => knownIds.includes(id));
 COLUMNS.forEach(c => { if (!colOrder.includes(c.id)) colOrder.push(c.id); });
 
 function getOrderedVisible() {
