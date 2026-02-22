@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Dodavatel;
 use App\Models\Doklad;
 use App\Models\Firma;
+use Aws\Textract\TextractClient;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -120,6 +121,9 @@ class DokladProcessor
                 continue;
             }
 
+            // Textract pro přesné bounding boxy (jedno volání per stránku)
+            $textractBlocks = $this->callTextract($pageBytes);
+
             $docsOnPage = count($documents);
             $multiDocOnThisPage = $docsOnPage > 1;
             if ($multiDocOnThisPage) {
@@ -139,7 +143,7 @@ class DokladProcessor
                     $doklad = $this->createDokladFromPage(
                         $docData, $firma, $nazev, $fileHash,
                         $zdroj, $pageTempPath, $pageBytes, $globalIndex,
-                        $multiDocOnThisPage
+                        $multiDocOnThisPage, $textractBlocks
                     );
                     $doklady[] = $doklad;
                 } catch (\Exception $e) {
@@ -313,6 +317,9 @@ class DokladProcessor
             return [$doklad];
         }
 
+        // Textract pro přesné bounding boxy (jedno volání pro celou stránku)
+        $textractBlocks = $this->callTextract($fileBytes);
+
         $doklady = [];
         $celkem = count($documents);
         $multiDocPage = $celkem > 1;
@@ -330,7 +337,7 @@ class DokladProcessor
                 $doklad = $this->createDokladFromPage(
                     $docData, $firma, $nazev, $fileHash,
                     $zdroj, $tempS3Path, $fileBytes, $poradi,
-                    $multiDocPage
+                    $multiDocPage, $textractBlocks
                 );
                 $doklady[] = $doklad;
             } catch (\Exception $e) {
@@ -375,7 +382,8 @@ class DokladProcessor
         string $tempS3Path,
         string $pageBytes,
         int $poradi,
-        bool $multiDocPage = false
+        bool $multiDocPage = false,
+        ?array $textractBlocks = null
     ): Doklad {
         $kvalita = $docData['kvalita'] ?? 'dobra';
         $typDokladu = $docData['typ_dokladu'] ?? 'faktura';
@@ -465,6 +473,18 @@ class DokladProcessor
             }
         }
 
+        // Přesné souřadnice z Textract (nahrazují nepřesné z Vision API)
+        if ($textractBlocks) {
+            $souradnice = $this->matchFieldsToTextract($docData, $textractBlocks);
+            if (!empty($souradnice)) {
+                $docData['souradnice'] = $souradnice;
+            } else {
+                unset($docData['souradnice']);
+            }
+        } else {
+            unset($docData['souradnice']);
+        }
+
         $doklad->update([
             'dodavatel_ico' => $dodavatelIco,
             'dodavatel_nazev' => $docData['dodavatel_nazev'] ?? null,
@@ -484,6 +504,7 @@ class DokladProcessor
             'overeno_adresat' => $overenoAdresat,
             'cesta_souboru' => $s3Path,
             'stav' => $stav,
+            'raw_ai_odpoved' => json_encode($docData, JSON_UNESCAPED_UNICODE),
         ]);
 
         return $doklad->fresh();
@@ -523,6 +544,240 @@ class DokladProcessor
         }
 
         return false;
+    }
+
+    // ====================================================================
+    // TEXTRACT — přesné bounding boxy pro pole dokladu
+    // ====================================================================
+
+    /**
+     * Zavolá AWS Textract DetectDocumentText a vrátí pole bloků.
+     * Vrací null pokud Textract selže (highlight se prostě nezobrazí).
+     */
+    private function callTextract(string $fileBytes): ?array
+    {
+        try {
+            $client = new TextractClient([
+                'version' => 'latest',
+                'region' => config('services.aws.region', 'eu-west-1'),
+                'credentials' => [
+                    'key' => config('services.aws.key'),
+                    'secret' => config('services.aws.secret'),
+                ],
+            ]);
+
+            $result = $client->detectDocumentText([
+                'Document' => ['Bytes' => $fileBytes],
+            ]);
+
+            return $result['Blocks'] ?? null;
+        } catch (\Exception $e) {
+            Log::warning("Textract call failed: {$e->getMessage()}");
+            return null;
+        }
+    }
+
+    /**
+     * Spáruje extrahovaná pole z Vision API s přesnými Textract bounding boxy.
+     * Vrací pole souřadnic [field => [left, top, right, bottom]].
+     */
+    private function matchFieldsToTextract(array $docData, array $blocks): array
+    {
+        $fields = [
+            'dodavatel_nazev', 'dodavatel_ico', 'dodavatel_dic',
+            'odberatel_nazev', 'odberatel_ico',
+            'cislo_dokladu', 'castka_celkem', 'castka_dph', 'mena',
+            'datum_vystaveni', 'datum_splatnosti', 'duzp',
+        ];
+
+        $souradnice = [];
+        foreach ($fields as $field) {
+            $value = $docData[$field] ?? null;
+            if ($value === null || $value === '') continue;
+
+            // Formátování číslic do českých variant pro matching
+            $patterns = $this->valueToSearchPatterns((string) $value, $field);
+
+            $bbox = $this->findInTextractBlocks($patterns, $blocks);
+            if ($bbox) {
+                $souradnice[$field] = $bbox;
+            }
+        }
+
+        return $souradnice;
+    }
+
+    /**
+     * Převede hodnotu pole na pole textových vzorů pro hledání v Textract blocích.
+     * Čísla se formátují do českého tvaru (1 198,00), data jako DD.MM.YYYY atd.
+     */
+    private function valueToSearchPatterns(string $value, string $field): array
+    {
+        $patterns = [trim($value)];
+
+        // Číselné částky — generuj české formátové varianty
+        if (in_array($field, ['castka_celkem', 'castka_dph']) && is_numeric($value)) {
+            $num = (float) $value;
+            $patterns[] = number_format($num, 2, ',', ' ');   // 1 198,00
+            $patterns[] = number_format($num, 2, ',', '');     // 1198,00
+            $patterns[] = number_format($num, 2, '.', ' ');    // 1 198.00
+            $patterns[] = number_format($num, 2, '.', '');     // 1198.00
+            $patterns[] = number_format($num, 0, ',', ' ');    // 1 198
+            $patterns[] = number_format($num, 0, ',', '');     // 1198
+            // S pomlčkou místo mezery (tiskárny)
+            $patterns[] = number_format($num, 2, ',', "\u{00A0}"); // 1 198,00 (nbsp)
+        }
+
+        // Data — AI vrací YYYY-MM-DD, na dokladu bývá DD.MM.YYYY
+        if (in_array($field, ['datum_vystaveni', 'datum_splatnosti', 'duzp']) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) {
+            $patterns[] = "{$m[3]}.{$m[2]}.{$m[1]}";          // 06.08.2025
+            $patterns[] = "{$m[3]}. {$m[2]}. {$m[1]}";        // 06. 08. 2025
+            $patterns[] = ltrim($m[3], '0') . '.' . ltrim($m[2], '0') . '.' . $m[1]; // 6.8.2025
+            $patterns[] = "{$m[3]}/{$m[2]}/{$m[1]}";          // 06/08/2025
+        }
+
+        return array_unique($patterns);
+    }
+
+    /**
+     * Hledá textové vzory v Textract blocích. Vrací [left, top, right, bottom] nebo null.
+     * Prohledává WORD → LINE bloky, nejprve přesná shoda, pak substring.
+     */
+    private function findInTextractBlocks(array $patterns, array $blocks): ?array
+    {
+        // Rozděl bloky na typy
+        $words = [];
+        $lines = [];
+        foreach ($blocks as $b) {
+            $type = $b['BlockType'] ?? '';
+            if ($type === 'WORD') $words[] = $b;
+            elseif ($type === 'LINE') $lines[] = $b;
+        }
+
+        foreach ($patterns as $needle) {
+            $needleLower = mb_strtolower(trim($needle));
+            $needleCompact = preg_replace('/\s+/', '', $needleLower);
+            if ($needleLower === '') continue;
+
+            // 1) Přesná shoda ve WORD blocích
+            foreach ($words as $w) {
+                $text = mb_strtolower(trim($w['Text'] ?? ''));
+                if ($text === $needleLower) {
+                    return $this->textractBbox($w);
+                }
+            }
+
+            // 2) Kompaktní shoda ve WORD blocích (bez mezer)
+            foreach ($words as $w) {
+                $text = preg_replace('/\s+/', '', mb_strtolower(trim($w['Text'] ?? '')));
+                if ($text === $needleCompact) {
+                    return $this->textractBbox($w);
+                }
+            }
+
+            // 3) Přesná shoda v LINE blocích
+            foreach ($lines as $l) {
+                $text = mb_strtolower(trim($l['Text'] ?? ''));
+                if ($text === $needleLower) {
+                    return $this->textractBbox($l);
+                }
+            }
+
+            // 4) Needle obsažen v LINE — hledáme přesnější WORD shodu
+            foreach ($lines as $l) {
+                $lineText = mb_strtolower(trim($l['Text'] ?? ''));
+                $lineCompact = preg_replace('/\s+/', '', $lineText);
+                if (str_contains($lineText, $needleLower) || str_contains($lineCompact, $needleCompact)) {
+                    // Zkus najít podmnožinu slov v této řádce
+                    $wordBbox = $this->findWordsInLine($needleLower, $l, $words, $blocks);
+                    return $wordBbox ?? $this->textractBbox($l);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * V rámci jedné Textract LINE najde slova odpovídající hledanému textu
+     * a vrátí kombinovaný bounding box.
+     */
+    private function findWordsInLine(string $needle, array $line, array $allWords, array $allBlocks): ?array
+    {
+        // Získej ID slov v této řádce
+        $childIds = [];
+        foreach ($line['Relationships'] ?? [] as $rel) {
+            if ($rel['Type'] === 'CHILD') {
+                $childIds = $rel['Ids'] ?? [];
+                break;
+            }
+        }
+        if (empty($childIds)) return null;
+
+        // Indexuj bloky podle ID
+        $blockIndex = [];
+        foreach ($allBlocks as $b) {
+            $blockIndex[$b['Id'] ?? ''] = $b;
+        }
+
+        // Seřaď slova podle pozice (left)
+        $lineWords = [];
+        foreach ($childIds as $id) {
+            $w = $blockIndex[$id] ?? null;
+            if ($w && ($w['BlockType'] ?? '') === 'WORD') {
+                $lineWords[] = $w;
+            }
+        }
+        usort($lineWords, fn($a, $b) =>
+            ($a['Geometry']['BoundingBox']['Left'] ?? 0) <=> ($b['Geometry']['BoundingBox']['Left'] ?? 0)
+        );
+
+        // Sliding window: kombinuj sousední slova a hledej shodu
+        $n = count($lineWords);
+        for ($start = 0; $start < $n; $start++) {
+            $combined = '';
+            $minLeft = PHP_FLOAT_MAX;
+            $minTop = PHP_FLOAT_MAX;
+            $maxRight = 0;
+            $maxBottom = 0;
+
+            for ($end = $start; $end < $n; $end++) {
+                $wText = $lineWords[$end]['Text'] ?? '';
+                $combined = $combined === '' ? $wText : $combined . ' ' . $wText;
+                $bb = $lineWords[$end]['Geometry']['BoundingBox'] ?? [];
+                $l = $bb['Left'] ?? 0;
+                $t = $bb['Top'] ?? 0;
+                $r = $l + ($bb['Width'] ?? 0);
+                $bm = $t + ($bb['Height'] ?? 0);
+                $minLeft = min($minLeft, $l);
+                $minTop = min($minTop, $t);
+                $maxRight = max($maxRight, $r);
+                $maxBottom = max($maxBottom, $bm);
+
+                if (mb_strtolower($combined) === $needle) {
+                    return [
+                        round($minLeft, 4), round($minTop, 4),
+                        round($maxRight, 4), round($maxBottom, 4),
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Převede Textract BoundingBox na [left, top, right, bottom].
+     */
+    private function textractBbox(array $block): array
+    {
+        $bb = $block['Geometry']['BoundingBox'] ?? [];
+        return [
+            round($bb['Left'] ?? 0, 4),
+            round($bb['Top'] ?? 0, 4),
+            round(($bb['Left'] ?? 0) + ($bb['Width'] ?? 0), 4),
+            round(($bb['Top'] ?? 0) + ($bb['Height'] ?? 0), 4),
+        ];
     }
 
     /**
@@ -710,11 +965,6 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
       "mena": "CZK",
       "castka_dph": 0.00,
       "kategorie": "služby",
-      "souradnice": {
-        "dodavatel_nazev": [0.05, 0.10, 0.40, 0.14],
-        "cislo_dokladu": [0.55, 0.08, 0.90, 0.12],
-        "castka_celkem": [0.60, 0.70, 0.90, 0.74]
-      }
     }
   ]
 }
@@ -743,7 +993,6 @@ DŮLEŽITÁ PRAVIDLA:
 - Pokud je kvalita "necitelna", přesto vyplň co lze rozpoznat
 - raw_text: přepis klíčového textu z dokladu (max 500 znaků na doklad). U účtenek stačí hlavička, položky a součet.
 - Doklad může být v jakémkoliv jazyce - zpracuj ho bez ohledu na jazyk
-- souradnice: pro KAŽDÉ extrahované pole s nenullovou hodnotou uveď přibližnou polohu na dokumentu jako [left, top, right, bottom] v rozmezí 0.0-1.0 (poměr k šířce/výšce celého dokumentu/stránky). Left=levý okraj oblasti, top=horní okraj, right=pravý okraj, bottom=dolní okraj. Zahrň souřadnice i pro údaje jako dodavatel_nazev, cislo_dokladu, castka_celkem, datum_vystaveni atd.
 PROMPT;
 
         return $prompt;
