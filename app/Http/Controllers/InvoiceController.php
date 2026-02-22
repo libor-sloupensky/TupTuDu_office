@@ -145,6 +145,7 @@ class InvoiceController extends Controller
             'odberatel_nazev' => $d->odberatel_nazev,
             'chybova_zprava' => $d->chybova_zprava,
             'raw_ai_odpoved' => $d->raw_ai_odpoved,
+            'souradnice' => json_decode($d->raw_ai_odpoved ?? '{}', true)['souradnice'] ?? null,
             'created_at_full' => $d->created_at->format('d.m.Y H:i'),
         ];
     }

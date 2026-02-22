@@ -112,8 +112,9 @@
     .detail-top { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
     .detail-left { flex: 0 0 45%; }
     .detail-preview { max-height: 450px; overflow: hidden; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
-    .detail-preview iframe { width: 100%; height: 450px; border: none; pointer-events: none; }
+    .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
+    .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.2); border: 2px solid rgba(52, 152, 219, 0.6); border-radius: 3px; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
     .detail-download { margin-top: 0.5rem; text-align: center; }
     .detail-download a { display: inline-block; font-size: 0.8rem; padding: 0.35rem 1rem; border-radius: 4px; text-decoration: none; background: #3498db; color: white; transition: background 0.15s; }
@@ -262,7 +263,16 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+// PDF.js global setup
+(function() {
+    var lib = window['pdfjs-dist/build/pdf'];
+    if (lib) {
+        window.pdfjsLib = lib;
+        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+})();
 // ===== Unified Notification System =====
 const AUTO_HIDE_DELAY = 8000;
 let notifHistory = [];
@@ -654,7 +664,8 @@ function buildRows(fields, d) {
         const canEdit = editType && permUpravovat;
         const cls = canEdit ? ' class="detail-editable"' : '';
         const onclick = canEdit ? ' onclick="startDetailEdit(this,'+d.id+',\''+f+'\',\''+editType+'\',event)"' : '';
-        return '<tr><th>'+DETAIL_LABELS[f]+'</th><td'+cls+onclick+'><span class="cell-val">'+fmtVal(f, d)+'</span></td></tr>';
+        const dataField = ' data-field="'+f+'"';
+        return '<tr><th>'+DETAIL_LABELS[f]+'</th><td'+cls+onclick+dataField+'><span class="cell-val">'+fmtVal(f, d)+'</span></td></tr>';
     }).join('');
 }
 
@@ -691,11 +702,14 @@ function toggleDetail(id, btn) {
     const pvUrl = d.preview_original_url || d.preview_url;
     const pvExt = d.preview_original_url ? d.preview_original_ext : d.preview_ext;
     if (pvUrl) {
+        // Unified: always render as image (PDF.js for PDFs, native for images)
+        leftHtml += '<div class="detail-preview" data-url="'+pvUrl+'" data-ext="'+pvExt+'" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')">';
         if (pvExt === 'pdf') {
-            leftHtml += '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><iframe src="'+pvUrl+'"></iframe></div>';
+            leftHtml += '<canvas class="pdf-rendering" data-pdf-url="'+pvUrl+'"></canvas>';
         } else {
-            leftHtml += '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><img src="'+pvUrl+'" alt="Náhled"></div>';
+            leftHtml += '<img src="'+pvUrl+'" alt="Náhled">';
         }
+        leftHtml += '</div>';
     }
     if (d.download_url) {
         leftHtml += '<div class="detail-download"><a href="'+d.download_url+'">&#128229; Stáhnout dokument</a></div>';
@@ -710,6 +724,21 @@ function toggleDetail(id, btn) {
 
     detailTr.innerHTML = '<td colspan="'+colCount+'"><div class="detail-inner">'+inner+'</div></td>';
     tr.after(detailTr);
+
+    // Render PDF preview via PDF.js
+    const pdfCanvas = detailTr.querySelector('canvas.pdf-rendering');
+    if (pdfCanvas && window.pdfjsLib) {
+        renderPdfToCanvas(pdfCanvas.dataset.pdfUrl, pdfCanvas);
+    }
+
+    // Bbox highlight on hover
+    const previewContainer = detailTr.querySelector('.detail-preview');
+    if (previewContainer && d.souradnice) {
+        detailTr.querySelectorAll('[data-field]').forEach(td => {
+            td.addEventListener('mouseenter', () => showBboxHighlight(td.dataset.field, d, previewContainer));
+            td.addEventListener('mouseleave', () => clearBboxHighlight(previewContainer));
+        });
+    }
 }
 
 // ===== Detail inline edit =====
@@ -1232,6 +1261,45 @@ document.getElementById('previewContent')?.addEventListener('dblclick', function
 
 document.getElementById('previewOverlay')?.addEventListener('click', function(e) { if (e.target === this) closePreview(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
+
+// ===== PDF.js rendering =====
+async function renderPdfToCanvas(url, canvas) {
+    try {
+        const pdf = await pdfjsLib.getDocument(url).promise;
+        const page = await pdf.getPage(1);
+        const scale = 1.5; // higher res for clarity
+        const viewport = page.getViewport({ scale });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        canvas.classList.remove('pdf-rendering');
+    } catch(e) {
+        // Fallback: replace canvas with a simple message
+        canvas.parentElement.innerHTML = '<div style="padding:2rem;text-align:center;color:#999;font-size:0.8rem;">Náhled PDF nelze zobrazit.<br>Klikněte pro otevření.</div>';
+    }
+}
+
+// ===== Bbox highlight =====
+function showBboxHighlight(field, doklad, container) {
+    clearBboxHighlight(container);
+    const coords = doklad.souradnice && doklad.souradnice[field];
+    if (!coords || coords.length !== 4) return;
+
+    const [left, top, right, bottom] = coords;
+    const highlight = document.createElement('div');
+    highlight.className = 'bbox-highlight';
+    highlight.style.left = (left * 100) + '%';
+    highlight.style.top = (top * 100) + '%';
+    highlight.style.width = ((right - left) * 100) + '%';
+    highlight.style.height = ((bottom - top) * 100) + '%';
+    container.appendChild(highlight);
+}
+
+function clearBboxHighlight(container) {
+    if (!container) return;
+    container.querySelectorAll('.bbox-highlight').forEach(el => el.remove());
+}
 
 // ===== Init =====
 buildColPanel();

@@ -633,7 +633,12 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
       "castka_celkem": 0.00,
       "mena": "CZK",
       "castka_dph": 0.00,
-      "kategorie": "služby"
+      "kategorie": "služby",
+      "souradnice": {
+        "dodavatel_nazev": [0.05, 0.10, 0.40, 0.14],
+        "cislo_dokladu": [0.55, 0.08, 0.90, 0.12],
+        "castka_celkem": [0.60, 0.70, 0.90, 0.74]
+      }
     }
   ]
 }
@@ -662,6 +667,7 @@ DŮLEŽITÁ PRAVIDLA:
 - Pokud je kvalita "necitelna", přesto vyplň co lze rozpoznat
 - raw_text: přepis klíčového textu z dokladu (max 500 znaků na doklad). U účtenek stačí hlavička, položky a součet.
 - Doklad může být v jakémkoliv jazyce - zpracuj ho bez ohledu na jazyk
+- souradnice: pro KAŽDÉ extrahované pole s nenullovou hodnotou uveď přibližnou polohu na dokumentu jako [left, top, right, bottom] v rozmezí 0.0-1.0 (poměr k šířce/výšce celého dokumentu/stránky). Left=levý okraj oblasti, top=horní okraj, right=pravý okraj, bottom=dolní okraj. Zahrň souřadnice i pro údaje jako dodavatel_nazev, cislo_dokladu, castka_celkem, datum_vystaveni atd.
 PROMPT;
 
         return $prompt;
