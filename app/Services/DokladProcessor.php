@@ -184,7 +184,79 @@ class DokladProcessor
             $doklady[] = $doklad;
         }
 
+        // Deduplikace v rámci jednoho multi-page PDF:
+        // Pokud více stránek obsahuje stejný doklad (originál + kopie),
+        // zachováme jen ten s nejlepší kvalitou a ostatní smažeme.
+        $doklady = $this->deduplicateWithinBatch($doklady);
+
         return $doklady;
+    }
+
+    /**
+     * Deduplikace dokladů v rámci jednoho souboru (multi-page PDF).
+     * Pokud více stránek obsahuje stejný doklad (originál + kopie),
+     * zachová jen ten s nejlepší kvalitou a ostatní smaže z DB i S3.
+     *
+     * @param Doklad[] $doklady
+     * @return Doklad[]
+     */
+    private function deduplicateWithinBatch(array $doklady): array
+    {
+        $kvalitaPriorita = ['dobra' => 0, 'nizka' => 1, 'necitelna' => 2];
+
+        // Seskupení podle cislo_dokladu + dodavatel_ico
+        $groups = [];
+        $noKey = [];
+        foreach ($doklady as $d) {
+            if ($d->cislo_dokladu && $d->dodavatel_ico) {
+                $key = $d->cislo_dokladu . '|' . $d->dodavatel_ico;
+                $groups[$key][] = $d;
+            } else {
+                $noKey[] = $d;
+            }
+        }
+
+        $result = $noKey;
+        foreach ($groups as $group) {
+            if (count($group) <= 1) {
+                $result[] = $group[0];
+                continue;
+            }
+
+            // Seřadíme podle kvality (nejlepší první)
+            usort($group, function ($a, $b) use ($kvalitaPriorita) {
+                $ka = $kvalitaPriorita[$a->kvalita] ?? 1;
+                $kb = $kvalitaPriorita[$b->kvalita] ?? 1;
+                return $ka <=> $kb;
+            });
+
+            // Zachováme první (nejlepší), ostatní smažeme
+            $best = array_shift($group);
+            $result[] = $best;
+
+            // Vyčistíme duplicita_id u zachovaného (odkazoval na sebe v rámci souboru)
+            if ($best->duplicita_id) {
+                $smazaneIds = array_map(fn($d) => $d->id, $group);
+                if (in_array($best->duplicita_id, $smazaneIds)) {
+                    $best->update(['duplicita_id' => null]);
+                }
+            }
+
+            foreach ($group as $dup) {
+                Log::info("Deduplikace v rámci PDF: smazán doklad #{$dup->id} (duplicita #{$best->id}, č. {$dup->cislo_dokladu})", [
+                    'firma_ico' => $dup->firma_ico,
+                    'zachovany_id' => $best->id,
+                    'smazany_id' => $dup->id,
+                ]);
+                // Smazat S3 soubor duplikátu
+                if ($dup->cesta_souboru && $dup->cesta_souboru !== $best->cesta_souboru) {
+                    try { Storage::disk('s3')->delete($dup->cesta_souboru); } catch (\Exception $e) {}
+                }
+                $dup->delete();
+            }
+        }
+
+        return $result;
     }
 
     /**

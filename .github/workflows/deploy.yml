@@ -369,6 +369,32 @@ jobs:
           \");
           echo 'Migration: fixed overeno_adresat by name for ' . \$fixRows2 . ' doklady' . PHP_EOL;
 
+          // Deduplikace: smaž duplikáty v rámci stejného souboru (hash)
+          // Zachová nejstarší (nejnižší ID) pro každou skupinu cislo_dokladu+dodavatel_ico+hash
+          \$dupRows = \$pdo->exec(\"
+            DELETE d FROM fak_doklady d
+            INNER JOIN (
+              SELECT firma_ico, cislo_dokladu, dodavatel_ico, hash_souboru, MIN(id) as keep_id
+              FROM fak_doklady
+              WHERE cislo_dokladu IS NOT NULL AND dodavatel_ico IS NOT NULL AND hash_souboru IS NOT NULL
+              GROUP BY firma_ico, cislo_dokladu, dodavatel_ico, hash_souboru
+              HAVING COUNT(*) > 1
+            ) dup ON d.firma_ico = dup.firma_ico
+              AND d.cislo_dokladu = dup.cislo_dokladu
+              AND d.dodavatel_ico = dup.dodavatel_ico
+              AND d.hash_souboru = dup.hash_souboru
+              AND d.id != dup.keep_id
+          \");
+          echo 'Migration: removed ' . \$dupRows . ' intra-file duplicate doklady' . PHP_EOL;
+
+          // Vyčisti osiřelé duplicita_id (odkazují na smazané záznamy)
+          \$pdo->exec(\"
+            UPDATE fak_doklady d
+            LEFT JOIN fak_doklady ref ON d.duplicita_id = ref.id
+            SET d.duplicita_id = NULL
+            WHERE d.duplicita_id IS NOT NULL AND ref.id IS NULL
+          \");
+
           // Add odberatel columns to fak_doklady
           \$colOdbNazev = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'odberatel_nazev'\")->fetchAll();
           if (empty(\$colOdbNazev)) {
