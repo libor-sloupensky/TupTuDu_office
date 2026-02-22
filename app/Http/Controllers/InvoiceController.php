@@ -358,7 +358,7 @@ class InvoiceController extends Controller
                 }
 
                 if ($warnings) {
-                    $message .= ' ⚠ ' . implode('. ', array_unique($warnings));
+                    $message .= " \u{26A0} " . implode(" \u{26A0} ", array_unique($warnings));
                 }
 
                 $results[] = [

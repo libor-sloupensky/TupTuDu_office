@@ -340,6 +340,35 @@ jobs:
             echo 'Migration: nahral already exists, skipping' . PHP_EOL;
           }
 
+          // Fix overeno_adresat: re-check by ICO match (normalized)
+          \$fixRows = \$pdo->exec(\"
+            UPDATE fak_doklady d
+            INNER JOIN sys_firmy f ON d.firma_ico = f.ico
+            SET d.overeno_adresat = 1
+            WHERE d.adresni = 1
+              AND d.overeno_adresat = 0
+              AND d.odberatel_ico IS NOT NULL
+              AND TRIM(LEADING '0' FROM REPLACE(d.odberatel_ico, ' ', ''))
+                = TRIM(LEADING '0' FROM REPLACE(f.ico, ' ', ''))
+          \");
+          echo 'Migration: fixed overeno_adresat by ICO for ' . \$fixRows . ' doklady' . PHP_EOL;
+
+          // Fix overeno_adresat: re-check by name match (case-insensitive contains)
+          \$fixRows2 = \$pdo->exec(\"
+            UPDATE fak_doklady d
+            INNER JOIN sys_firmy f ON d.firma_ico = f.ico
+            SET d.overeno_adresat = 1
+            WHERE d.adresni = 1
+              AND d.overeno_adresat = 0
+              AND d.odberatel_nazev IS NOT NULL
+              AND f.nazev IS NOT NULL
+              AND (
+                LOWER(d.odberatel_nazev) LIKE CONCAT('%', LOWER(f.nazev), '%')
+                OR LOWER(f.nazev) LIKE CONCAT('%', LOWER(d.odberatel_nazev), '%')
+              )
+          \");
+          echo 'Migration: fixed overeno_adresat by name for ' . \$fixRows2 . ' doklady' . PHP_EOL;
+
           // Add odberatel columns to fak_doklady
           \$colOdbNazev = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'odberatel_nazev'\")->fetchAll();
           if (empty(\$colOdbNazev)) {

@@ -382,9 +382,13 @@ class DokladProcessor
         $adresni = !empty($odberatelIco) || !empty($odberatelNazev);
         $overenoAdresat = false;
         if ($adresni) {
-            if (!empty($odberatelIco) && $odberatelIco === $firma->ico) {
+            // Porovnání IČO (normalizované — bez mezer a vedoucích nul)
+            $normalizeIco = fn($v) => ltrim(preg_replace('/\s+/', '', $v ?? ''), '0');
+            if (!empty($odberatelIco) && $normalizeIco($odberatelIco) === $normalizeIco($firma->ico)) {
                 $overenoAdresat = true;
-            } elseif (empty($odberatelIco) && !empty($odberatelNazev) && !empty($firma->nazev)) {
+            }
+            // Fallback: porovnání názvu (i když IČO je vyplněné ale nesedí)
+            if (!$overenoAdresat && !empty($odberatelNazev) && !empty($firma->nazev)) {
                 $overenoAdresat = $this->matchFirmName($odberatelNazev, $firma->nazev);
             }
         }

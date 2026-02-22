@@ -114,6 +114,7 @@
     .detail-preview { max-height: 450px; overflow: hidden; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
+    .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
     .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.2); border: 2px solid rgba(52, 152, 219, 0.6); border-radius: 3px; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
     .detail-download { margin-top: 0.5rem; text-align: center; }
@@ -286,15 +287,13 @@ function toggleNotifHistory() {
 
 function formatNotifMessage(msg) {
     if (!msg) return '';
-    // Split on the warning marker
+    // Split on the warning marker ⚠
     const warnIdx = msg.indexOf('\u26A0');
     if (warnIdx === -1) return escHtml(msg);
 
     const main = msg.substring(0, warnIdx).trim();
-    const detail = msg.substring(warnIdx + 1).trim();
-
-    // Split detail into sentences (by ". " or standalone sentences)
-    const sentences = detail.split(/\.\s+/).map(s => s.replace(/\.+$/, '').trim()).filter(s => s.length > 0);
+    // Each warning is separated by ⚠
+    const sentences = msg.substring(warnIdx).split('\u26A0').map(s => s.trim()).filter(s => s.length > 0);
 
     let html = escHtml(main);
     if (sentences.length > 1) {
@@ -703,13 +702,15 @@ function toggleDetail(id, btn) {
     const pvExt = d.preview_original_url ? d.preview_original_ext : d.preview_ext;
     if (pvUrl) {
         // Unified: always render as image (PDF.js for PDFs, native for images)
+        // preview-bbox-layer is the highlight anchor — sized by its image/canvas child
         leftHtml += '<div class="detail-preview" data-url="'+pvUrl+'" data-ext="'+pvExt+'" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')">';
+        leftHtml += '<div class="preview-bbox-layer">';
         if (pvExt === 'pdf') {
             leftHtml += '<canvas class="pdf-rendering" data-pdf-url="'+pvUrl+'"></canvas>';
         } else {
             leftHtml += '<img src="'+pvUrl+'" alt="Náhled">';
         }
-        leftHtml += '</div>';
+        leftHtml += '</div></div>';
     }
     if (d.download_url) {
         leftHtml += '<div class="detail-download"><a href="'+d.download_url+'">&#128229; Stáhnout dokument</a></div>';
@@ -731,12 +732,12 @@ function toggleDetail(id, btn) {
         renderPdfToCanvas(pdfCanvas.dataset.pdfUrl, pdfCanvas);
     }
 
-    // Bbox highlight on hover
-    const previewContainer = detailTr.querySelector('.detail-preview');
-    if (previewContainer && d.souradnice) {
+    // Bbox highlight on hover — highlights go into .preview-bbox-layer (sized by image)
+    const bboxLayer = detailTr.querySelector('.preview-bbox-layer');
+    if (bboxLayer && d.souradnice) {
         detailTr.querySelectorAll('[data-field]').forEach(td => {
-            td.addEventListener('mouseenter', () => showBboxHighlight(td.dataset.field, d, previewContainer));
-            td.addEventListener('mouseleave', () => clearBboxHighlight(previewContainer));
+            td.addEventListener('mouseenter', () => showBboxHighlight(td.dataset.field, d, bboxLayer));
+            td.addEventListener('mouseleave', () => clearBboxHighlight(bboxLayer));
         });
     }
 }
