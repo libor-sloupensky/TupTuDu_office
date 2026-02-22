@@ -110,27 +110,26 @@
     .detail-row td { padding: 0; background: #fafbfc; }
     .detail-inner { padding: 0.75rem 1rem 0.75rem 2rem; }
     .detail-top { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
-    .detail-preview { flex: 0 0 45%; max-height: 450px; overflow: hidden; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
+    .detail-left { flex: 0 0 45%; }
+    .detail-preview { max-height: 450px; overflow: hidden; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
     .detail-preview iframe { width: 100%; height: 450px; border: none; pointer-events: none; }
     .detail-preview img { width: 100%; height: auto; display: block; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
+    .detail-download { margin-top: 0.5rem; text-align: center; }
+    .detail-download a { display: inline-block; font-size: 0.8rem; padding: 0.35rem 1rem; border-radius: 4px; text-decoration: none; background: #3498db; color: white; transition: background 0.15s; }
+    .detail-download a:hover { background: #2980b9; color: white; }
     .detail-info { flex: 1; min-width: 0; }
+    .detail-heading { font-size: 0.82rem; font-weight: 600; color: #555; margin-bottom: 0.4rem; padding-left: 0.6rem; }
     .detail-info table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     .detail-info th { text-align: left; padding: 0.3rem 0.6rem; color: #777; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #eee; border-right: none; }
     .detail-info td { padding: 0.3rem 0.6rem; border-bottom: 1px solid #eee; border-right: none; }
-    .detail-extra { border-top: 1px solid #e0e0e0; padding-top: 0.75rem; margin-top: 0.25rem; }
-    .detail-extra table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .detail-extra th { text-align: left; padding: 0.25rem 0.6rem; color: #999; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #f0f0f0; border-right: none; }
-    .detail-extra td { padding: 0.25rem 0.6rem; border-bottom: 1px solid #f0f0f0; border-right: none; }
-    .detail-actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
-    .detail-actions a { font-size: 0.8rem; padding: 0.3rem 0.7rem; border-radius: 4px; text-decoration: none; }
-    .btn-detail-download { background: #3498db; color: white; }
-    .btn-detail-download:hover { background: #2980b9; color: white; }
-
-    .editable { position: relative; cursor: default; }
-    .edit-icon { color: #ccc; font-size: 0.65rem; margin-left: 0.3rem; visibility: hidden; cursor: pointer; }
-    .editable:hover .edit-icon { visibility: visible; color: #95a5a6; }
-    .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: 0.85rem; outline: none; }
+    .detail-meta { border-top: 1px solid #e0e0e0; padding-top: 0.6rem; margin-top: 0.25rem; }
+    .detail-meta table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .detail-meta th { text-align: left; padding: 0.25rem 0.6rem; color: #999; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #f0f0f0; border-right: none; }
+    .detail-meta td { padding: 0.25rem 0.6rem; border-bottom: 1px solid #f0f0f0; border-right: none; }
+    .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
+    .detail-editable:hover { background: #f0f4f8; }
+    .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: inherit; outline: none; box-sizing: border-box; }
 
     .month-downloads { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
     .month-downloads h3 { font-size: 0.9rem; color: #555; margin-bottom: 0.75rem; }
@@ -653,9 +652,9 @@ function buildRows(fields, d) {
     return fields.map(f => {
         const editType = EDITABLE_FIELDS[f];
         const canEdit = editType && permUpravovat;
-        const editCls = canEdit ? ' class="editable"' : '';
-        const editIcon = canEdit ? '<span class="edit-icon" onclick="startDetailEdit(this,'+d.id+',\''+f+'\',\''+editType+'\')">&#9998;</span>' : '';
-        return '<tr><th>'+DETAIL_LABELS[f]+'</th><td'+editCls+'><span class="cell-val">'+fmtVal(f, d)+'</span>'+editIcon+'</td></tr>';
+        const cls = canEdit ? ' class="detail-editable"' : '';
+        const onclick = canEdit ? ' onclick="startDetailEdit(this,'+d.id+',\''+f+'\',\''+editType+'\')"' : '';
+        return '<tr><th>'+DETAIL_LABELS[f]+'</th><td'+cls+onclick+'><span class="cell-val">'+fmtVal(f, d)+'</span></td></tr>';
     }).join('');
 }
 
@@ -676,51 +675,51 @@ function toggleDetail(id, btn) {
     const detailTr = document.createElement('tr');
     detailTr.className = 'detail-row';
 
-    // Right column: main info
-    const mainFields = ['stav','typ_dokladu','dodavatel_nazev','dodavatel_ico',
-        'cislo_dokladu','castka_celkem','castka_dph','datum_vystaveni','datum_splatnosti','kategorie'];
+    // Right column: all extracted data
+    const mainFields = ['stav','typ_dokladu',
+        'dodavatel_nazev','dodavatel_ico','odberatel_nazev','odberatel_ico','adresat_overeni',
+        'cislo_dokladu','castka_celkem','castka_dph','mena',
+        'datum_vystaveni','datum_splatnosti','datum_prijeti','duzp',
+        'kategorie','kvalita','kvalita_poznamka'];
 
-    // Bottom: additional details
-    const extraFields = ['kvalita','kvalita_poznamka','odberatel_nazev','odberatel_ico','adresat_overeni',
-        'datum_prijeti','duzp','mena','zdroj','nahral','nazev_souboru','created_at_full','chybova_zprava'];
+    // Bottom: meta / system info
+    const metaFields = ['nazev_souboru','zdroj','nahral','created_at_full'];
+    if (d.chybova_zprava) metaFields.push('chybova_zprava');
 
     // === Build preview ===
-    let previewHtml = '';
+    let leftHtml = '';
     const pvUrl = d.preview_original_url || d.preview_url;
     const pvExt = d.preview_original_url ? d.preview_original_ext : d.preview_ext;
     if (pvUrl) {
         if (pvExt === 'pdf') {
-            previewHtml = '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><iframe src="'+pvUrl+'"></iframe></div>';
+            leftHtml += '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><iframe src="'+pvUrl+'"></iframe></div>';
         } else {
-            previewHtml = '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><img src="'+pvUrl+'" alt="Náhled"></div>';
+            leftHtml += '<div class="detail-preview" onclick="openPreview(\''+pvUrl+'\',\''+pvExt+'\')"><img src="'+pvUrl+'" alt="Náhled"></div>';
         }
+    }
+    if (d.download_url) {
+        leftHtml += '<div class="detail-download"><a href="'+d.download_url+'">&#128229; Stáhnout dokument</a></div>';
     }
 
     // === Assemble ===
     let inner = '<div class="detail-top">';
-    inner += previewHtml;
-    inner += '<div class="detail-info"><table>' + buildRows(mainFields, d) + '</table>';
-    if (d.download_url) {
-        inner += '<div class="detail-actions"><a href="'+d.download_url+'" class="btn-detail-download">Stáhnout</a></div>';
-    }
+    inner += '<div class="detail-left">' + leftHtml + '</div>';
+    inner += '<div class="detail-info"><div class="detail-heading">Uložená data</div><table>' + buildRows(mainFields, d) + '</table>';
     inner += '</div></div>';
-    inner += '<div class="detail-extra"><table>' + buildRows(extraFields, d) + '</table></div>';
+    inner += '<div class="detail-meta"><div class="detail-heading">Informace o souboru</div><table>' + buildRows(metaFields, d) + '</table></div>';
 
     detailTr.innerHTML = '<td colspan="'+colCount+'"><div class="detail-inner">'+inner+'</div></td>';
     tr.after(detailTr);
 }
 
 // ===== Detail inline edit =====
-function startDetailEdit(icon, id, field, editType) {
-    const td = icon.closest('td');
+function startDetailEdit(td, id, field, editType) {
     if (td.querySelector('.edit-input')) return;
     const d = dokladyData.find(x => x.id === id);
     if (!d) return;
     const rawVal = editType === 'date' ? (d[field + '_raw'] || '') : (d[field] || '');
     const valSpan = td.querySelector('.cell-val');
-    const editSpan = td.querySelector('.edit-icon');
     valSpan.style.display = 'none';
-    if (editSpan) editSpan.style.display = 'none';
 
     let input;
     if (editType === 'select') {
@@ -751,7 +750,6 @@ function startDetailEdit(icon, id, field, editType) {
         const newVal = input.value;
         input.remove();
         valSpan.style.display = '';
-        if (editSpan) editSpan.style.display = '';
 
         fetch(d.update_url, {
             method: 'PATCH',
@@ -772,7 +770,7 @@ function startDetailEdit(icon, id, field, editType) {
         }).catch(() => {});
     }
 
-    function cancel() { input.remove(); valSpan.style.display = ''; if (editSpan) editSpan.style.display = ''; }
+    function cancel() { input.remove(); valSpan.style.display = ''; }
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') cancel(); });
     if (editType === 'select') input.addEventListener('change', save);
