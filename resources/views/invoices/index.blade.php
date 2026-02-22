@@ -267,7 +267,7 @@
 <script>
 // PDF.js global setup
 (function() {
-    var lib = window['pdfjs-dist/build/pdf'];
+    var lib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
     if (lib) {
         window.pdfjsLib = lib;
         lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -832,6 +832,8 @@ function startDetailEdit(td, id, field, editType, evt) {
                 }
                 valSpan.innerHTML = fmtVal(field, d);
                 updateTableRow(d);
+            } else if (res.error) {
+                addNotification({ status: 'error', icon: '&#10007;', name: res.error });
             }
         }).catch(() => {});
     }

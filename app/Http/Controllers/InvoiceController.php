@@ -436,6 +436,22 @@ class InvoiceController extends Controller
             $value = null;
         }
 
+        // Validate currency code
+        if ($field === 'mena' && $value !== null) {
+            $value = strtoupper(trim($value));
+            $validCurrencies = [
+                'CZK','EUR','USD','GBP','PLN','CHF','SEK','NOK','DKK','HUF',
+                'RON','BGN','HRK','RUB','UAH','TRY','JPY','CNY','KRW','INR',
+                'BRL','MXN','ARS','CLP','COP','PEN','AUD','NZD','CAD','ZAR',
+                'EGP','AED','SAR','QAR','KWD','BHD','OMR','ILS','THB','MYR',
+                'SGD','IDR','PHP','VND','TWD','HKD','ISK','RSD','BAM','MKD',
+                'ALL','GEL','MDL','BYN','KZT','UZS',
+            ];
+            if (!in_array($value, $validCurrencies)) {
+                return response()->json(['ok' => false, 'error' => 'Neplatný kód měny. Použijte ISO kód (CZK, EUR, USD...).'], 422);
+            }
+        }
+
         $doklad->update([$field => $value]);
 
         return response()->json(['ok' => true]);
