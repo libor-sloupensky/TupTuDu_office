@@ -653,7 +653,7 @@ function buildRows(fields, d) {
         const editType = EDITABLE_FIELDS[f];
         const canEdit = editType && permUpravovat;
         const cls = canEdit ? ' class="detail-editable"' : '';
-        const onclick = canEdit ? ' onclick="startDetailEdit(this,'+d.id+',\''+f+'\',\''+editType+'\')"' : '';
+        const onclick = canEdit ? ' onclick="startDetailEdit(this,'+d.id+',\''+f+'\',\''+editType+'\',event)"' : '';
         return '<tr><th>'+DETAIL_LABELS[f]+'</th><td'+cls+onclick+'><span class="cell-val">'+fmtVal(f, d)+'</span></td></tr>';
     }).join('');
 }
@@ -676,14 +676,14 @@ function toggleDetail(id, btn) {
     detailTr.className = 'detail-row';
 
     // Right column: all extracted data
-    const mainFields = ['stav','typ_dokladu',
+    const mainFields = ['typ_dokladu',
         'dodavatel_nazev','dodavatel_ico','odberatel_nazev','odberatel_ico','adresat_overeni',
         'cislo_dokladu','castka_celkem','castka_dph','mena',
         'datum_vystaveni','datum_splatnosti','datum_prijeti','duzp',
-        'kategorie','kvalita','kvalita_poznamka'];
+        'kategorie'];
 
     // Bottom: meta / system info
-    const metaFields = ['nazev_souboru','zdroj','nahral','created_at_full'];
+    const metaFields = ['stav','kvalita','kvalita_poznamka','nazev_souboru','zdroj','nahral','created_at_full'];
     if (d.chybova_zprava) metaFields.push('chybova_zprava');
 
     // === Build preview ===
@@ -713,12 +713,44 @@ function toggleDetail(id, btn) {
 }
 
 // ===== Detail inline edit =====
-function startDetailEdit(td, id, field, editType) {
+function startDetailEdit(td, id, field, editType, evt) {
     if (td.querySelector('.edit-input')) return;
     const d = dokladyData.find(x => x.id === id);
     if (!d) return;
     const rawVal = editType === 'date' ? (d[field + '_raw'] || '') : (d[field] || '');
     const valSpan = td.querySelector('.cell-val');
+
+    // Determine cursor position from click before hiding the text
+    let caretPos = -1;
+    if (evt && editType === 'text' && document.caretRangeFromPoint) {
+        try {
+            const range = document.caretRangeFromPoint(evt.clientX, evt.clientY);
+            if (range && valSpan.contains(range.startContainer)) {
+                caretPos = range.startOffset;
+                // Walk preceding text nodes to get absolute offset
+                const walker = document.createTreeWalker(valSpan, NodeFilter.SHOW_TEXT, null);
+                let total = 0;
+                while (walker.nextNode()) {
+                    if (walker.currentNode === range.startContainer) { caretPos = total + range.startOffset; break; }
+                    total += walker.currentNode.textContent.length;
+                }
+            }
+        } catch(e) {}
+    } else if (evt && editType === 'text' && document.caretPositionFromPoint) {
+        try {
+            const pos = document.caretPositionFromPoint(evt.clientX, evt.clientY);
+            if (pos && valSpan.contains(pos.offsetNode)) {
+                caretPos = pos.offset;
+                const walker = document.createTreeWalker(valSpan, NodeFilter.SHOW_TEXT, null);
+                let total = 0;
+                while (walker.nextNode()) {
+                    if (walker.currentNode === pos.offsetNode) { caretPos = total + pos.offset; break; }
+                    total += walker.currentNode.textContent.length;
+                }
+            }
+        } catch(e) {}
+    }
+
     valSpan.style.display = 'none';
 
     let input;
@@ -744,7 +776,12 @@ function startDetailEdit(td, id, field, editType) {
     }
     td.appendChild(input);
     input.focus();
-    if (input.select) input.select();
+    if (editType === 'text' && caretPos >= 0) {
+        const pos = Math.min(caretPos, rawVal.length);
+        input.setSelectionRange(pos, pos);
+    } else if (input.select) {
+        input.select();
+    }
 
     function save() {
         const newVal = input.value;
