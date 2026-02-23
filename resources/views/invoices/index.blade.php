@@ -1290,6 +1290,14 @@ function showBboxHighlight(field, doklad, container) {
     if (!coords || coords.length !== 4) return;
 
     const [left, top, right, bottom] = coords;
+
+    // DEBUG: vypíše souřadnice a rozměry kontejneru do konzole
+    const img = container.querySelector('canvas, img');
+    console.log(`[BBOX DEBUG] field=${field}, coords=[${left.toFixed(4)}, ${top.toFixed(4)}, ${right.toFixed(4)}, ${bottom.toFixed(4)}]`,
+        `| container: ${container.offsetWidth}x${container.offsetHeight}`,
+        `| img/canvas: ${img ? img.offsetWidth+'x'+img.offsetHeight : 'N/A'}`,
+        `| img natural: ${img?.naturalWidth || img?.width}x${img?.naturalHeight || img?.height}`);
+
     const highlight = document.createElement('div');
     highlight.className = 'bbox-highlight';
     highlight.style.left = (left * 100) + '%';

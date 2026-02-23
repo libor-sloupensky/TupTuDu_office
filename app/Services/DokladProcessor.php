@@ -16,6 +16,9 @@ class DokladProcessor
     /** Indikátor, zda byla na některé stránce detekována více než 1 doklad. */
     public bool $hadMultiDocPage = false;
 
+    /** Debug: typ posledního Textract matche (word_exact, word_compact, line_exact, line_contains, line_words). */
+    private string $lastMatchType = '';
+
     /**
      * Zpracuje soubor dokladu - rozdělí PDF na stránky, Claude Vision AI + upload na S3 + uložení do DB.
      * Vrací pole Doklad objektů (může být víc dokladů z jednoho souboru).
@@ -570,7 +573,18 @@ class DokladProcessor
                 'Document' => ['Bytes' => $fileBytes],
             ]);
 
-            return $result['Blocks'] ?? null;
+            $blocks = $result['Blocks'] ?? null;
+
+            // Debug: loguj kolik bloků Textract vrátil
+            if ($blocks) {
+                $wordCount = count(array_filter($blocks, fn($b) => ($b['BlockType'] ?? '') === 'WORD'));
+                $lineCount = count(array_filter($blocks, fn($b) => ($b['BlockType'] ?? '') === 'LINE'));
+                $sampleLines = array_slice(array_filter($blocks, fn($b) => ($b['BlockType'] ?? '') === 'LINE'), 0, 5);
+                $sample = array_map(fn($l) => $l['Text'] ?? '', $sampleLines);
+                Log::info("Textract: {$wordCount} words, {$lineCount} lines. Sample: " . implode(' | ', $sample));
+            }
+
+            return $blocks;
         } catch (\Exception $e) {
             Log::warning("Textract call failed: {$e->getMessage()}");
             return null;
@@ -591,6 +605,7 @@ class DokladProcessor
         ];
 
         $souradnice = [];
+        $debugLog = [];
         foreach ($fields as $field) {
             $value = $docData[$field] ?? null;
             if ($value === null || $value === '') continue;
@@ -601,8 +616,13 @@ class DokladProcessor
             $bbox = $this->findInTextractBlocks($patterns, $blocks);
             if ($bbox) {
                 $souradnice[$field] = $bbox;
+                $debugLog[] = "{$field}={$value} → [{$bbox[0]},{$bbox[1]},{$bbox[2]},{$bbox[3]}] match={$this->lastMatchType}";
+            } else {
+                $debugLog[] = "{$field}={$value} → NOT FOUND (patterns: " . implode(', ', array_slice($patterns, 0, 3)) . ')';
             }
         }
+
+        Log::info('Textract matching: ' . implode(' | ', $debugLog));
 
         return $souradnice;
     }
@@ -663,6 +683,7 @@ class DokladProcessor
             foreach ($words as $w) {
                 $text = mb_strtolower(trim($w['Text'] ?? ''));
                 if ($text === $needleLower) {
+                    $this->lastMatchType = 'word_exact(' . ($w['Text'] ?? '') . ')';
                     return $this->textractBbox($w);
                 }
             }
@@ -671,6 +692,7 @@ class DokladProcessor
             foreach ($words as $w) {
                 $text = preg_replace('/\s+/', '', mb_strtolower(trim($w['Text'] ?? '')));
                 if ($text === $needleCompact) {
+                    $this->lastMatchType = 'word_compact(' . ($w['Text'] ?? '') . ')';
                     return $this->textractBbox($w);
                 }
             }
@@ -679,6 +701,7 @@ class DokladProcessor
             foreach ($lines as $l) {
                 $text = mb_strtolower(trim($l['Text'] ?? ''));
                 if ($text === $needleLower) {
+                    $this->lastMatchType = 'line_exact(' . ($l['Text'] ?? '') . ')';
                     return $this->textractBbox($l);
                 }
             }
@@ -690,7 +713,12 @@ class DokladProcessor
                 if (str_contains($lineText, $needleLower) || str_contains($lineCompact, $needleCompact)) {
                     // Zkus najít podmnožinu slov v této řádce
                     $wordBbox = $this->findWordsInLine($needleLower, $l, $words, $blocks);
-                    return $wordBbox ?? $this->textractBbox($l);
+                    if ($wordBbox) {
+                        $this->lastMatchType = 'line_words(' . ($l['Text'] ?? '') . ')';
+                        return $wordBbox;
+                    }
+                    $this->lastMatchType = 'line_contains(' . ($l['Text'] ?? '') . ')';
+                    return $this->textractBbox($l);
                 }
             }
         }
