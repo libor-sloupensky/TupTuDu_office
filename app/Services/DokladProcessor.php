@@ -919,7 +919,7 @@ class DokladProcessor
         $userText = 'Analyzuj tento sken. DŮLEŽITÉ: Stránka může obsahovat VÍCE fyzicky samostatných dokladů (účtenek/paragonů nalepených na papíře, různé doklady vedle sebe nebo pod sebou). Pokud vidíš více hlaviček firem, více celkových částek nebo jiné příznaky více dokladů, MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Vrať POUZE validní JSON.';
 
         if ($textractOcr) {
-            $userText .= "\n\nPŘESNÝ OCR PŘEPIS (z AWS Textract, řádek po řádku):\n---\n{$textractOcr}\n---\nPro číselné údaje (IČO, DIČ, čísla dokladů, částky, data) VŽDY preferuj hodnoty z tohoto OCR přepisu před vlastním čtením z obrázku. OCR přepis je přesnější pro jednotlivé znaky.";
+            $userText .= "\n\nPŘESNÝ OCR PŘEPIS (z AWS Textract, řádek po řádku):\n---\n{$textractOcr}\n---\nTento OCR přepis je znaková přesností NADŘAZENÝ tvému vlastnímu čtení z obrázku. VŽDY preferuj text z tohoto přepisu pro VŠECHNY hodnoty — názvy firem, IČO, DIČ, čísla dokladů, částky, data, adresy. Obrázek používej pouze pro pochopení struktury dokumentu (co je dodavatel, co odběratel, jaký typ dokladu atd.).";
         }
 
         $response = Http::timeout(90)->withHeaders([
