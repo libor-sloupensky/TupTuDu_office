@@ -610,12 +610,28 @@ class DokladProcessor
             'datum_vystaveni', 'datum_splatnosti', 'duzp',
         ];
 
+        // Kontextové popisky pro datumová pole — pomáhají rozlišit stejná data
+        $fieldLabels = [
+            'datum_vystaveni' => ['vystavení', 'vystaveno', 'vystaveni', 'date of issue'],
+            'duzp' => ['duzp', 'dúzp', 'zdanitelného plnění', 'datum plnění', 'plnění', 'uskutečnění'],
+            'datum_splatnosti' => ['splatnost', 'splatnosti', 'due date'],
+        ];
+
         $souradnice = [];
         foreach ($fields as $field) {
             $value = $docData[$field] ?? null;
             if ($value === null || $value === '') continue;
 
             $patterns = $this->valueToSearchPatterns((string) $value, $field);
+
+            // Pro datumová pole: nejprve zkus najít datum na řádku s kontextovým popiskem
+            if (isset($fieldLabels[$field])) {
+                $bbox = $this->findInTextractBlocksWithContext($patterns, $blocks, $fieldLabels[$field]);
+                if ($bbox) {
+                    $souradnice[$field] = $bbox;
+                    continue;
+                }
+            }
 
             $bbox = $this->findInTextractBlocks($patterns, $blocks);
             if ($bbox) {
@@ -624,6 +640,59 @@ class DokladProcessor
         }
 
         return $souradnice;
+    }
+
+    /**
+     * Hledá hodnotu v Textract LINE blocích, ale jen na řádcích obsahujících kontextový popisek.
+     * Např. datum "06.01.2025" na řádku "Datum vystavení: 06.01.2025" matchne pro pole datum_vystaveni.
+     */
+    private function findInTextractBlocksWithContext(array $patterns, array $blocks, array $contextLabels): ?array
+    {
+        $lines = [];
+        $blockIndex = [];
+        foreach ($blocks as $b) {
+            $type = $b['BlockType'] ?? '';
+            if ($type === 'LINE') $lines[] = $b;
+            $blockIndex[$b['Id'] ?? ''] = $b;
+        }
+
+        foreach ($patterns as $needle) {
+            $needleLower = mb_strtolower(trim($needle));
+            $needleCompact = preg_replace('/[\s.]+/', '', $needleLower);
+            if ($needleLower === '') continue;
+
+            foreach ($lines as $l) {
+                $lineText = mb_strtolower(trim($l['Text'] ?? ''));
+
+                // Řádek musí obsahovat alespoň jeden kontextový popisek
+                $hasContext = false;
+                foreach ($contextLabels as $label) {
+                    if (str_contains($lineText, mb_strtolower($label))) {
+                        $hasContext = true;
+                        break;
+                    }
+                }
+                if (!$hasContext) continue;
+
+                // Řádek musí obsahovat hledanou hodnotu
+                $lineCompact = preg_replace('/[\s.]+/', '', $lineText);
+                if (!str_contains($lineText, $needleLower) && !str_contains($lineCompact, $needleCompact)) {
+                    continue;
+                }
+
+                // Najdi přesnou pozici slova/slov na řádku
+                $wordBbox = $this->findWordsInLine($needleLower, $l, $blockIndex);
+                if ($wordBbox) return $wordBbox;
+
+                $wordBbox = $this->findWordsInLineCompact($needleCompact, $l, $blockIndex);
+                if ($wordBbox) return $wordBbox;
+
+                // Fallback na celý LINE bbox
+                return $this->textractBbox($l);
+            }
+        }
+
+        return null;
     }
 
     /**
