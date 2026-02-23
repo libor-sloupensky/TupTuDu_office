@@ -115,7 +115,7 @@
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
-    .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.18); border: none; border-radius: 2px; pointer-events: none; transition: opacity 0.2s; z-index: 5; margin: -3px -4px; padding: 3px 4px; }
+    .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.18); border: none; border-radius: 3px; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
     .detail-download { margin-top: 0.5rem; text-align: center; }
     .detail-download a { display: inline-block; font-size: 0.8rem; padding: 0.35rem 1rem; border-radius: 4px; text-decoration: none; background: #3498db; color: white; transition: background 0.15s; }
@@ -1291,12 +1291,17 @@ function showBboxHighlight(field, doklad, container) {
     if (!coords || coords.length !== 4) return;
 
     const [left, top, right, bottom] = coords;
+    const w = right - left;
+    const h = bottom - top;
+    // Expand by 50% (25% on each side) and center around midpoint
+    const ex = w * 0.25;
+    const ey = h * 0.25;
     const highlight = document.createElement('div');
     highlight.className = 'bbox-highlight';
-    highlight.style.left = (left * 100) + '%';
-    highlight.style.top = (top * 100) + '%';
-    highlight.style.width = ((right - left) * 100) + '%';
-    highlight.style.height = ((bottom - top) * 100) + '%';
+    highlight.style.left = (Math.max(0, left - ex) * 100) + '%';
+    highlight.style.top = (Math.max(0, top - ey) * 100) + '%';
+    highlight.style.width = (Math.min(1, w + 2 * ex) * 100) + '%';
+    highlight.style.height = (Math.min(1, h + 2 * ey) * 100) + '%';
     container.appendChild(highlight);
 }
 

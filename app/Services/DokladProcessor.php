@@ -1061,7 +1061,7 @@ DŮLEŽITÁ PRAVIDLA:
 - Datumy vždy ve formátu YYYY-MM-DD
 - datum_vystaveni = datum, kdy byl doklad VYSTAVEN (uvedeno jako "Datum vystavení", "Vystaveno dne", "Date of issue").
 - duzp = datum uskutečnění zdanitelného plnění (uvedeno jako "DUZP", "DÚZP", "Datum zdanitelného plnění", "Datum plnění", "Uskutečnění plnění").
-- Pokud na dokladu najdeš OBĚ data (datum vystavení i DUZP) a jsou RŮZNÁ, vyplň každé zvlášť. Pokud na dokladu je uvedeno jen jedno datum (typicky "Datum vystavení" nebo "Vystaveno"), vyplň ho do datum_vystaveni a duzp ponech null — systém ho doplní automaticky.
+- Pokud na dokladu najdeš OBĚ data (datum vystavení i DUZP) a jsou RŮZNÁ, vyplň každé zvlášť. Pokud na dokladu je uvedeno jen jedno datum (typicky "Datum vystavení" nebo "Vystaveno"), vyplň ho do OBOU polí (datum_vystaveni i duzp) stejně.
 - IČO dodavatele: pouze číslice (bez CZ prefixu, 8 číslic pro české IČO)
 - DIČ dodavatele: včetně prefixu země (CZ, SK, PT atd.)
 - Pokud je kvalita "nizka", vyplň kvalita_poznamka s krátkým popisem problému
