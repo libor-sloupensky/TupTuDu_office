@@ -115,7 +115,7 @@
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
-    .bbox-highlight { position: absolute; background: rgba(255, 230, 0, 0.25); border: none; border-radius: 2px; pointer-events: none; transition: opacity 0.2s; z-index: 5; margin: -3px -4px; padding: 3px 4px; }
+    .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.18); border: none; border-radius: 2px; pointer-events: none; transition: opacity 0.2s; z-index: 5; margin: -3px -4px; padding: 3px 4px; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
     .detail-download { margin-top: 0.5rem; text-align: center; }
     .detail-download a { display: inline-block; font-size: 0.8rem; padding: 0.35rem 1rem; border-radius: 4px; text-decoration: none; background: #3498db; color: white; transition: background 0.15s; }
@@ -131,7 +131,7 @@
     .detail-meta td { padding: 0.25rem 0.6rem; border-bottom: 1px solid #f0f0f0; border-right: none; }
     .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
     .detail-editable:hover { background: #f0f4f8; }
-    .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline; font-size: 0.65rem; opacity: 0.35; transform: rotate(-30deg); }
+    .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline; font-size: 0.65rem; opacity: 1; color: #3498db; }
     .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: inherit; outline: none; box-sizing: border-box; }
 
     .month-downloads { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
@@ -688,9 +688,9 @@ function toggleDetail(id, btn) {
 
     // Right column: all extracted data
     const mainFields = ['typ_dokladu',
-        'dodavatel_nazev','dodavatel_ico','odberatel_nazev','odberatel_ico','adresat_overeni',
+        'dodavatel_nazev','dodavatel_ico',
         'cislo_dokladu','castka_celkem','castka_dph','mena',
-        'datum_vystaveni','datum_splatnosti','datum_prijeti','duzp',
+        'datum_vystaveni','duzp','datum_splatnosti','datum_prijeti',
         'kategorie'];
 
     // Bottom: meta / system info
