@@ -89,8 +89,12 @@ class DokladProcessor
             $pageTempPath = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}_p{$pageNum}.pdf";
             Storage::disk('s3')->put($pageTempPath, $pageBytes);
 
+            // Textract PRVNÍ — přesný OCR text + bounding boxy per stránku
+            $textractBlocks = $this->callTextract($pageBytes);
+            $textractOcr = $this->extractTextractText($textractBlocks);
+
             try {
-                $visionResult = $this->analyzeWithVision($pageBytes, 'pdf', $firma);
+                $visionResult = $this->analyzeWithVision($pageBytes, 'pdf', $firma, $textractOcr);
             } catch (\Exception $e) {
                 Log::error("DokladProcessor Vision error page {$pageNum}: {$e->getMessage()}", [
                     'firma_ico' => $firma->ico,
@@ -121,9 +125,6 @@ class DokladProcessor
                 try { Storage::disk('s3')->delete($pageTempPath); } catch (\Exception $e) {}
                 continue;
             }
-
-            // Textract pro přesné bounding boxy (jedno volání per stránku)
-            $textractBlocks = $this->callTextract($pageBytes);
 
             $docsOnPage = count($documents);
             $multiDocOnThisPage = $docsOnPage > 1;
@@ -280,8 +281,12 @@ class DokladProcessor
         $tempS3Path = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}.{$ext}";
         Storage::disk('s3')->put($tempS3Path, $fileBytes);
 
+        // Textract PRVNÍ — přesný OCR text + bounding boxy
+        $textractBlocks = $this->callTextract($fileBytes);
+        $textractOcr = $this->extractTextractText($textractBlocks);
+
         try {
-            $visionResult = $this->analyzeWithVision($fileBytes, $ext, $firma);
+            $visionResult = $this->analyzeWithVision($fileBytes, $ext, $firma, $textractOcr);
         } catch (\Exception $e) {
             Log::error("DokladProcessor Vision error: {$e->getMessage()}", [
                 'firma_ico' => $firma->ico,
@@ -317,9 +322,6 @@ class DokladProcessor
             ]);
             return [$doklad];
         }
-
-        // Textract pro přesné bounding boxy (jedno volání pro celou stránku)
-        $textractBlocks = $this->callTextract($fileBytes);
 
         $doklady = [];
         $celkem = count($documents);
@@ -576,6 +578,23 @@ class DokladProcessor
             Log::warning("Textract call failed: {$e->getMessage()}");
             return null;
         }
+    }
+
+    /**
+     * Extrahuje čistý OCR text z Textract bloků (LINE bloky, řádek po řádku).
+     */
+    private function extractTextractText(?array $blocks): ?string
+    {
+        if (!$blocks) return null;
+
+        $lines = [];
+        foreach ($blocks as $b) {
+            if (($b['BlockType'] ?? '') === 'LINE' && !empty($b['Text'])) {
+                $lines[] = $b['Text'];
+            }
+        }
+
+        return !empty($lines) ? implode("\n", $lines) : null;
     }
 
     /**
@@ -869,7 +888,7 @@ class DokladProcessor
      * Pošle dokument do Claude Vision API - jedno volání, kompletní analýza.
      * OCR + extrakce dat + klasifikace typu + hodnocení kvality.
      */
-    private function analyzeWithVision(string $fileBytes, string $ext, Firma $firma): array
+    private function analyzeWithVision(string $fileBytes, string $ext, Firma $firma, ?string $textractOcr = null): array
     {
         $apiKey = config('services.anthropic.key');
         if (empty($apiKey)) {
@@ -896,6 +915,13 @@ class DokladProcessor
 
         $systemPrompt = $this->buildSystemPrompt($firma);
 
+        // Sestavení user message — obraz + volitelně přesný OCR text z Textract
+        $userText = 'Analyzuj tento sken. DŮLEŽITÉ: Stránka může obsahovat VÍCE fyzicky samostatných dokladů (účtenek/paragonů nalepených na papíře, různé doklady vedle sebe nebo pod sebou). Pokud vidíš více hlaviček firem, více celkových částek nebo jiné příznaky více dokladů, MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Vrať POUZE validní JSON.';
+
+        if ($textractOcr) {
+            $userText .= "\n\nPŘESNÝ OCR PŘEPIS (z AWS Textract, řádek po řádku):\n---\n{$textractOcr}\n---\nPro číselné údaje (IČO, DIČ, čísla dokladů, částky, data) VŽDY preferuj hodnoty z tohoto OCR přepisu před vlastním čtením z obrázku. OCR přepis je přesnější pro jednotlivé znaky.";
+        }
+
         $response = Http::timeout(90)->withHeaders([
             'x-api-key' => $apiKey,
             'anthropic-version' => '2023-06-01',
@@ -910,7 +936,7 @@ class DokladProcessor
                         $contentBlock,
                         [
                             'type' => 'text',
-                            'text' => 'Analyzuj tento sken. DŮLEŽITÉ: Stránka může obsahovat VÍCE fyzicky samostatných dokladů (účtenek/paragonů nalepených na papíře, různé doklady vedle sebe nebo pod sebou). Pokud vidíš více hlaviček firem, více celkových částek nebo jiné příznaky více dokladů, MUSÍŠ každý vrátit jako SAMOSTATNÝ objekt v poli "dokumenty". Vrať POUZE validní JSON.',
+                            'text' => $userText,
                         ],
                     ],
                 ],

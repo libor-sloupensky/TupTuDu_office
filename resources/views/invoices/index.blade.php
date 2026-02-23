@@ -115,7 +115,7 @@
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
-    .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.2); border: 2px solid rgba(52, 152, 219, 0.6); border-radius: 3px; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
+    .bbox-highlight { position: absolute; background: rgba(255, 230, 0, 0.25); border: none; border-radius: 2px; pointer-events: none; transition: opacity 0.2s; z-index: 5; margin: -3px -4px; padding: 3px 4px; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
     .detail-download { margin-top: 0.5rem; text-align: center; }
     .detail-download a { display: inline-block; font-size: 0.8rem; padding: 0.35rem 1rem; border-radius: 4px; text-decoration: none; background: #3498db; color: white; transition: background 0.15s; }
@@ -129,9 +129,9 @@
     .detail-meta table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
     .detail-meta th { text-align: left; padding: 0.25rem 0.6rem; color: #999; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #f0f0f0; border-right: none; }
     .detail-meta td { padding: 0.25rem 0.6rem; border-bottom: 1px solid #f0f0f0; border-right: none; }
-    .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; position: relative; }
+    .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
     .detail-editable:hover { background: #f0f4f8; }
-    .detail-editable:hover::after { content: '✏'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; opacity: 0.4; pointer-events: none; }
+    .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline; font-size: 0.65rem; opacity: 0.35; transform: rotate(-30deg); }
     .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: inherit; outline: none; box-sizing: border-box; }
 
     .month-downloads { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
