@@ -497,7 +497,7 @@ class DokladProcessor
             'duplicita_id' => $duplicitaId,
             'datum_vystaveni' => $docData['datum_vystaveni'] ?? null,
             'datum_prijeti' => now()->toDateString(),
-            'duzp' => $docData['duzp'] ?? null,
+            'duzp' => $docData['duzp'] ?? $docData['datum_vystaveni'] ?? null,
             'datum_splatnosti' => $docData['datum_splatnosti'] ?? null,
             'castka_celkem' => $docData['castka_celkem'] ?? null,
             'mena' => $docData['mena'] ?? 'CZK',
@@ -1059,9 +1059,9 @@ DŮLEŽITÁ PRAVIDLA:
 - castka_celkem = celková částka K ÚHRADĚ (včetně DPH)
 - castka_dph = samotná částka DPH (ne základ daně, ne celkem s DPH)
 - Datumy vždy ve formátu YYYY-MM-DD
-- datum_vystaveni = datum, kdy byl doklad VYSTAVEN (uvedeno jako "Datum vystavení", "Vystaveno dne", "Date of issue"). Toto je formální datum vytvoření dokladu.
-- duzp = datum uskutečnění zdanitelného plnění (uvedeno jako "DUZP", "DÚZP", "Datum zdanitelného plnění", "Datum plnění", "Uskutečnění plnění"). Toto je datum, kdy bylo zboží dodáno nebo služba poskytnuta.
-- datum_vystaveni a duzp jsou DVĚ RŮZNÁ pole. I když bývají často stejná, MUSÍŠ je extrahovat SAMOSTATNĚ z dokladu. Pokud na dokladu najdeš oba údaje, vyplň každý zvlášť. Pokud najdeš jen jeden z nich, vyplň pouze ten nalezený a druhý ponech null. NIKDY nekopíruj datum_vystaveni do duzp ani naopak.
+- datum_vystaveni = datum, kdy byl doklad VYSTAVEN (uvedeno jako "Datum vystavení", "Vystaveno dne", "Date of issue").
+- duzp = datum uskutečnění zdanitelného plnění (uvedeno jako "DUZP", "DÚZP", "Datum zdanitelného plnění", "Datum plnění", "Uskutečnění plnění").
+- Pokud na dokladu najdeš OBĚ data (datum vystavení i DUZP) a jsou RŮZNÁ, vyplň každé zvlášť. Pokud na dokladu je uvedeno jen jedno datum (typicky "Datum vystavení" nebo "Vystaveno"), vyplň ho do datum_vystaveni a duzp ponech null — systém ho doplní automaticky.
 - IČO dodavatele: pouze číslice (bez CZ prefixu, 8 číslic pro české IČO)
 - DIČ dodavatele: včetně prefixu země (CZ, SK, PT atd.)
 - Pokud je kvalita "nizka", vyplň kvalita_poznamka s krátkým popisem problému
