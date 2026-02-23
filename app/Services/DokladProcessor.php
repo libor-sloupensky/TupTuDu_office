@@ -16,8 +16,6 @@ class DokladProcessor
     /** Indikátor, zda byla na některé stránce detekována více než 1 doklad. */
     public bool $hadMultiDocPage = false;
 
-    /** Debug: typ posledního Textract matche (word_exact, word_compact, line_exact, line_contains, line_words). */
-    private string $lastMatchType = '';
 
     /**
      * Zpracuje soubor dokladu - rozdělí PDF na stránky, Claude Vision AI + upload na S3 + uložení do DB.
@@ -573,18 +571,7 @@ class DokladProcessor
                 'Document' => ['Bytes' => $fileBytes],
             ]);
 
-            $blocks = $result['Blocks'] ?? null;
-
-            // Debug: loguj kolik bloků Textract vrátil
-            if ($blocks) {
-                $wordCount = count(array_filter($blocks, fn($b) => ($b['BlockType'] ?? '') === 'WORD'));
-                $lineCount = count(array_filter($blocks, fn($b) => ($b['BlockType'] ?? '') === 'LINE'));
-                $sampleLines = array_slice(array_filter($blocks, fn($b) => ($b['BlockType'] ?? '') === 'LINE'), 0, 5);
-                $sample = array_map(fn($l) => $l['Text'] ?? '', $sampleLines);
-                Log::info("Textract: {$wordCount} words, {$lineCount} lines. Sample: " . implode(' | ', $sample));
-            }
-
-            return $blocks;
+            return $result['Blocks'] ?? null;
         } catch (\Exception $e) {
             Log::warning("Textract call failed: {$e->getMessage()}");
             return null;
@@ -605,24 +592,17 @@ class DokladProcessor
         ];
 
         $souradnice = [];
-        $debugLog = [];
         foreach ($fields as $field) {
             $value = $docData[$field] ?? null;
             if ($value === null || $value === '') continue;
 
-            // Formátování číslic do českých variant pro matching
             $patterns = $this->valueToSearchPatterns((string) $value, $field);
 
             $bbox = $this->findInTextractBlocks($patterns, $blocks);
             if ($bbox) {
                 $souradnice[$field] = $bbox;
-                $debugLog[] = "{$field}={$value} → [{$bbox[0]},{$bbox[1]},{$bbox[2]},{$bbox[3]}] match={$this->lastMatchType}";
-            } else {
-                $debugLog[] = "{$field}={$value} → NOT FOUND (patterns: " . implode(', ', array_slice($patterns, 0, 3)) . ')';
             }
         }
-
-        Log::info('Textract matching: ' . implode(' | ', $debugLog));
 
         return $souradnice;
     }
@@ -661,11 +641,10 @@ class DokladProcessor
 
     /**
      * Hledá textové vzory v Textract blocích. Vrací [left, top, right, bottom] nebo null.
-     * Prohledává WORD → LINE bloky, nejprve přesná shoda, pak substring.
+     * Priorita: WORD přesně → WORD kompaktně → sliding window slov v LINE → LINE fallback.
      */
     private function findInTextractBlocks(array $patterns, array $blocks): ?array
     {
-        // Rozděl bloky na typy
         $words = [];
         $lines = [];
         foreach ($blocks as $b) {
@@ -674,50 +653,53 @@ class DokladProcessor
             elseif ($type === 'LINE') $lines[] = $b;
         }
 
+        // Indexuj bloky podle ID (pro findWordsInLine)
+        $blockIndex = [];
+        foreach ($blocks as $b) {
+            $blockIndex[$b['Id'] ?? ''] = $b;
+        }
+
         foreach ($patterns as $needle) {
             $needleLower = mb_strtolower(trim($needle));
-            $needleCompact = preg_replace('/\s+/', '', $needleLower);
+            $needleCompact = preg_replace('/[\s.]+/', '', $needleLower);
             if ($needleLower === '') continue;
 
             // 1) Přesná shoda ve WORD blocích
             foreach ($words as $w) {
                 $text = mb_strtolower(trim($w['Text'] ?? ''));
                 if ($text === $needleLower) {
-                    $this->lastMatchType = 'word_exact(' . ($w['Text'] ?? '') . ')';
                     return $this->textractBbox($w);
                 }
             }
 
-            // 2) Kompaktní shoda ve WORD blocích (bez mezer)
+            // 2) Kompaktní shoda ve WORD (bez mezer a teček)
             foreach ($words as $w) {
-                $text = preg_replace('/\s+/', '', mb_strtolower(trim($w['Text'] ?? '')));
-                if ($text === $needleCompact) {
-                    $this->lastMatchType = 'word_compact(' . ($w['Text'] ?? '') . ')';
+                $text = preg_replace('/[\s.]+/', '', mb_strtolower(trim($w['Text'] ?? '')));
+                if ($text === $needleCompact && mb_strlen($needleCompact) >= 3) {
                     return $this->textractBbox($w);
                 }
             }
 
-            // 3) Přesná shoda v LINE blocích
+            // 3) Needle v LINE → najdi přesná slova (sliding window)
+            foreach ($lines as $l) {
+                $lineText = mb_strtolower(trim($l['Text'] ?? ''));
+                $lineCompact = preg_replace('/[\s.]+/', '', $lineText);
+                if (!str_contains($lineText, $needleLower) && !str_contains($lineCompact, $needleCompact)) {
+                    continue;
+                }
+                // Pokus o přesný word match přes sliding window
+                $wordBbox = $this->findWordsInLine($needleLower, $l, $blockIndex);
+                if ($wordBbox) return $wordBbox;
+
+                // Kompaktní sliding window (ignoruje mezery/tečky)
+                $wordBbox = $this->findWordsInLineCompact($needleCompact, $l, $blockIndex);
+                if ($wordBbox) return $wordBbox;
+            }
+
+            // 4) LINE přesná shoda (celý řádek = hledaný text)
             foreach ($lines as $l) {
                 $text = mb_strtolower(trim($l['Text'] ?? ''));
                 if ($text === $needleLower) {
-                    $this->lastMatchType = 'line_exact(' . ($l['Text'] ?? '') . ')';
-                    return $this->textractBbox($l);
-                }
-            }
-
-            // 4) Needle obsažen v LINE — hledáme přesnější WORD shodu
-            foreach ($lines as $l) {
-                $lineText = mb_strtolower(trim($l['Text'] ?? ''));
-                $lineCompact = preg_replace('/\s+/', '', $lineText);
-                if (str_contains($lineText, $needleLower) || str_contains($lineCompact, $needleCompact)) {
-                    // Zkus najít podmnožinu slov v této řádce
-                    $wordBbox = $this->findWordsInLine($needleLower, $l, $words, $blocks);
-                    if ($wordBbox) {
-                        $this->lastMatchType = 'line_words(' . ($l['Text'] ?? '') . ')';
-                        return $wordBbox;
-                    }
-                    $this->lastMatchType = 'line_contains(' . ($l['Text'] ?? '') . ')';
                     return $this->textractBbox($l);
                 }
             }
@@ -727,12 +709,10 @@ class DokladProcessor
     }
 
     /**
-     * V rámci jedné Textract LINE najde slova odpovídající hledanému textu
-     * a vrátí kombinovaný bounding box.
+     * Získá seřazená slova z Textract LINE bloku.
      */
-    private function findWordsInLine(string $needle, array $line, array $allWords, array $allBlocks): ?array
+    private function getLineWords(array $line, array $blockIndex): array
     {
-        // Získej ID slov v této řádce
         $childIds = [];
         foreach ($line['Relationships'] ?? [] as $rel) {
             if ($rel['Type'] === 'CHILD') {
@@ -740,15 +720,7 @@ class DokladProcessor
                 break;
             }
         }
-        if (empty($childIds)) return null;
 
-        // Indexuj bloky podle ID
-        $blockIndex = [];
-        foreach ($allBlocks as $b) {
-            $blockIndex[$b['Id'] ?? ''] = $b;
-        }
-
-        // Seřaď slova podle pozice (left)
         $lineWords = [];
         foreach ($childIds as $id) {
             $w = $blockIndex[$id] ?? null;
@@ -760,8 +732,17 @@ class DokladProcessor
             ($a['Geometry']['BoundingBox']['Left'] ?? 0) <=> ($b['Geometry']['BoundingBox']['Left'] ?? 0)
         );
 
-        // Sliding window: kombinuj sousední slova a hledej shodu
+        return $lineWords;
+    }
+
+    /**
+     * Sliding window přes slova v LINE — hledá přesnou shodu (s mezerami).
+     */
+    private function findWordsInLine(string $needle, array $line, array $blockIndex): ?array
+    {
+        $lineWords = $this->getLineWords($line, $blockIndex);
         $n = count($lineWords);
+
         for ($start = 0; $start < $n; $start++) {
             $combined = '';
             $minLeft = PHP_FLOAT_MAX;
@@ -783,11 +764,48 @@ class DokladProcessor
                 $maxBottom = max($maxBottom, $bm);
 
                 if (mb_strtolower($combined) === $needle) {
-                    return [
-                        round($minLeft, 4), round($minTop, 4),
-                        round($maxRight, 4), round($maxBottom, 4),
-                    ];
+                    return [round($minLeft, 4), round($minTop, 4), round($maxRight, 4), round($maxBottom, 4)];
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Sliding window přes slova v LINE — kompaktní shoda (ignoruje mezery a tečky).
+     */
+    private function findWordsInLineCompact(string $needleCompact, array $line, array $blockIndex): ?array
+    {
+        $lineWords = $this->getLineWords($line, $blockIndex);
+        $n = count($lineWords);
+
+        for ($start = 0; $start < $n; $start++) {
+            $combined = '';
+            $minLeft = PHP_FLOAT_MAX;
+            $minTop = PHP_FLOAT_MAX;
+            $maxRight = 0;
+            $maxBottom = 0;
+
+            for ($end = $start; $end < $n; $end++) {
+                $wText = $lineWords[$end]['Text'] ?? '';
+                $combined .= $wText;
+                $bb = $lineWords[$end]['Geometry']['BoundingBox'] ?? [];
+                $l = $bb['Left'] ?? 0;
+                $t = $bb['Top'] ?? 0;
+                $r = $l + ($bb['Width'] ?? 0);
+                $bm = $t + ($bb['Height'] ?? 0);
+                $minLeft = min($minLeft, $l);
+                $minTop = min($minTop, $t);
+                $maxRight = max($maxRight, $r);
+                $maxBottom = max($maxBottom, $bm);
+
+                $compactCombined = preg_replace('/[\s.]+/', '', mb_strtolower($combined));
+                if ($compactCombined === $needleCompact) {
+                    return [round($minLeft, 4), round($minTop, 4), round($maxRight, 4), round($maxBottom, 4)];
+                }
+                // Přesáhli jsme délku → pokračuj s dalším startem
+                if (mb_strlen($compactCombined) > mb_strlen($needleCompact)) break;
             }
         }
 

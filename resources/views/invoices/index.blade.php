@@ -111,7 +111,7 @@
     .detail-inner { padding: 0.75rem 1rem 0.75rem 2rem; }
     .detail-top { display: flex; gap: 1rem; margin-bottom: 0.75rem; }
     .detail-left { flex: 0 0 45%; }
-    .detail-preview { max-height: 450px; overflow: hidden; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
+    .detail-preview { max-height: none; overflow: visible; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
@@ -129,8 +129,9 @@
     .detail-meta table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
     .detail-meta th { text-align: left; padding: 0.25rem 0.6rem; color: #999; font-weight: 600; width: 130px; background: transparent; border-bottom: 1px solid #f0f0f0; border-right: none; }
     .detail-meta td { padding: 0.25rem 0.6rem; border-bottom: 1px solid #f0f0f0; border-right: none; }
-    .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
+    .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; position: relative; }
     .detail-editable:hover { background: #f0f4f8; }
+    .detail-editable:hover::after { content: '✏'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; opacity: 0.4; pointer-events: none; }
     .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: inherit; outline: none; box-sizing: border-box; }
 
     .month-downloads { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
@@ -1290,14 +1291,6 @@ function showBboxHighlight(field, doklad, container) {
     if (!coords || coords.length !== 4) return;
 
     const [left, top, right, bottom] = coords;
-
-    // DEBUG: vypíše souřadnice a rozměry kontejneru do konzole
-    const img = container.querySelector('canvas, img');
-    console.log(`[BBOX DEBUG] field=${field}, coords=[${left.toFixed(4)}, ${top.toFixed(4)}, ${right.toFixed(4)}, ${bottom.toFixed(4)}]`,
-        `| container: ${container.offsetWidth}x${container.offsetHeight}`,
-        `| img/canvas: ${img ? img.offsetWidth+'x'+img.offsetHeight : 'N/A'}`,
-        `| img natural: ${img?.naturalWidth || img?.width}x${img?.naturalHeight || img?.height}`);
-
     const highlight = document.createElement('div');
     highlight.className = 'bbox-highlight';
     highlight.style.left = (left * 100) + '%';
