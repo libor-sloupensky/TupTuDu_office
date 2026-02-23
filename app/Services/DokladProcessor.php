@@ -643,8 +643,8 @@ class DokladProcessor
     }
 
     /**
-     * Hledá hodnotu v Textract LINE blocích, ale jen na řádcích obsahujících kontextový popisek.
-     * Např. datum "06.01.2025" na řádku "Datum vystavení: 06.01.2025" matchne pro pole datum_vystaveni.
+     * Hledá hodnotu v Textract LINE blocích na řádku s kontextovým popiskem.
+     * Když je na řádku víc stejných hodnot (např. 2× stejné datum), vybere tu nejbližší za popiskem.
      */
     private function findInTextractBlocksWithContext(array $patterns, array $blocks, array $contextLabels): ?array
     {
@@ -665,14 +665,15 @@ class DokladProcessor
                 $lineText = mb_strtolower(trim($l['Text'] ?? ''));
 
                 // Řádek musí obsahovat alespoň jeden kontextový popisek
-                $hasContext = false;
+                $labelLeft = null;
                 foreach ($contextLabels as $label) {
                     if (str_contains($lineText, mb_strtolower($label))) {
-                        $hasContext = true;
+                        // Najdi pozici popisku (Left souřadnice WORD bloku s popiskem)
+                        $labelLeft = $this->findLabelPosition($label, $l, $blockIndex);
                         break;
                     }
                 }
-                if (!$hasContext) continue;
+                if ($labelLeft === null) continue;
 
                 // Řádek musí obsahovat hledanou hodnotu
                 $lineCompact = preg_replace('/[\s.]+/', '', $lineText);
@@ -680,12 +681,9 @@ class DokladProcessor
                     continue;
                 }
 
-                // Najdi přesnou pozici slova/slov na řádku
-                $wordBbox = $this->findWordsInLine($needleLower, $l, $blockIndex);
-                if ($wordBbox) return $wordBbox;
-
-                $wordBbox = $this->findWordsInLineCompact($needleCompact, $l, $blockIndex);
-                if ($wordBbox) return $wordBbox;
+                // Najdi VŠECHNY výskyty hodnoty na řádku a vyber nejbližší za popiskem
+                $bbox = $this->findClosestValueAfterLabel($needleLower, $needleCompact, $l, $blockIndex, $labelLeft);
+                if ($bbox) return $bbox;
 
                 // Fallback na celý LINE bbox
                 return $this->textractBbox($l);
@@ -693,6 +691,108 @@ class DokladProcessor
         }
 
         return null;
+    }
+
+    /**
+     * Najde Left pozici WORD bloku obsahujícího popisek na daném řádku.
+     */
+    private function findLabelPosition(string $label, array $line, array $blockIndex): ?float
+    {
+        $labelLower = mb_strtolower($label);
+        $lineWords = $this->getLineWords($line, $blockIndex);
+
+        foreach ($lineWords as $w) {
+            $text = mb_strtolower(trim($w['Text'] ?? ''));
+            if (str_contains($text, $labelLower)) {
+                return $w['Geometry']['BoundingBox']['Left'] ?? 0;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Na řádku najde všechny WORD bloky matchující hodnotu a vrátí ten nejbližší napravo od popisku.
+     */
+    private function findClosestValueAfterLabel(string $needleLower, string $needleCompact, array $line, array $blockIndex, float $labelLeft): ?array
+    {
+        $lineWords = $this->getLineWords($line, $blockIndex);
+        $candidates = [];
+
+        // Projdi slova a najdi všechny matchující bloky
+        $count = count($lineWords);
+        for ($i = 0; $i < $count; $i++) {
+            $w = $lineWords[$i];
+            $text = mb_strtolower(trim($w['Text'] ?? ''));
+            $textCompact = preg_replace('/[\s.]+/', '', $text);
+            $wordLeft = $w['Geometry']['BoundingBox']['Left'] ?? 0;
+
+            // Přesná shoda jednoho slova
+            if ($text === $needleLower || ($textCompact === $needleCompact && mb_strlen($needleCompact) >= 3)) {
+                $candidates[] = ['bbox' => $this->textractBbox($w), 'left' => $wordLeft];
+                continue;
+            }
+
+            // Sliding window přes více slov
+            $concat = $text;
+            $concatCompact = $textCompact;
+            $firstWord = $w;
+            $lastWord = $w;
+            for ($j = $i + 1; $j < $count; $j++) {
+                $concat .= ' ' . mb_strtolower(trim($lineWords[$j]['Text'] ?? ''));
+                $concatCompact .= preg_replace('/[\s.]+/', '', mb_strtolower(trim($lineWords[$j]['Text'] ?? '')));
+                $lastWord = $lineWords[$j];
+
+                if ($concat === $needleLower || $concatCompact === $needleCompact) {
+                    $bbox = $this->mergeWordBboxes($firstWord, $lastWord);
+                    $candidates[] = ['bbox' => $bbox, 'left' => $wordLeft];
+                    break;
+                }
+
+                // Pokud concat už přerostl, přestaň
+                if (mb_strlen($concatCompact) > mb_strlen($needleCompact) + 2) break;
+            }
+        }
+
+        if (empty($candidates)) return null;
+
+        // Vyber kandidáta nejbližšího napravo od popisku
+        $best = null;
+        $bestDist = PHP_FLOAT_MAX;
+        foreach ($candidates as $c) {
+            $dist = $c['left'] - $labelLeft;
+            if ($dist > 0 && $dist < $bestDist) {
+                $best = $c;
+                $bestDist = $dist;
+            }
+        }
+
+        // Pokud žádný není napravo, vezmi nejbližší obecně
+        if (!$best) {
+            foreach ($candidates as $c) {
+                $dist = abs($c['left'] - $labelLeft);
+                if ($dist < $bestDist) {
+                    $best = $c;
+                    $bestDist = $dist;
+                }
+            }
+        }
+
+        return $best ? $best['bbox'] : null;
+    }
+
+    /**
+     * Spojí bounding boxy dvou WORD bloků do jednoho.
+     */
+    private function mergeWordBboxes(array $first, array $last): array
+    {
+        $fb = $first['Geometry']['BoundingBox'] ?? [];
+        $lb = $last['Geometry']['BoundingBox'] ?? [];
+        $left = $fb['Left'] ?? 0;
+        $top = min($fb['Top'] ?? 0, $lb['Top'] ?? 0);
+        $right = ($lb['Left'] ?? 0) + ($lb['Width'] ?? 0);
+        $bottom = max(($fb['Top'] ?? 0) + ($fb['Height'] ?? 0), ($lb['Top'] ?? 0) + ($lb['Height'] ?? 0));
+        return [$left, $top, $right, $bottom];
     }
 
     /**
