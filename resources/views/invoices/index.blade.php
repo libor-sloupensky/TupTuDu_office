@@ -110,8 +110,8 @@
     .detail-row td { padding: 0; background: #fafbfc; }
     .detail-inner { padding: 0.75rem 1rem 0.75rem 2rem; }
     .detail-top { display: flex; gap: 1.2rem; margin-bottom: 0; }
-    .detail-left { flex: 0 0 50%; }
-    .detail-right { flex: 0 0 50%; min-width: 0; }
+    .detail-left { flex: 0 0 calc(50% - 0.6rem); min-width: 0; }
+    .detail-right { flex: 0 0 calc(50% - 0.6rem); min-width: 0; }
     .detail-preview { max-height: none; overflow: visible; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
@@ -132,7 +132,7 @@
     .detail-meta th { text-align: left; color: #999; font-weight: 600; width: 100px; }
     .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
     .detail-editable:hover { background: #f0f4f8; }
-    .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline; font-size: 0.65rem; opacity: 1; color: #3498db; }
+    .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline-block; width: 0; overflow: visible; font-size: 0.65rem; opacity: 1; color: #3498db; white-space: nowrap; }
     .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: inherit; outline: none; box-sizing: border-box; }
     .detail-bottom { border-top: 1px solid #e0e0e0; padding-top: 0.75rem; margin-top: 0.75rem; }
     .polozky-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.3rem; }
@@ -784,15 +784,8 @@ function toggleDetail(id, btn) {
     const metaFields = ['stav','kvalita','nazev_souboru','zdroj','nahral','created_at_full'];
     if (d.chybova_zprava) metaFields.push('chybova_zprava');
 
-    // === LEFT: meta + preview ===
+    // === LEFT: preview ===
     let leftHtml = '';
-
-    // Info o souboru (nahoře, ne sbalitelné)
-    leftHtml += '<div class="detail-meta"><table>';
-    metaFields.forEach(f => {
-        leftHtml += '<tr><th>'+DETAIL_LABELS[f]+'</th><td>'+fmtVal(f, d)+'</td></tr>';
-    });
-    leftHtml += '</table></div>';
 
     // Preview
     const pvUrl = d.preview_original_url || d.preview_url;
@@ -811,9 +804,15 @@ function toggleDetail(id, btn) {
         leftHtml += '<div class="detail-download"><a href="'+d.download_url+'">Stáhnout dokument</a></div>';
     }
 
-    // === RIGHT: základní údaje + dodavatel ===
+    // === RIGHT: O souboru + základní údaje + dodavatel ===
     let rightHtml = '';
+    rightHtml += '<div class="detail-meta"><div class="detail-heading" style="font-size:0.75rem;">O souboru</div><table>';
+    metaFields.forEach(f => {
+        rightHtml += '<tr><th>'+DETAIL_LABELS[f]+'</th><td>'+fmtVal(f, d)+'</td></tr>';
+    });
+    rightHtml += '</table></div>';
     rightHtml += '<div class="detail-section"><div class="detail-heading">Základní údaje</div><table>' + buildRows(zakladniFields, d) + '</table></div>';
+    rightHtml += '<div class="detail-section"><div class="detail-heading">Platba</div><table>' + buildRows(platbaFields, d) + '</table></div>';
     rightHtml += '<div class="detail-section"><div class="detail-heading">Dodavatel</div><table>' + buildRows(dodavatelFields, d) + '</table></div>';
 
     // === ASSEMBLE TOP (50/50) ===
@@ -822,12 +821,10 @@ function toggleDetail(id, btn) {
     inner += '<div class="detail-right">' + rightHtml + '</div>';
     inner += '</div>';
 
-    // === BOTTOM: DPH rekap + Položky + Platba ===
+    // === BOTTOM: DPH rekap + Položky ===
     inner += '<div class="detail-bottom">';
     inner += buildDphRekap(d.polozky);
     inner += buildPolozkyTable(d.polozky);
-    // Platba
-    inner += '<div class="platba-section"><div class="detail-heading">Platba</div><table>' + buildRows(platbaFields, d) + '</table></div>';
     inner += '</div>';
 
     detailTr.innerHTML = '<td colspan="'+colCount+'"><div class="detail-inner">'+inner+'</div></td>';
