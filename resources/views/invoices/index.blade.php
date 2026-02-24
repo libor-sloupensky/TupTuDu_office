@@ -129,7 +129,7 @@
     .detail-meta { margin-bottom: 0.5rem; }
     .detail-meta table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
     .detail-meta td, .detail-meta th { padding: 0.2rem 0.5rem; border-bottom: 1px solid #f0f0f0; }
-    .detail-meta th { text-align: left; color: #999; font-weight: 600; width: 100px; }
+    .detail-meta th { text-align: left; color: #999; font-weight: 600; width: 140px; }
     .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
     .detail-editable:hover { background: #f0f4f8; }
     .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline-block; width: 0; overflow: visible; font-size: 0.65rem; opacity: 1; color: #3498db; white-space: nowrap; }
@@ -806,14 +806,14 @@ function toggleDetail(id, btn) {
 
     // === RIGHT: O souboru + základní údaje + dodavatel ===
     let rightHtml = '';
-    rightHtml += '<div class="detail-meta"><div class="detail-heading" style="font-size:0.75rem;">O souboru</div><table>';
+    rightHtml += '<div class="detail-section"><div class="detail-heading">O souboru</div><table>';
     metaFields.forEach(f => {
         rightHtml += '<tr><th>'+DETAIL_LABELS[f]+'</th><td>'+fmtVal(f, d)+'</td></tr>';
     });
     rightHtml += '</table></div>';
+    rightHtml += '<div class="detail-section"><div class="detail-heading">Dodavatel</div><table>' + buildRows(dodavatelFields, d) + '</table></div>';
     rightHtml += '<div class="detail-section"><div class="detail-heading">Základní údaje</div><table>' + buildRows(zakladniFields, d) + '</table></div>';
     rightHtml += '<div class="detail-section"><div class="detail-heading">Platba</div><table>' + buildRows(platbaFields, d) + '</table></div>';
-    rightHtml += '<div class="detail-section"><div class="detail-heading">Dodavatel</div><table>' + buildRows(dodavatelFields, d) + '</table></div>';
 
     // === ASSEMBLE TOP (50/50) ===
     let inner = '<div class="detail-top">';
