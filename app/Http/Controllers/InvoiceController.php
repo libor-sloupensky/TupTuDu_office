@@ -116,13 +116,21 @@ class InvoiceController extends Controller
             'datum_splatnosti' => $d->datum_splatnosti ? $d->datum_splatnosti->format('d.m.y') : null,
             'datum_splatnosti_raw' => $d->datum_splatnosti ? $d->datum_splatnosti->format('Y-m-d') : null,
             'cislo_dokladu' => $d->cislo_dokladu,
+            'variabilni_symbol' => $d->variabilni_symbol,
+            'cislo_uctu' => $d->cislo_uctu,
+            'iban' => $d->iban,
+            'zpusob_platby' => $d->zpusob_platby,
+            'reverse_charge' => $d->reverse_charge,
             'nazev_souboru' => $d->nazev_souboru,
             'dodavatel_nazev' => $d->dodavatel_nazev,
             'dodavatel_ico' => $d->dodavatel_ico,
+            'dodavatel_dic' => $d->dodavatel ? $d->dodavatel->dic : null,
             'castka_celkem' => $d->castka_celkem,
+            'castka_zaklad' => $d->castka_zaklad,
             'mena' => $d->mena,
             'castka_dph' => $d->castka_dph,
             'kategorie' => $d->kategorie,
+            'poznamka' => $d->poznamka,
             'stav' => $d->stav,
             'typ_dokladu' => $d->typ_dokladu,
             'kvalita' => $d->kvalita,
@@ -147,6 +155,17 @@ class InvoiceController extends Controller
             'raw_ai_odpoved' => $d->raw_ai_odpoved,
             'souradnice' => json_decode($d->raw_ai_odpoved ?? '{}', true)['souradnice'] ?? null,
             'created_at_full' => $d->created_at->format('d.m.Y H:i'),
+            'polozky' => $d->polozky->map(fn($p) => [
+                'poradi' => $p->poradi,
+                'text' => $p->text,
+                'mnozstvi' => $p->mnozstvi,
+                'jednotka' => $p->jednotka,
+                'cena_za_jednotku' => $p->cena_za_jednotku,
+                'zaklad_dane' => $p->zaklad_dane,
+                'sazba_dph' => $p->sazba_dph,
+                'castka_dph' => $p->castka_dph,
+                'castka_celkem' => $p->castka_celkem,
+            ])->toArray(),
         ];
     }
 
@@ -173,7 +192,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $doklady = $query->orderBy($sort, $dir)->get();
+        $doklady = $query->with(['polozky', 'dodavatel'])->orderBy($sort, $dir)->get();
         $dokladyJson = $doklady->map(fn($d) => $this->dokladToArray($d))->values();
 
         if ($request->ajax()) {
@@ -422,7 +441,9 @@ class InvoiceController extends Controller
         $editableFields = [
             'datum_prijeti', 'duzp', 'datum_vystaveni', 'datum_splatnosti',
             'dodavatel_nazev', 'dodavatel_ico', 'cislo_dokladu',
-            'castka_celkem', 'mena', 'castka_dph', 'kategorie',
+            'variabilni_symbol', 'cislo_uctu', 'iban', 'zpusob_platby',
+            'castka_celkem', 'castka_zaklad', 'mena', 'castka_dph',
+            'kategorie', 'poznamka',
         ];
 
         $field = $request->input('field');

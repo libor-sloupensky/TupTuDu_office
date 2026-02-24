@@ -406,6 +406,44 @@ jobs:
           } else {
             echo 'Migration: odberatel columns already exist, skipping' . PHP_EOL;
           }
+
+          // Add payment/invoice detail columns to fak_doklady
+          \$colVS = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'variabilni_symbol'\")->fetchAll();
+          if (empty(\$colVS)) {
+            \$pdo->exec(\"ALTER TABLE fak_doklady
+              ADD COLUMN variabilni_symbol VARCHAR(20) NULL AFTER cislo_dokladu,
+              ADD COLUMN cislo_uctu VARCHAR(50) NULL AFTER variabilni_symbol,
+              ADD COLUMN iban VARCHAR(34) NULL AFTER cislo_uctu,
+              ADD COLUMN zpusob_platby VARCHAR(20) NULL AFTER iban,
+              ADD COLUMN reverse_charge BOOLEAN NOT NULL DEFAULT FALSE AFTER zpusob_platby,
+              ADD COLUMN castka_zaklad DECIMAL(12,2) NULL AFTER castka_celkem,
+              ADD COLUMN poznamka TEXT NULL AFTER kategorie
+            \");
+            echo 'Migration: added payment columns to fak_doklady' . PHP_EOL;
+          } else {
+            echo 'Migration: payment columns already exist, skipping' . PHP_EOL;
+          }
+
+          // Create fak_polozky table
+          \$pdo->exec(\"
+            CREATE TABLE IF NOT EXISTS fak_polozky (
+              id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+              doklad_id BIGINT UNSIGNED NOT NULL,
+              poradi SMALLINT NOT NULL DEFAULT 1,
+              text VARCHAR(500) NOT NULL,
+              mnozstvi DECIMAL(12,3) NULL,
+              jednotka VARCHAR(20) NULL,
+              cena_za_jednotku DECIMAL(12,2) NULL,
+              zaklad_dane DECIMAL(12,2) NULL,
+              sazba_dph DECIMAL(5,2) NULL,
+              castka_dph DECIMAL(12,2) NULL,
+              castka_celkem DECIMAL(12,2) NULL,
+              created_at TIMESTAMP NULL,
+              updated_at TIMESTAMP NULL,
+              FOREIGN KEY (doklad_id) REFERENCES fak_doklady(id) ON DELETE CASCADE
+            )
+          \");
+          echo 'Migration: fak_polozky table ensured' . PHP_EOL;
         "
 
     - name: Verify deployment

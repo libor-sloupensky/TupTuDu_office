@@ -494,12 +494,18 @@ class DokladProcessor
             'odberatel_ico' => $odberatelIco,
             'odberatel_nazev' => $odberatelNazev,
             'cislo_dokladu' => $cisloDokladu,
+            'variabilni_symbol' => $docData['variabilni_symbol'] ?? null,
+            'cislo_uctu' => $docData['cislo_uctu'] ?? null,
+            'iban' => $docData['iban'] ?? null,
+            'zpusob_platby' => $docData['zpusob_platby'] ?? null,
+            'reverse_charge' => (bool) ($docData['reverse_charge'] ?? false),
             'duplicita_id' => $duplicitaId,
             'datum_vystaveni' => $docData['datum_vystaveni'] ?? null,
             'datum_prijeti' => now()->toDateString(),
             'duzp' => $docData['duzp'] ?? $docData['datum_vystaveni'] ?? null,
             'datum_splatnosti' => $docData['datum_splatnosti'] ?? null,
             'castka_celkem' => $docData['castka_celkem'] ?? null,
+            'castka_zaklad' => $docData['castka_zaklad'] ?? null,
             'mena' => $docData['mena'] ?? 'CZK',
             'castka_dph' => $docData['castka_dph'] ?? null,
             'kategorie' => $docData['kategorie'] ?? null,
@@ -509,6 +515,32 @@ class DokladProcessor
             'stav' => $stav,
             'raw_ai_odpoved' => json_encode($docData, JSON_UNESCAPED_UNICODE),
         ]);
+
+        // Uložení řádkových položek
+        $polozky = $docData['polozky'] ?? [];
+        if (!empty($polozky) && is_array($polozky)) {
+            $doklad->polozky()->delete(); // Smaž staré při opakovaném zpracování
+            foreach ($polozky as $i => $pol) {
+                $doklad->polozky()->create([
+                    'poradi' => $i + 1,
+                    'text' => $pol['text'] ?? 'Položka ' . ($i + 1),
+                    'mnozstvi' => $pol['mnozstvi'] ?? null,
+                    'jednotka' => $pol['jednotka'] ?? null,
+                    'cena_za_jednotku' => $pol['cena_za_jednotku'] ?? null,
+                    'zaklad_dane' => $pol['zaklad_dane'] ?? null,
+                    'sazba_dph' => $pol['sazba_dph'] ?? null,
+                    'castka_dph' => $pol['castka_dph'] ?? null,
+                    'castka_celkem' => $pol['castka_celkem'] ?? null,
+                ]);
+            }
+        }
+
+        // Aktualizace DIČ dodavatele v sys_dodavatele
+        if ($dodavatelIco && !empty($docData['dodavatel_dic'])) {
+            \App\Models\Dodavatel::where('ico', $dodavatelIco)
+                ->whereNull('dic')
+                ->update(['dic' => $docData['dodavatel_dic']]);
+        }
 
         return $doklad->fresh();
     }
@@ -606,7 +638,8 @@ class DokladProcessor
         $fields = [
             'dodavatel_nazev', 'dodavatel_ico', 'dodavatel_dic',
             'odberatel_nazev', 'odberatel_ico',
-            'cislo_dokladu', 'castka_celkem', 'castka_dph', 'mena',
+            'cislo_dokladu', 'variabilni_symbol', 'cislo_uctu', 'iban',
+            'castka_celkem', 'castka_zaklad', 'castka_dph', 'mena',
             'datum_vystaveni', 'datum_splatnosti', 'duzp',
         ];
 
@@ -1215,13 +1248,31 @@ FORMÁT ODPOVĚDI - vrať POUZE validní JSON:
       "odberatel_ico": "IČO odběratele",
       "odberatel_nazev": "název odběratele/příjemce",
       "cislo_dokladu": "číslo faktury/dokladu",
+      "variabilni_symbol": "variabilní symbol pro platbu",
+      "cislo_uctu": "číslo bankovního účtu dodavatele",
+      "iban": "IBAN dodavatele",
+      "zpusob_platby": "prevod",
+      "reverse_charge": false,
       "datum_vystaveni": "YYYY-MM-DD",
       "duzp": "YYYY-MM-DD",
       "datum_splatnosti": "YYYY-MM-DD",
       "castka_celkem": 0.00,
+      "castka_zaklad": 0.00,
       "mena": "CZK",
       "castka_dph": 0.00,
       "kategorie": "služby",
+      "polozky": [
+        {
+          "text": "popis položky/služby",
+          "mnozstvi": 1.0,
+          "jednotka": "ks",
+          "cena_za_jednotku": 100.00,
+          "zaklad_dane": 100.00,
+          "sazba_dph": 21.00,
+          "castka_dph": 21.00,
+          "castka_celkem": 121.00
+        }
+      ]
     }
   ]
 }
@@ -1241,8 +1292,14 @@ DŮLEŽITÁ PRAVIDLA:
 - U neadresních dokladů (účtenky, paragony bez odběratele) budou odberatel_ico i odberatel_nazev null
 - Pokud je doklad v cizí měně, uveď správnou měnu (EUR, USD, GBP, PLN atd.)
 - Pokud údaj nelze z dokumentu zjistit, použij null - nikdy nevymýšlej data
-- castka_celkem = celková částka K ÚHRADĚ (včetně DPH)
-- castka_dph = samotná částka DPH (ne základ daně, ne celkem s DPH)
+- variabilni_symbol: variabilní symbol pro identifikaci platby. Často se shoduje s číslem dokladu, ale ne vždy. Hledej pole "VS", "Var. symbol", "Variabilní symbol". Pouze číslice.
+- cislo_uctu: číslo bankovního účtu dodavatele ve formátu "předčíslí-číslo/kód banky" nebo "číslo/kód banky". Např. "4960332369/0800".
+- iban: mezinárodní číslo účtu. Hledej pole "IBAN". Např. "CZ6508000000004960332369".
+- zpusob_platby: způsob úhrady — "prevod" (bankovní převod), "hotovost", "dobirka" (dobírka), "karta" (platební karta). Pokud není uvedeno, ponech null.
+- reverse_charge: true pokud jde o přenesenou daňovou povinnost (reverse charge). Na dokladu bývá uvedeno "Daň odvede zákazník", "Reverse charge", "Přenesená daňová povinnost" nebo §92. Také se použije při nákupech ze zahraničí (intra-EU dodání). Výchozí false.
+- castka_celkem = celková částka K ÚHRADĚ (včetně DPH, po zaokrouhlení)
+- castka_zaklad = celkový základ daně (bez DPH). Součet základů všech položek.
+- castka_dph = celková částka DPH (ne základ daně, ne celkem s DPH)
 - Datumy vždy ve formátu YYYY-MM-DD
 - datum_vystaveni = datum, kdy byl doklad VYSTAVEN (uvedeno jako "Datum vystavení", "Vystaveno dne", "Date of issue").
 - duzp = datum uskutečnění zdanitelného plnění (uvedeno jako "DUZP", "DÚZP", "Datum zdanitelného plnění", "Datum plnění", "Uskutečnění plnění").
@@ -1252,6 +1309,7 @@ DŮLEŽITÁ PRAVIDLA:
 - Pokud je kvalita "nizka", vyplň kvalita_poznamka s krátkým popisem problému
 - Pokud je kvalita "necitelna", přesto vyplň co lze rozpoznat
 - raw_text: přepis klíčového textu z dokladu (max 500 znaků na doklad). U účtenek stačí hlavička, položky a součet.
+- polozky: pole řádkových položek z dokladu. Pro KAŽDOU položku uveď: text (název/popis), mnozstvi, jednotka (ks/hod/kg/m...), cena_za_jednotku (bez DPH), zaklad_dane (základ bez DPH), sazba_dph (21.00/12.00/0.00), castka_dph, castka_celkem (vč. DPH). Pokud některý údaj chybí, ponech null. Pokud doklad nemá rozepsané položky (např. jednoduchá účtenka), vytvoř jednu souhrnnou položku.
 - Doklad může být v jakémkoliv jazyce - zpracuj ho bez ohledu na jazyk
 PROMPT;
 
