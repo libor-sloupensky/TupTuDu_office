@@ -59,7 +59,7 @@ Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->mi
 // --- Email verification (auth, not yet verified) ---
 Route::middleware('auth')->group(function () {
     Route::get('/email/overeni', [VerificationController::class, 'notice'])->name('verification.notice');
-    Route::get('/email/overeni/{id}', [VerificationController::class, 'verify'])->middleware('signed')->name('verification.verify');
+    Route::get('/email/overeni/{id}', [VerificationController::class, 'verify'])->name('verification.verify');
     Route::post('/email/overeni/znovu', [VerificationController::class, 'resend'])->name('verification.resend');
 });
 

@@ -24,7 +24,8 @@ class VerificationController extends Controller
     public function verify(Request $request, int $id)
     {
         if (!$request->hasValidSignature()) {
-            abort(403, 'Neplatný nebo vypršelý odkaz pro ověření.');
+            return redirect()->route('verification.notice')
+                ->with('flash_error', 'Odkaz pro ověření vypršel. Nechte si zaslat nový.');
         }
 
         $user = User::findOrFail($id);
