@@ -128,6 +128,10 @@
         @yield('content')
     </div>
 
+    <footer style="text-align:center; padding:2rem 1rem 1rem; font-size:0.8rem; color:#aaa;">
+        <a href="{{ route('privacy') }}" style="color:#999; text-decoration:none;">Zásady ochrany osobních údajů</a>
+    </footer>
+
     <div class="version-info">
         V003<br>
         @php
