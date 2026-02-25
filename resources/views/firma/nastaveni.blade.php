@@ -434,7 +434,7 @@
                     <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem;">Pojmenování souborů a složek</h4>
                     <p style="font-size: 0.8rem; color: #888; margin-bottom: 0.75rem;">
                         Pomocí tokenů v <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">{}</code> sestavíte šablonu pro název souboru a strukturu složek na Google Drive.
-                        Lomítko <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">/</code> vytvoří podsložku. Token <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">{id}</code> je povinný — pokud ho vynecháte, přidá se automaticky.
+                        Lomítko <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">/</code> vytvoří podsložku. IČO vaší firmy se automaticky vloží jako první složka a <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">{id}</code> jako povinná součást názvu souboru.
                     </p>
 
                     <details style="margin-bottom: 0.75rem;">
@@ -444,19 +444,16 @@
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{nahrano:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum nahrání</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{nahrano:YYYY} → 2026</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DÚZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} → 26-01-12</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} → 12.01.2026</td></tr>
-                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{splatnost:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum splatnosti</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{splatnost:YYYY-MM} → 2026-01</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → {{ mb_substr($firma->nazev, 0, 15) }}</td></tr>
-                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO firmy</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{{ $firma->ico }}</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → dodavatel s.r.o.</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{castka}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Celková částka</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">1250.00</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vs}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Variabilní symbol</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">2024001</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{typ}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Typ dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">faktura</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{kategorie}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Kategorie</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">materiál</td></tr>
-                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{cislo}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Číslo dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">FV-2024-001</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{cislo}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Číslo dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">FV-2024-001</td></tr>
                         </table>
                         <p style="font-size: 0.78rem; color: #999; margin-top: 0.4rem;">
                             Formát dat: <code>YYYY</code>=rok (2026), <code>YY</code>=rok (26), <code>MM</code>=měsíc (01), <code>DD</code>=den (12).
-                            Pokud hodnota chybí, zobrazí se "nezname".
+                            Pokud hodnota chybí, zobrazí se "nezname". IČO vaší firmy ({{ $firma->ico }}) se automaticky přidá jako první složka.
                         </p>
                     </details>
 
@@ -473,7 +470,7 @@
                         @enderror
 
                         <div style="font-size: 0.82rem; color: #666; margin-top: 0.4rem;">
-                            Náhled: <strong>office.tuptudu.cz/<span id="gdrivePreview"></span></strong>
+                            Náhled: <strong>office.tuptudu.cz/{{ $firma->ico }}/<span id="gdrivePreview"></span></strong>
                         </div>
 
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
@@ -1204,7 +1201,7 @@
         duzp: new Date(2026, 0, 12),
         vystaveni: new Date(2026, 0, 10),
         splatnost: new Date(2026, 1, 10),
-        dodavatel: '{{ $firma ? addslashes($firma->nazev) : "Firma s.r.o." }}',
+        dodavatel: 'dodavatel s.r.o.',
         dodavatel_ico: '12345678',
         ico: '{{ $firma ? $firma->ico : "87700484" }}',
         castka: '1250.00',

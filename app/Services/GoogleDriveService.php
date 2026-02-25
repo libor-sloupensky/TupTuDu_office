@@ -32,8 +32,9 @@ class GoogleDriveService
             $template = $firma->google_drive_sablona ?? DrivePathBuilder::DEFAULT_TEMPLATE;
             $path = $builder->build($template, $doklad);
 
-            // Ensure folder structure: root → template folders
-            $parentFolderId = $rootFolderId;
+            // Ensure folder structure: root → {ICO} → template folders
+            $icoFolderId = $this->ensureFolderWithClient($driveService, $rootFolderId, $firma->ico);
+            $parentFolderId = $icoFolderId;
             foreach ($path['folders'] as $folderName) {
                 if ($folderName !== '') {
                     $parentFolderId = $this->ensureFolderWithClient($driveService, $parentFolderId, $folderName);

@@ -115,7 +115,7 @@ class DrivePathBuilder
             'duzp'             => Carbon::parse('2026-01-12'),
             'datum_vystaveni'  => Carbon::parse('2026-01-10'),
             'datum_splatnosti' => Carbon::parse('2026-02-10'),
-            'dodavatel_nazev'  => 'Kaufland s.r.o.',
+            'dodavatel_nazev'  => 'dodavatel s.r.o.',
             'dodavatel_ico'    => '12345678',
             'firma_ico'        => '87700484',
             'castka_celkem'    => 1250.00,
