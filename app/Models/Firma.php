@@ -19,6 +19,7 @@ class Firma extends Model
         'email_system_aktivni', 'email_vlastni_aktivni',
         'email_vlastni', 'email_vlastni_host', 'email_vlastni_port',
         'email_vlastni_sifrovani', 'email_vlastni_uzivatel', 'email_vlastni_heslo',
+        'google_drive_aktivni', 'google_refresh_token', 'google_folder_id',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class Firma extends Model
         'email_system_aktivni' => 'boolean',
         'email_vlastni_aktivni' => 'boolean',
         'email_vlastni_port' => 'integer',
+        'google_drive_aktivni' => 'boolean',
     ];
 
     public function doklady(): HasMany

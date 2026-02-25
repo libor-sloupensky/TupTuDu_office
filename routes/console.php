@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('doklady:process-email')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('doklady:sync-drive')->everyFiveMinutes()->withoutOverlapping();

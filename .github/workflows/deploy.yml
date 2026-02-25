@@ -94,6 +94,9 @@ jobs:
         IMAP_SYSTEM_ENCRYPTION=ssl
         IMAP_SYSTEM_USERNAME=faktury@tuptudu.cz
         IMAP_SYSTEM_PASSWORD=${{ secrets.IMAP_SYSTEM_PASSWORD }}
+
+        GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+        GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
         ENVEOF
         # Remove leading spaces (heredoc indentation)
         sed -i 's/^        //' /tmp/deploy.env
@@ -444,6 +447,32 @@ jobs:
             )
           \");
           echo 'Migration: fak_polozky table ensured' . PHP_EOL;
+
+          // Google Drive columns on sys_firmy
+          \$colGD = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'google_drive_aktivni'\")->fetchAll();
+          if (empty(\$colGD)) {
+            \$pdo->exec(\"ALTER TABLE sys_firmy
+              ADD COLUMN google_drive_aktivni BOOLEAN NOT NULL DEFAULT FALSE,
+              ADD COLUMN google_refresh_token TEXT NULL,
+              ADD COLUMN google_folder_id VARCHAR(100) NULL
+            \");
+            echo 'Migration: added Google Drive columns to sys_firmy' . PHP_EOL;
+          } else {
+            echo 'Migration: Google Drive columns already exist on sys_firmy, skipping' . PHP_EOL;
+          }
+
+          // Google Drive columns on fak_doklady
+          \$colGDD = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'google_drive_file_id'\")->fetchAll();
+          if (empty(\$colGDD)) {
+            \$pdo->exec(\"ALTER TABLE fak_doklady
+              ADD COLUMN google_drive_file_id VARCHAR(100) NULL,
+              ADD COLUMN google_drive_ucetni_file_id VARCHAR(100) NULL,
+              ADD COLUMN google_drive_nahrano_at DATETIME NULL
+            \");
+            echo 'Migration: added Google Drive columns to fak_doklady' . PHP_EOL;
+          } else {
+            echo 'Migration: Google Drive columns already exist on fak_doklady, skipping' . PHP_EOL;
+          }
         "
 
     - name: Verify deployment

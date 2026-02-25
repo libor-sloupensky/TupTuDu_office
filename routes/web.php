@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\FirmaController;
+use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KlientiController;
 use App\Http\Controllers\VazbyController;
@@ -72,6 +73,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/firma/vytvorit', [FirmaController::class, 'vytvorFirmu'])->name('firma.vytvorFirmu');
     Route::post('/firma/prepnout/{ico}', [FirmaController::class, 'prepnout'])->name('firma.prepnout');
 });
+
+// --- Google Drive OAuth ---
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/google/redirect', [GoogleDriveController::class, 'redirect'])->name('google.redirect');
+    Route::get('/google/callback', [GoogleDriveController::class, 'callback'])->name('google.callback');
+    Route::post('/google/disconnect', [GoogleDriveController::class, 'disconnect'])->name('google.disconnect');
+});
+
+// --- Cron endpoint: Google Drive sync ---
+Route::get('/cron-drive/{token}', function (string $token) {
+    if ($token !== 'f8k2Ld9xQm4vR7nW') {
+        abort(404);
+    }
+    Illuminate\Support\Facades\Artisan::call('doklady:sync-drive');
+    $output = Illuminate\Support\Facades\Artisan::output();
+    return response($output, 200)->header('Content-Type', 'text/plain');
+})->middleware('throttle:6,1');
 
 // --- Auth + verified + firma ---
 Route::middleware(['auth', 'verified', 'firma'])->group(function () {

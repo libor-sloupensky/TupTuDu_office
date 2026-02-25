@@ -19,6 +19,7 @@ class Doklad extends Model
         'adresni', 'overeno_adresat', 'raw_text', 'raw_ai_odpoved',
         'stav', 'chybova_zprava', 'zdroj', 'nahral', 'duplicita_id',
         'typ_dokladu', 'kvalita', 'kvalita_poznamka', 'poradi_v_souboru',
+        'google_drive_file_id', 'google_drive_ucetni_file_id', 'google_drive_nahrano_at',
     ];
 
     protected $casts = [

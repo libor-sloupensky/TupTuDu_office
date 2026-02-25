@@ -114,7 +114,7 @@
     <div class="section" style="margin-top: 0; padding-top: 0; border-top: none;">
         <div class="kat-section-header" onclick="toggleSection('firmaInfo')">
             <span class="kat-arrow" id="firmaInfoArrow">&#9654;</span>
-            <h3>Údaje firmy</h3>
+            <h3>🏢 Údaje firmy</h3>
         </div>
         <p class="kat-desc">Základní údaje firmy, kontaktní informace</p>
 
@@ -157,7 +157,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleUcetniNapojeni()">
             <span class="kat-arrow {{ $expandUcetni ? 'open' : '' }}" id="ucetniArrow">&#9654;</span>
-            <h3>Účetní napojení</h3>
+            <h3>📊 Účetní napojení</h3>
             @if ($cekajiciVazby > 0)
                 <span class="badge-pending">{{ $cekajiciVazby }}</span>
             @endif
@@ -329,7 +329,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleSection('emailDoklady')">
             <span class="kat-arrow" id="emailDokladyArrow">&#9654;</span>
-            <h3>Email pro zasílání dokladů</h3>
+            <h3>📧 Email pro zasílání dokladů</h3>
         </div>
         <p class="kat-desc">Příjem dokladů emailem — systémová adresa nebo vlastní IMAP schránka</p>
 
@@ -411,12 +411,51 @@
     </div>
     @endif
 
+    {{-- Google Drive --}}
+    @if ($firma)
+    <div class="section">
+        <div class="kat-section-header" onclick="toggleSection('gdrive')">
+            <span class="kat-arrow" id="gdriveArrow">&#9654;</span>
+            <h3>📁 Google Drive</h3>
+        </div>
+        <p class="kat-desc">Automatické ukládání kopií dokladů na Google Drive</p>
+
+        <div class="kat-body" id="gdriveBody">
+            @if ($firma->google_drive_aktivni)
+                <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="font-weight: 600; color: #155724; margin-bottom: 0.3rem;">✅ Google Drive je připojen</div>
+                    <div style="font-size: 0.85rem; color: #155724;">
+                        Složka: <strong>office.tuptudu.cz/{{ $firma->ico }}/</strong>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
+                    Nové doklady se automaticky ukládají na váš Google Drive. Odpojením se zastaví další ukládání, ale stávající soubory na Disku zůstanou.
+                </p>
+                <form method="POST" action="{{ route('google.disconnect') }}">
+                    @csrf
+                    <button type="submit" class="btn-sm btn-sm-outline" onclick="return confirm('Opravdu chcete odpojit Google Drive?')">Odpojit Google Drive</button>
+                </form>
+            @else
+                <p style="font-size: 0.9rem; color: #555; margin-bottom: 0.75rem;">
+                    Propojte svůj Google účet pro automatické ukládání kopií dokladů na Google Drive.
+                </p>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 1rem;">
+                    Aplikace bude mít přístup pouze k souborům, které sama vytvoří. Vaše ostatní soubory na Disku zůstanou nedotčené.
+                </p>
+                <a href="{{ route('google.redirect') }}" style="display: inline-block; background: #4285f4; color: white; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                    Připojit Google Drive
+                </a>
+            @endif
+        </div>
+    </div>
+    @endif
+
     {{-- Kategorie nákladů --}}
     @if ($firma)
     <div class="section">
         <div class="kat-section-header" onclick="toggleKategorie()">
             <span class="kat-arrow" id="katArrow">&#9654;</span>
-            <h3>Kategorie nákladů</h3>
+            <h3>🏷️ Kategorie nákladů</h3>
             <span class="kat-save-status" id="katSaveStatus"></span>
         </div>
         <p class="kat-desc">
@@ -456,7 +495,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleSection('uzivatele')">
             <span class="kat-arrow" id="uzivateleArrow">&#9654;</span>
-            <h3>Uživatelé firmy</h3>
+            <h3>👥 Uživatelé firmy</h3>
         </div>
         <p class="kat-desc">Správa uživatelů a jejich oprávnění k firmě</p>
 
