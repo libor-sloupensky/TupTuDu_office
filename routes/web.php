@@ -12,6 +12,9 @@ use App\Http\Controllers\KlientiController;
 use App\Http\Controllers\VazbyController;
 use Illuminate\Support\Facades\Route;
 
+// --- Public pages ---
+Route::get('/privacy', fn() => view('privacy'))->name('privacy');
+
 // --- Guest routes ---
 Route::middleware('guest')->group(function () {
     Route::get('/registrace', [RegisterController::class, 'showForm'])->name('register');
