@@ -641,13 +641,16 @@ class DokladProcessor
             'cislo_dokladu', 'variabilni_symbol', 'cislo_uctu', 'iban',
             'castka_celkem', 'castka_zaklad', 'castka_dph', 'mena',
             'datum_vystaveni', 'datum_splatnosti', 'duzp',
+            'zpusob_platby',
         ];
 
-        // Kontextové popisky pro datumová pole — pomáhají rozlišit stejná data
+        // Kontextové popisky — pomáhají najít pole podle popisku na dokladu
         $fieldLabels = [
             'datum_vystaveni' => ['vystavení', 'vystaveno', 'vystaveni', 'date of issue'],
             'duzp' => ['duzp', 'dúzp', 'zdanitelného plnění', 'datum plnění', 'plnění', 'uskutečnění'],
             'datum_splatnosti' => ['splatnost', 'splatnosti', 'due date'],
+            'zpusob_platby' => ['úhrad', 'platby', 'platba', 'payment'],
+            'castka_zaklad' => ['základ', 'zaklad', 'bez dph', 'bez daně', 'base'],
         ];
 
         $souradnice = [];
