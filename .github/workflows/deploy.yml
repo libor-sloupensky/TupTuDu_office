@@ -461,6 +461,15 @@ jobs:
             echo 'Migration: Google Drive columns already exist on sys_firmy, skipping' . PHP_EOL;
           }
 
+          // Google Drive template column on sys_firmy
+          \$colGDS = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'google_drive_sablona'\")->fetchAll();
+          if (empty(\$colGDS)) {
+            \$pdo->exec(\"ALTER TABLE sys_firmy ADD COLUMN google_drive_sablona VARCHAR(255) NULL\");
+            echo 'Migration: added google_drive_sablona to sys_firmy' . PHP_EOL;
+          } else {
+            echo 'Migration: google_drive_sablona already exists, skipping' . PHP_EOL;
+          }
+
           // Google Drive columns on fak_doklady
           \$colGDD = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'google_drive_file_id'\")->fetchAll();
           if (empty(\$colGDD)) {

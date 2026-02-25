@@ -27,12 +27,18 @@ class GoogleDriveService
                 return null;
             }
 
-            // Ensure folder structure: office.tuptudu.cz/{ICO}/{YYYY}/
-            $icoFolderId = $this->ensureFolderWithClient($driveService, $rootFolderId, $firma->ico);
-            $year = $doklad->datum_vystaveni
-                ? $doklad->datum_vystaveni->format('Y')
-                : now()->format('Y');
-            $yearFolderId = $this->ensureFolderWithClient($driveService, $icoFolderId, $year);
+            // Build path from template
+            $builder = new DrivePathBuilder();
+            $template = $firma->google_drive_sablona ?? DrivePathBuilder::DEFAULT_TEMPLATE;
+            $path = $builder->build($template, $doklad);
+
+            // Ensure folder structure: root → template folders
+            $parentFolderId = $rootFolderId;
+            foreach ($path['folders'] as $folderName) {
+                if ($folderName !== '') {
+                    $parentFolderId = $this->ensureFolderWithClient($driveService, $parentFolderId, $folderName);
+                }
+            }
 
             // Download file from S3
             $s3Path = $doklad->cesta_souboru;
@@ -49,10 +55,10 @@ class GoogleDriveService
             $fileContent = $this->embedMetadata($fileContent, $doklad, $ext);
 
             // Upload to Drive
-            $fileName = $doklad->id . '.' . $ext;
+            $fileName = $path['filename'] . '.' . $ext;
             $fileMetadata = new DriveFile([
                 'name' => $fileName,
-                'parents' => [$yearFolderId],
+                'parents' => [$parentFolderId],
             ]);
 
             $file = $driveService->files->create($fileMetadata, [

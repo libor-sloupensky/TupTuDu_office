@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\PozvankaDoFirmy;
 use App\Models\Firma;
+use App\Services\DrivePathBuilder;
 use App\Models\Kategorie;
 use App\Models\Pozvani;
 use App\Models\UcetniVazba;
@@ -96,6 +97,21 @@ class FirmaController extends Controller
 
         if ($request->filled('email_doklady_heslo')) {
             $data['email_doklady_heslo'] = $request->email_doklady_heslo;
+        }
+
+        // Google Drive šablona
+        if ($request->has('google_drive_sablona')) {
+            $sablona = trim($request->google_drive_sablona);
+            if ($sablona === '') {
+                $data['google_drive_sablona'] = null; // reset na default
+            } else {
+                $builder = new DrivePathBuilder();
+                $errors = $builder->validate($sablona);
+                if (!empty($errors)) {
+                    return back()->withErrors(['google_drive_sablona' => implode(' ', $errors)])->withInput();
+                }
+                $data['google_drive_sablona'] = $sablona;
+            }
         }
 
         $firma->update($data);

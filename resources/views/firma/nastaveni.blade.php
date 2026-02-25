@@ -425,13 +425,74 @@
                 <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
                     <div style="font-weight: 600; color: #155724; margin-bottom: 0.3rem;">✅ Google Drive je připojen</div>
                     <div style="font-size: 0.85rem; color: #155724;">
-                        Složka: <strong>office.tuptudu.cz/{{ $firma->ico }}/</strong>
+                        Kořenová složka: <strong>office.tuptudu.cz/</strong>
                     </div>
                 </div>
-                <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">
-                    Nové doklady se automaticky ukládají na váš Google Drive. Odpojením se zastaví další ukládání, ale stávající soubory na Disku zůstanou.
-                </p>
-                <form method="POST" action="{{ route('google.disconnect') }}">
+
+                {{-- Šablona pojmenování --}}
+                <div style="margin: 1.2rem 0;">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem;">Pojmenování souborů a složek</h4>
+                    <p style="font-size: 0.8rem; color: #888; margin-bottom: 0.75rem;">
+                        Pomocí tokenů v <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">{}</code> sestavíte šablonu pro název souboru a strukturu složek na Google Drive.
+                        Lomítko <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">/</code> vytvoří podsložku. Token <code style="background:#f0f0f0; padding:0.1rem 0.3rem; border-radius:3px;">{id}</code> je povinný — pokud ho vynecháte, přidá se automaticky.
+                    </p>
+
+                    <details style="margin-bottom: 0.75rem;">
+                        <summary style="cursor: pointer; font-size: 0.85rem; color: #3498db; font-weight: 600;">Dostupné tokeny</summary>
+                        <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-top: 0.5rem;">
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{id}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">ID dokladu <strong>(povinné)</strong></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{nahrano:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum nahrání</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{nahrano:YYYY} → 2026</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DÚZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} → 26-01-12</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} → 12.01.2026</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{splatnost:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum splatnosti</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{splatnost:YYYY-MM} → 2026-01</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → Kaufland s.r.o.</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO firmy</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">87700484</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{castka}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Celková částka</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">1250.00</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vs}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Variabilní symbol</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">2024001</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{typ}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Typ dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">faktura</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{kategorie}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Kategorie</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">materiál</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{cislo}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Číslo dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">FV-2024-001</td></tr>
+                        </table>
+                        <p style="font-size: 0.78rem; color: #999; margin-top: 0.4rem;">
+                            Formát dat: <code>YYYY</code>=rok (2026), <code>YY</code>=rok (26), <code>MM</code>=měsíc (01), <code>DD</code>=den (12).
+                            Pokud hodnota chybí, zobrazí se "nezname".
+                        </p>
+                    </details>
+
+                    <form method="POST" action="{{ route('firma.ulozit') }}">
+                        @csrf
+                        <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">Šablona:</label>
+                        <input type="text" name="google_drive_sablona" id="gdriveSablona"
+                            value="{{ old('google_drive_sablona', $firma->google_drive_sablona ?? '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}') }}"
+                            style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 0.9rem;"
+                            oninput="updateGdrivePreview()"
+                            placeholder="{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}">
+                        @error('google_drive_sablona')
+                            <div style="color: #e74c3c; font-size: 0.8rem; margin-top: 0.3rem;">{{ $message }}</div>
+                        @enderror
+
+                        <div style="font-size: 0.82rem; color: #666; margin-top: 0.4rem;">
+                            Náhled: <strong>office.tuptudu.cz/<span id="gdrivePreview"></span></strong>
+                        </div>
+
+                        <button type="submit" class="btn-save" style="margin-top: 0.6rem;">Uložit šablonu</button>
+                    </form>
+                </div>
+
+                {{-- Info box --}}
+                <div style="background: #f0f7ff; border: 1px solid #d0e3f7; border-radius: 8px; padding: 0.8rem; margin: 1rem 0; font-size: 0.8rem; color: #555;">
+                    <strong>Jak to funguje:</strong>
+                    <ul style="margin: 0.3rem 0 0 1.2rem; padding: 0;">
+                        <li>Nové doklady se automaticky kopírují na váš Google Drive (každých 5 minut).</li>
+                        <li>Pokud má vaše firma napojeného účetního, kopie se uloží i na jeho Drive.</li>
+                        <li>Každá firma má vlastní šablonu — vaše nastavení neovlivní Drive účetního a naopak.</li>
+                        <li>Změna šablony se projeví pouze u nově nahrávaných dokladů. Soubory, které už na Disku jsou, zůstanou beze změny.</li>
+                        <li>Pokud na dokladu upravíte údaje (např. DÚZP), již nahraný soubor na Disku se nepřejmenuje — slouží jako archivní kopie v době nahrání.</li>
+                    </ul>
+                </div>
+
+                <form method="POST" action="{{ route('google.disconnect') }}" style="margin-top: 0.5rem;">
                     @csrf
                     <button type="submit" class="btn-sm btn-sm-outline" onclick="return confirm('Opravdu chcete odpojit Google Drive?')">Odpojit Google Drive</button>
                 </form>
@@ -1132,6 +1193,60 @@
         })
         .catch(() => showVlastniStatus('Chyba připojení.', '#e74c3c'));
     };
+    // ===== Google Drive šablona preview =====
+    var gdrivePreviewData = {
+        id: '12345',
+        nahrano: new Date(2026, 1, 25),
+        duzp: new Date(2026, 0, 12),
+        vystaveni: new Date(2026, 0, 10),
+        splatnost: new Date(2026, 1, 10),
+        dodavatel: 'Kaufland s.r.o.',
+        dodavatel_ico: '12345678',
+        ico: '{{ $firma ? $firma->ico : "87700484" }}',
+        castka: '1250.00',
+        vs: '2024001',
+        typ: 'faktura',
+        kategorie: 'materiál',
+        cislo: 'FV-2024-001'
+    };
+
+    function gdriveFormatDate(date, fmt) {
+        if (!fmt) return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+        return fmt
+            .replace('YYYY', String(date.getFullYear()))
+            .replace('YY', String(date.getFullYear()).slice(-2))
+            .replace('MM', String(date.getMonth()+1).padStart(2,'0'))
+            .replace('DD', String(date.getDate()).padStart(2,'0'));
+    }
+
+    function gdriveResolveToken(token, format) {
+        var datTokens = {nahrano:'nahrano', duzp:'duzp', vystaveni:'vystaveni', splatnost:'splatnost'};
+        if (token === 'id') return gdrivePreviewData.id;
+        if (datTokens[token]) {
+            var d = gdrivePreviewData[token];
+            return d ? gdriveFormatDate(d, format) : 'nezname';
+        }
+        var val = gdrivePreviewData[token];
+        if (!val) return 'nezname';
+        if (format && /^\d+$/.test(format)) val = val.substring(0, parseInt(format));
+        return val;
+    }
+
+    window.updateGdrivePreview = function() {
+        var input = document.getElementById('gdriveSablona');
+        if (!input) return;
+        var tpl = input.value;
+        var result = tpl.replace(/\{([a-z_]+)(?::([^}]*))?\}/g, function(m, token, fmt) {
+            return gdriveResolveToken(token, fmt || null);
+        });
+        if (tpl.indexOf('{id}') === -1) result += '_' + gdrivePreviewData.id;
+        var el = document.getElementById('gdrivePreview');
+        if (el) el.textContent = result + '.pdf';
+    };
+
+    // Init preview on load
+    updateGdrivePreview();
+
 })();
 </script>
 @endsection
