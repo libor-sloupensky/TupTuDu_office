@@ -123,7 +123,7 @@
     .detail-download a:hover { background: #2980b9; color: white; }
     .detail-section { margin-bottom: 0.6rem; }
     .detail-heading { font-size: 0.82rem; font-weight: 600; color: #555; margin-bottom: 0.3rem; padding-left: 0.4rem; }
-    .detail-section table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .detail-section table { width: 100%; border-collapse: collapse; font-size: 0.8rem; table-layout: fixed; }
     .detail-section th { text-align: left; padding: 0.25rem 0.5rem; color: #777; font-weight: 600; width: 140px; background: transparent; border-bottom: 1px solid #eee; }
     .detail-section td { padding: 0.25rem 0.5rem; border-bottom: 1px solid #eee; }
     .detail-meta { margin-bottom: 0.5rem; }
