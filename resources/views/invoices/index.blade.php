@@ -110,8 +110,8 @@
     .detail-row td { padding: 0; background: #fafbfc; }
     .detail-inner { padding: 0.75rem 1rem 0.75rem 2rem; }
     .detail-top { display: flex; gap: 1.2rem; margin-bottom: 0; }
-    .detail-left { flex: 0 0 calc(50% - 0.6rem); min-width: 0; }
-    .detail-right { flex: 0 0 calc(50% - 0.6rem); min-width: 0; }
+    .detail-left { flex: 0 0 calc(50% - 0.6rem); min-width: 0; overflow: hidden; }
+    .detail-right { flex: 0 0 calc(50% - 0.6rem); min-width: 0; overflow: hidden; }
     .detail-preview { max-height: none; overflow: visible; border: 1px solid #e0e0e0; border-radius: 6px; background: #f8f8f8; cursor: pointer; position: relative; }
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }

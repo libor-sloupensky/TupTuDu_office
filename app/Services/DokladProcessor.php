@@ -660,7 +660,6 @@ class DokladProcessor
             // Pro datumová pole: nejprve zkus najít datum na řádku s kontextovým popiskem
             if (isset($fieldLabels[$field])) {
                 $bbox = $this->findInTextractBlocksWithContext($patterns, $blocks, $fieldLabels[$field]);
-                \Log::info("BBOX_DEBUG context match", ['field' => $field, 'value' => $value, 'labels' => $fieldLabels[$field], 'bbox' => $bbox]);
                 if ($bbox) {
                     $souradnice[$field] = $bbox;
                     continue;
@@ -668,7 +667,6 @@ class DokladProcessor
             }
 
             $bbox = $this->findInTextractBlocks($patterns, $blocks);
-            \Log::info("BBOX_DEBUG generic match", ['field' => $field, 'value' => $value, 'bbox' => $bbox]);
             if ($bbox) {
                 $souradnice[$field] = $bbox;
             }
@@ -678,8 +676,10 @@ class DokladProcessor
     }
 
     /**
-     * Hledá hodnotu v Textract LINE blocích na řádku s kontextovým popiskem.
-     * Když je na řádku víc stejných hodnot (např. 2× stejné datum), vybere tu nejbližší za popiskem.
+     * Najde LINE blok obsahující kontextový popisek (např. "vystavení", "duzp").
+     * Pokud je na tom řádku i hodnota → vrátí přesný bbox hodnoty.
+     * Pokud hodnota není na řádku → vrátí bbox celého řádku s popiskem.
+     * Pokud popisek vůbec neexistuje → null (fallback na generické hledání).
      */
     private function findInTextractBlocksWithContext(array $patterns, array $blocks, array $contextLabels): ?array
     {
@@ -691,50 +691,34 @@ class DokladProcessor
             $blockIndex[$b['Id'] ?? ''] = $b;
         }
 
-        // Debug: loguj všechny LINE bloky s datumovými klíčovými slovy
+        // Najdi LINE obsahující kontextový popisek
         foreach ($lines as $l) {
-            $lt = mb_strtolower(trim($l['Text'] ?? ''));
-            if (str_contains($lt, 'duzp') || str_contains($lt, 'dúzp') || str_contains($lt, 'vystav') || str_contains($lt, 'splat')) {
-                \Log::info("BBOX_DEBUG line with date keyword", ['text' => $l['Text'] ?? '', 'left' => $l['Geometry']['BoundingBox']['Left'] ?? null]);
-            }
-        }
+            $lineText = mb_strtolower(trim($l['Text'] ?? ''));
 
-        foreach ($patterns as $needle) {
-            $needleLower = mb_strtolower(trim($needle));
-            $needleCompact = preg_replace('/[\s.]+/', '', $needleLower);
-            if ($needleLower === '') continue;
-
-            foreach ($lines as $l) {
-                $lineText = mb_strtolower(trim($l['Text'] ?? ''));
-
-                // Řádek musí obsahovat alespoň jeden kontextový popisek
-                $labelLeft = null;
-                $matchedLabel = null;
-                foreach ($contextLabels as $label) {
-                    if (str_contains($lineText, mb_strtolower($label))) {
-                        $labelLeft = $this->findLabelPosition($label, $l, $blockIndex);
-                        $matchedLabel = $label;
-                        break;
-                    }
+            $labelLeft = null;
+            foreach ($contextLabels as $label) {
+                if (str_contains($lineText, mb_strtolower($label))) {
+                    $labelLeft = $this->findLabelPosition($label, $l, $blockIndex);
+                    break;
                 }
-                if ($labelLeft === null) continue;
+            }
+            if ($labelLeft === null) continue;
 
-                // Řádek musí obsahovat hledanou hodnotu
+            // Popisek nalezen — zkus najít hodnotu na stejném řádku
+            foreach ($patterns as $needle) {
+                $needleLower = mb_strtolower(trim($needle));
+                $needleCompact = preg_replace('/[\s.]+/', '', $needleLower);
+                if ($needleLower === '') continue;
+
                 $lineCompact = preg_replace('/[\s.]+/', '', $lineText);
-                if (!str_contains($lineText, $needleLower) && !str_contains($lineCompact, $needleCompact)) {
-                    \Log::info("BBOX_DEBUG context line found but value missing", ['lineText' => $lineText, 'needle' => $needleLower, 'label' => $matchedLabel]);
-                    continue;
+                if (str_contains($lineText, $needleLower) || str_contains($lineCompact, $needleCompact)) {
+                    $bbox = $this->findClosestValueAfterLabel($needleLower, $needleCompact, $l, $blockIndex, $labelLeft);
+                    if ($bbox) return $bbox;
                 }
-
-                \Log::info("BBOX_DEBUG context match attempt", ['lineText' => $lineText, 'needle' => $needleLower, 'label' => $matchedLabel, 'labelLeft' => $labelLeft]);
-
-                // Najdi VŠECHNY výskyty hodnoty na řádku a vyber nejbližší za popiskem
-                $bbox = $this->findClosestValueAfterLabel($needleLower, $needleCompact, $l, $blockIndex, $labelLeft);
-                if ($bbox) return $bbox;
-
-                // Fallback na celý LINE bbox
-                return $this->textractBbox($l);
             }
+
+            // Hodnota není na řádku — použij bbox celého řádku s popiskem
+            return $this->textractBbox($l);
         }
 
         return null;
@@ -800,8 +784,6 @@ class DokladProcessor
                 if (mb_strlen($concatCompact) > mb_strlen($needleCompact) + 2) break;
             }
         }
-
-        \Log::info("BBOX_DEBUG candidates", ['needle' => $needleLower, 'labelLeft' => $labelLeft, 'candidates' => array_map(fn($c) => ['left' => $c['left'], 'bbox' => $c['bbox']], $candidates)]);
 
         if (empty($candidates)) return null;
 
