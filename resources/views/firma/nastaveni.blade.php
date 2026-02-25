@@ -445,9 +445,9 @@
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DÚZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} → 26-01-12</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} → 12.01.2026</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{splatnost:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum splatnosti</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{splatnost:YYYY-MM} → 2026-01</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → Kaufland s.r.o.</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → {{ mb_substr($firma->nazev, 0, 15) }}</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO firmy</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">87700484</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO firmy</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{{ $firma->ico }}</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{castka}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Celková částka</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">1250.00</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vs}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Variabilní symbol</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">2024001</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{typ}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Typ dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">faktura</td></tr>
@@ -460,7 +460,7 @@
                         </p>
                     </details>
 
-                    <form method="POST" action="{{ route('firma.ulozit') }}">
+                    <form method="POST" action="{{ route('firma.ulozit') }}" onsubmit="ensureIdInTemplate()">
                         @csrf
                         <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">Šablona:</label>
                         <input type="text" name="google_drive_sablona" id="gdriveSablona"
@@ -476,7 +476,10 @@
                             Náhled: <strong>office.tuptudu.cz/<span id="gdrivePreview"></span></strong>
                         </div>
 
-                        <button type="submit" class="btn-save" style="margin-top: 0.6rem;">Uložit šablonu</button>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+                            <button type="submit" class="btn-save">Uložit šablonu</button>
+                            <button type="button" class="btn-sm btn-sm-outline" onclick="resetGdriveSablona()">Obnovit výchozí</button>
+                        </div>
                     </form>
                 </div>
 
@@ -1194,13 +1197,14 @@
         .catch(() => showVlastniStatus('Chyba připojení.', '#e74c3c'));
     };
     // ===== Google Drive šablona preview =====
+    var gdriveDefaultTemplate = '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}';
     var gdrivePreviewData = {
         id: '12345',
         nahrano: new Date(2026, 1, 25),
         duzp: new Date(2026, 0, 12),
         vystaveni: new Date(2026, 0, 10),
         splatnost: new Date(2026, 1, 10),
-        dodavatel: 'Kaufland s.r.o.',
+        dodavatel: '{{ $firma ? addslashes($firma->nazev) : "Firma s.r.o." }}',
         dodavatel_ico: '12345678',
         ico: '{{ $firma ? $firma->ico : "87700484" }}',
         castka: '1250.00',
@@ -1242,6 +1246,25 @@
         if (tpl.indexOf('{id}') === -1) result += '_' + gdrivePreviewData.id;
         var el = document.getElementById('gdrivePreview');
         if (el) el.textContent = result + '.pdf';
+    };
+
+    // Před odesláním formuláře: pokud chybí {id}, přidej ho do inputu
+    window.ensureIdInTemplate = function() {
+        var input = document.getElementById('gdriveSablona');
+        if (!input) return;
+        var val = input.value.trim();
+        if (val !== '' && val.indexOf('{id}') === -1) {
+            input.value = val + '_{id}';
+        }
+    };
+
+    // Obnovit výchozí šablonu
+    window.resetGdriveSablona = function() {
+        var input = document.getElementById('gdriveSablona');
+        if (input) {
+            input.value = gdriveDefaultTemplate;
+            updateGdrivePreview();
+        }
     };
 
     // Init preview on load
