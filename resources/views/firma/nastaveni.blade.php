@@ -442,7 +442,7 @@
                         <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-top: 0.5rem;">
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{id}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">ID dokladu <strong>(povinné)</strong></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{nahrano:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum nahrání</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{nahrano:YYYY} → 2026</td></tr>
-                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DÚZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} → 26-01-12</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DUZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} → 26-01-12</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} → 12.01.2026</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → dodavatel s.r.o.</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
@@ -457,27 +457,24 @@
                         </p>
                     </details>
 
-                    <form method="POST" action="{{ route('firma.ulozit') }}" onsubmit="ensureIdInTemplate()">
-                        @csrf
+                    <div>
                         <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">Šablona:</label>
-                        <input type="text" name="google_drive_sablona" id="gdriveSablona"
-                            value="{{ old('google_drive_sablona', $firma->google_drive_sablona ?? '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}') }}"
+                        <input type="text" id="gdriveSablona"
+                            value="{{ $firma->google_drive_sablona ?? '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}' }}"
                             style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 0.9rem;"
                             oninput="updateGdrivePreview()"
                             placeholder="{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}">
-                        @error('google_drive_sablona')
-                            <div style="color: #e74c3c; font-size: 0.8rem; margin-top: 0.3rem;">{{ $message }}</div>
-                        @enderror
 
                         <div style="font-size: 0.82rem; color: #666; margin-top: 0.4rem;">
                             Náhled: <strong>office.tuptudu.cz/{{ $firma->ico }}/<span id="gdrivePreview"></span></strong>
                         </div>
 
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
-                            <button type="submit" class="btn-save">Uložit šablonu</button>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.6rem;">
+                            <button type="button" class="btn-save" onclick="saveDriveSablona()">Uložit šablonu</button>
                             <button type="button" class="btn-sm btn-sm-outline" onclick="resetGdriveSablona()">Obnovit výchozí</button>
+                            <span id="gdriveSablonaStatus" style="font-size: 0.8rem; display: none;"></span>
                         </div>
-                    </form>
+                    </div>
                 </div>
 
                 {{-- Info box --}}
@@ -488,7 +485,7 @@
                         <li>Pokud má vaše firma napojeného účetního, kopie se uloží i na jeho Drive.</li>
                         <li>Každá firma má vlastní šablonu — vaše nastavení neovlivní Drive účetního a naopak.</li>
                         <li>Změna šablony se projeví pouze u nově nahrávaných dokladů. Soubory, které už na Disku jsou, zůstanou beze změny.</li>
-                        <li>Pokud na dokladu upravíte údaje (např. DÚZP), již nahraný soubor na Disku se nepřejmenuje — slouží jako archivní kopie v době nahrání.</li>
+                        <li>Pokud na dokladu upravíte údaje (např. DUZP), již nahraný soubor na Disku se nepřejmenuje — slouží jako archivní kopie v době nahrání.</li>
                     </ul>
                 </div>
 
@@ -1245,14 +1242,41 @@
         if (el) el.textContent = result + '.pdf';
     };
 
-    // Před odesláním formuláře: pokud chybí {id}, přidej ho do inputu
-    window.ensureIdInTemplate = function() {
+    // AJAX uložení šablony
+    window.saveDriveSablona = function() {
         var input = document.getElementById('gdriveSablona');
+        var status = document.getElementById('gdriveSablonaStatus');
         if (!input) return;
-        var val = input.value.trim();
-        if (val !== '' && val.indexOf('{id}') === -1) {
-            input.value = val + '_{id}';
-        }
+
+        status.style.display = 'inline';
+        status.style.color = '#888';
+        status.textContent = 'Ukládám...';
+
+        fetch('{{ route("firma.ulozitDriveSablona") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken},
+            body: JSON.stringify({sablona: input.value.trim()})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                status.style.color = '#27ae60';
+                status.textContent = 'Uloženo.';
+                if (data.sablona) {
+                    input.value = data.sablona;
+                    updateGdrivePreview();
+                }
+            } else {
+                status.style.color = '#e74c3c';
+                status.textContent = data.error || 'Chyba při ukládání.';
+            }
+            setTimeout(function() { status.style.display = 'none'; }, 3000);
+        })
+        .catch(function() {
+            status.style.color = '#e74c3c';
+            status.textContent = 'Chyba připojení.';
+            setTimeout(function() { status.style.display = 'none'; }, 3000);
+        });
     };
 
     // Obnovit výchozí šablonu

@@ -99,21 +99,6 @@ class FirmaController extends Controller
             $data['email_doklady_heslo'] = $request->email_doklady_heslo;
         }
 
-        // Google Drive šablona
-        if ($request->has('google_drive_sablona')) {
-            $sablona = trim($request->google_drive_sablona);
-            if ($sablona === '') {
-                $data['google_drive_sablona'] = null; // reset na default
-            } else {
-                $builder = new DrivePathBuilder();
-                $errors = $builder->validate($sablona);
-                if (!empty($errors)) {
-                    return back()->withErrors(['google_drive_sablona' => implode(' ', $errors)])->withInput();
-                }
-                $data['google_drive_sablona'] = $sablona;
-            }
-        }
-
         $firma->update($data);
 
         return redirect()->route('firma.nastaveni')->with('success', 'Nastavení uloženo.');
@@ -524,6 +509,38 @@ class FirmaController extends Controller
                 'error' => 'Nepodařilo se připojit: ' . $e->getMessage(),
             ]);
         }
+    }
+
+    public function ulozitDriveSablona(Request $request)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
+        }
+
+        $sablona = trim($request->input('sablona', ''));
+
+        if ($sablona === '') {
+            $firma->update(['google_drive_sablona' => null]);
+            return response()->json(['ok' => true]);
+        }
+
+        // Auto-append {id} if missing
+        if (! str_contains($sablona, '{id}')) {
+            $sablona .= '_{id}';
+        }
+
+        $builder = new DrivePathBuilder();
+        $errors = $builder->validate($sablona);
+
+        if (!empty($errors)) {
+            return response()->json(['ok' => false, 'error' => implode(' ', $errors)]);
+        }
+
+        $firma->update(['google_drive_sablona' => $sablona]);
+
+        return response()->json(['ok' => true, 'sablona' => $sablona]);
     }
 
     public function pridatUzivatele(Request $request)

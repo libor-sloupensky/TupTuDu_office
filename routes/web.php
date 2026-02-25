@@ -120,6 +120,7 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::post('/nastaveni/email-system-toggle', [FirmaController::class, 'toggleSystemEmail'])->name('firma.toggleSystemEmail');
     Route::post('/nastaveni/email-vlastni', [FirmaController::class, 'ulozitVlastniEmail'])->name('firma.ulozitVlastniEmail');
     Route::post('/nastaveni/email-vlastni-test', [FirmaController::class, 'testEmailVlastni'])->name('firma.testEmailVlastni');
+    Route::post('/nastaveni/drive-sablona', [FirmaController::class, 'ulozitDriveSablona'])->name('firma.ulozitDriveSablona');
     Route::post('/nastaveni/uzivatele', [FirmaController::class, 'pridatUzivatele'])->name('firma.pridatUzivatele');
     Route::patch('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'upravitUzivatele'])->name('firma.upravitUzivatele');
     Route::delete('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'odebratUzivatele'])->name('firma.odebratUzivatele');
