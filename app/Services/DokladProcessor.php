@@ -93,16 +93,48 @@ class DokladProcessor
             $textractBlocks = $this->callTextract($pageBytes);
             $textractOcr = $this->extractTextractText($textractBlocks);
 
-            try {
-                $visionResult = $this->analyzeWithVision($pageBytes, 'pdf', $firma, $textractOcr);
-            } catch (\Exception $e) {
-                Log::error("DokladProcessor Vision error page {$pageNum}: {$e->getMessage()}", [
+            $visionResult = null;
+            $lastPageError = null;
+            $maxAttempts = ($textractOcr && mb_strlen($textractOcr) > 30) ? 2 : 1;
+
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                try {
+                    $visionResult = $this->analyzeWithVision($pageBytes, 'pdf', $firma, $textractOcr);
+                } catch (\Exception $e) {
+                    $lastPageError = $e;
+                    Log::warning("DokladProcessor Vision page {$pageNum} attempt {$attempt}/{$maxAttempts}: {$e->getMessage()}", [
+                        'firma_ico' => $firma->ico,
+                        'file' => $originalName,
+                        'page' => $pageNum,
+                    ]);
+                    if ($attempt < $maxAttempts) {
+                        usleep(500_000);
+                    }
+                    continue;
+                }
+
+                $documents = $visionResult['dokumenty'] ?? [];
+                if (!empty($documents)) {
+                    break;
+                }
+
+                if ($attempt < $maxAttempts) {
+                    Log::warning("DokladProcessor: page {$pageNum} empty dokumenty, retry {$attempt}/{$maxAttempts}", [
+                        'firma_ico' => $firma->ico,
+                        'file' => $originalName,
+                    ]);
+                    usleep(500_000);
+                }
+            }
+
+            if ($visionResult === null && $lastPageError) {
+                Log::error("DokladProcessor Vision error page {$pageNum}: {$lastPageError->getMessage()}", [
                     'firma_ico' => $firma->ico,
                     'file' => $originalName,
                     'page' => $pageNum,
                 ]);
 
-                $this->logFailedFile("{$baseName}_p{$pageNum}.pdf", $firma->ico, $e->getMessage(), $pageBytes);
+                $this->logFailedFile("{$baseName}_p{$pageNum}.pdf", $firma->ico, $lastPageError->getMessage(), $pageBytes);
 
                 $doklad = Doklad::create([
                     'firma_ico' => $firma->ico,
@@ -110,7 +142,7 @@ class DokladProcessor
                     'cesta_souboru' => $pageTempPath,
                     'hash_souboru' => $fileHash,
                     'stav' => 'chyba',
-                    'chybova_zprava' => "Chyba AI zpracování stránky {$pageNum}: " . $e->getMessage(),
+                    'chybova_zprava' => "Chyba AI zpracování stránky {$pageNum}: " . $lastPageError->getMessage(),
                     'zdroj' => $zdroj,
                     'poradi_v_souboru' => ++$globalIndex,
                 ]);
@@ -285,15 +317,50 @@ class DokladProcessor
         $textractBlocks = $this->callTextract($fileBytes);
         $textractOcr = $this->extractTextractText($textractBlocks);
 
-        try {
-            $visionResult = $this->analyzeWithVision($fileBytes, $ext, $firma, $textractOcr);
-        } catch (\Exception $e) {
-            Log::error("DokladProcessor Vision error: {$e->getMessage()}", [
+        $visionResult = null;
+        $lastError = null;
+        $maxAttempts = ($textractOcr && mb_strlen($textractOcr) > 30) ? 2 : 1;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $visionResult = $this->analyzeWithVision($fileBytes, $ext, $firma, $textractOcr);
+            } catch (\Exception $e) {
+                $lastError = $e;
+                Log::warning("DokladProcessor Vision attempt {$attempt}/{$maxAttempts} failed: {$e->getMessage()}", [
+                    'firma_ico' => $firma->ico,
+                    'file' => $originalName,
+                ]);
+                if ($attempt < $maxAttempts) {
+                    usleep(500_000); // 0.5s pauza před retry
+                }
+                continue;
+            }
+
+            $documents = $visionResult['dokumenty'] ?? [];
+
+            if (!empty($documents)) {
+                break; // Úspěch — máme dokumenty
+            }
+
+            // AI vrátila prázdné dokumenty — retry pokud je OCR text (= na stránce něco je)
+            if ($attempt < $maxAttempts) {
+                Log::warning("DokladProcessor: AI vrátila prázdné dokumenty, retry {$attempt}/{$maxAttempts}", [
+                    'firma_ico' => $firma->ico,
+                    'file' => $originalName,
+                    'ocr_length' => mb_strlen($textractOcr ?? ''),
+                ]);
+                usleep(500_000);
+            }
+        }
+
+        // Po všech pokusech — výjimka z posledního pokusu
+        if ($visionResult === null && $lastError) {
+            Log::error("DokladProcessor Vision error after {$maxAttempts} attempts: {$lastError->getMessage()}", [
                 'firma_ico' => $firma->ico,
                 'file' => $originalName,
             ]);
 
-            $this->logFailedFile($originalName, $firma->ico, $e->getMessage(), $fileBytes);
+            $this->logFailedFile($originalName, $firma->ico, $lastError->getMessage(), $fileBytes);
 
             $doklad = Doklad::create([
                 'firma_ico' => $firma->ico,
@@ -301,7 +368,7 @@ class DokladProcessor
                 'cesta_souboru' => $tempS3Path,
                 'hash_souboru' => $fileHash,
                 'stav' => 'chyba',
-                'chybova_zprava' => 'Chyba AI zpracování: ' . $e->getMessage(),
+                'chybova_zprava' => 'Chyba AI zpracování: ' . $lastError->getMessage(),
                 'zdroj' => $zdroj,
             ]);
             return [$doklad];
@@ -310,13 +377,14 @@ class DokladProcessor
         $documents = $visionResult['dokumenty'] ?? [];
 
         if (empty($documents)) {
+            $ocrInfo = $textractOcr ? ' (OCR text: ' . mb_strlen($textractOcr) . ' znaků)' : '';
             $doklad = Doklad::create([
                 'firma_ico' => $firma->ico,
                 'nazev_souboru' => $originalName,
                 'cesta_souboru' => $tempS3Path,
                 'hash_souboru' => $fileHash,
                 'stav' => 'chyba',
-                'chybova_zprava' => 'AI nerozpoznalo žádný doklad v souboru.',
+                'chybova_zprava' => 'AI nerozpoznalo žádný doklad v souboru.' . $ocrInfo,
                 'raw_ai_odpoved' => json_encode($visionResult, JSON_UNESCAPED_UNICODE),
                 'zdroj' => $zdroj,
             ]);
