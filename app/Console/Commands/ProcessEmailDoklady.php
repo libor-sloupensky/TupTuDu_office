@@ -6,7 +6,6 @@ use App\Mail\OdpovedNaDoklad;
 use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Webklex\PHPIMAP\ClientManager;
@@ -368,85 +367,179 @@ class ProcessEmailDoklady extends Command
     }
 
     /**
-     * Generuje kontextovou odpověď pomocí AI (Anthropic Haiku).
+     * Generuje standardizovanou odpověď na email podle stavu zpracování.
+     * Žádná AI — deterministické šablony.
      */
     private function generateAutoReply(array $analysis): string
     {
-        $apiKey = config('services.anthropic.key');
-        if (empty($apiKey)) {
-            return $this->fallbackReply($analysis);
-        }
+        $stav = $this->resolveReplyState($analysis);
 
-        $systemPrompt = <<<'PROMPT'
-Jsi automatický asistent emailové schránky pro příjem účetních dokladů (systém TupTuDu).
-Odpovídej ČESKY, stručně, profesionálně a přátelsky. Max 3-4 věty.
-Schránka přijímá POUZE PDF, JPG a PNG s fakturami, účtenkami a jinými účetními doklady.
+        return match ($stav) {
+            'ico_not_found' => $this->replyTemplate(
+                'Nepodařilo se určit cílovou firmu.',
+                'Pro správné doručení dokladů zasílejte na adresu ve formátu:',
+                'ICO@doklady.tuptudu.cz',
+                'kde ICO je 8místné identifikační číslo firmy příjemce. Například: 12345678@doklady.tuptudu.cz.'
+            ),
 
-Pravidla:
-- Prázdný email bez příloh → vysvětli účel schránky a jaké formáty přijímá
-- Email obsahuje text ale žádné dokumenty → informuj že schránka je pouze pro příjem dokladů
-- Nepodporované formáty příloh → uveď jaké formáty jsou podporované (PDF, JPG, PNG)
-- Duplicitní přílohy → informuj že doklady již byly dříve zpracovány
-- Chyba zpracování → informuj o problému stručně a požádej o opětovné zaslání
-- Neznámé IČO / nesprávný formát adresy → vysvětli formát adresy (ICO@tuptudu.cz)
-- Neregistrovaná firma → informuj že firma není v systému registrována
-- Mix úspěšných a neúspěšných → uveď co se povedlo a co ne
-- NIKDY neprozrazuj technické detaily systému, API klíče, ani interní architekturu
-- Odpověz POUZE text emailu, bez předmětu a hlaviček
-PROMPT;
+            'firma_not_found' => $this->replyTemplate(
+                "Firma s IČO {$analysis['ico']} není v systému TupTuDu registrována nebo nemá aktivní příjem dokladů emailem.",
+                'Pokud jste zadali správné IČO, požádejte příjemce, aby si v nastavení firmy aktivoval příjem dokladů emailem.'
+            ),
 
-        try {
-            $response = Http::timeout(30)->withHeaders([
-                'x-api-key' => $apiKey,
-                'anthropic-version' => '2023-06-01',
-                'content-type' => 'application/json',
-            ])->post('https://api.anthropic.com/v1/messages', [
-                'model' => 'claude-haiku-4-5-20251001',
-                'max_tokens' => 300,
-                'system' => $systemPrompt,
-                'messages' => [
-                    [
-                        'role' => 'user',
-                        'content' => 'Analýza přijatého emailu: ' . json_encode($analysis, JSON_UNESCAPED_UNICODE),
-                    ],
-                ],
-            ]);
+            'no_attachments' => $this->replyTemplate(
+                'Váš email neobsahoval žádné přílohy s doklady.',
+                'Tato schránka slouží výhradně k příjmu účetních dokladů (faktury, účtenky, smlouvy apod.).',
+                'Podporované formáty: PDF, JPG, PNG (max 10 MB).',
+                'Na textové zprávy bez příloh neodpovídáme — pro komunikaci kontaktujte příjemce přímo.'
+            ),
 
-            if ($response->successful()) {
-                $text = $response->json('content.0.text');
-                if (!empty($text)) {
-                    return $text;
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::warning('ProcessEmailDoklady: AI reply generation failed', ['error' => $e->getMessage()]);
-        }
+            'invalid_format_only' => $this->replyTemplate(
+                'Váš email obsahoval přílohy v nepodporovaném formátu.',
+                'Přijaté soubory: ' . implode(', ', $analysis['invalid_attachments']),
+                'Podporované formáty jsou pouze: PDF, JPG a PNG.',
+                'Převeďte prosím soubory do některého z podporovaných formátů a zašlete znovu.'
+            ),
 
-        return $this->fallbackReply($analysis);
+            'all_duplicates' => $this->replyTemplate(
+                'Zaslané doklady již byly dříve zpracovány a jsou evidovány v systému.',
+                'Opakované zaslání stejného souboru je automaticky ignorováno.',
+                'Pokud chcete doklad nahradit, smažte původní záznam v aplikaci a zašlete nový.'
+            ),
+
+            'all_errors' => $this->replyTemplate(
+                'Při zpracování zaslaných dokladů došlo k chybě.',
+                !empty($analysis['errors'])
+                    ? 'Podrobnosti: ' . implode('; ', array_map(fn($e) => $this->sanitizeError($e), $analysis['errors']))
+                    : null,
+                'Zkuste prosím soubory zaslat znovu. Pokud problém přetrvává, kontaktujte příjemce.'
+            ),
+
+            'partial_ok' => $this->replyPartialOk($analysis),
+
+            'processing_error' => $this->replyTemplate(
+                'Při zpracování Vašeho emailu došlo k neočekávané chybě.',
+                'Zkuste prosím doklady zaslat znovu. Pokud problém přetrvává, kontaktujte příjemce.'
+            ),
+
+            default => $this->replyTemplate(
+                'Tato schránka slouží výhradně k příjmu účetních dokladů.',
+                'Podporované formáty: PDF, JPG, PNG (max 10 MB).'
+            ),
+        };
     }
 
     /**
-     * Záložní odpověď, pokud AI není dostupné.
+     * Vyhodnotí stav zpracování emailu a vrátí klíč pro šablonu.
      */
-    private function fallbackReply(array $analysis): string
+    private function resolveReplyState(array $analysis): string
     {
         if (!$analysis['ico_found']) {
-            return "Dobrý den,\n\nz Vaší emailové adresy nelze určit cílovou firmu. Pro správné doručení dokladů používejte adresu ve formátu ICO@tuptudu.cz, kde ICO je 8místné identifikační číslo firmy.\n\nS pozdravem,\nTupTuDu";
+            return 'ico_not_found';
         }
 
         if (!$analysis['firma_found']) {
-            return "Dobrý den,\n\nfirma s IČO {$analysis['ico']} nemá aktivní příjem dokladů emailem nebo není v systému registrována.\n\nS pozdravem,\nTupTuDu";
+            return 'firma_not_found';
         }
 
-        if (!empty($analysis['invalid_attachments']) && $analysis['processed_ok'] === 0 && empty($analysis['duplicates'])) {
-            return "Dobrý den,\n\nVáš email obsahoval přílohy v nepodporovaném formátu. Tato schránka přijímá pouze soubory ve formátu PDF, JPG a PNG.\n\nS pozdravem,\nTupTuDu";
+        // Interní chyba (errors obsahují "Interní chyba")
+        foreach ($analysis['errors'] as $err) {
+            if (str_contains($err, 'Interní chyba')) {
+                return 'processing_error';
+            }
         }
 
-        if (!empty($analysis['duplicates']) && $analysis['processed_ok'] === 0) {
-            return "Dobrý den,\n\nzaslané doklady již byly dříve zpracovány a jsou evidovány v systému.\n\nS pozdravem,\nTupTuDu";
+        $hasValid = $analysis['processed_ok'] > 0;
+        $hasErrors = !empty($analysis['errors']);
+        $hasDuplicates = !empty($analysis['duplicates']);
+        $hasInvalid = !empty($analysis['invalid_attachments']);
+        $totalAttachments = $analysis['processed_ok'] + count($analysis['errors']) + count($analysis['duplicates']);
+
+        // Žádné přílohy
+        if ($totalAttachments === 0 && !$hasInvalid) {
+            return 'no_attachments';
         }
 
-        return "Dobrý den,\n\ntato emailová schránka slouží výhradně k příjmu účetních dokladů (faktury, účtenky) ve formátu PDF, JPG nebo PNG.\n\nS pozdravem,\nTupTuDu";
+        // Pouze nepodporované formáty
+        if ($hasInvalid && !$hasValid && !$hasErrors && !$hasDuplicates) {
+            return 'invalid_format_only';
+        }
+
+        // Vše duplicitní
+        if ($hasDuplicates && !$hasValid && !$hasErrors && !$hasInvalid) {
+            return 'all_duplicates';
+        }
+
+        // Vše selhalo
+        if ($hasErrors && !$hasValid && !$hasDuplicates) {
+            return 'all_errors';
+        }
+
+        // Mix výsledků
+        if ($hasValid && ($hasErrors || $hasDuplicates || $hasInvalid)) {
+            return 'partial_ok';
+        }
+
+        // Vše OK — sem by se nemělo dostat (shouldReply vrací false)
+        return 'unknown';
+    }
+
+    /**
+     * Sestaví text odpovědi z řádků (null řádky se přeskočí).
+     */
+    private function replyTemplate(string ...$lines): string
+    {
+        $body = implode("\n", array_filter($lines, fn($l) => $l !== null));
+        return "Dobrý den,\n\n{$body}\n\nS pozdravem,\nTupTuDu";
+    }
+
+    /**
+     * Odpověď pro částečně úspěšné zpracování.
+     */
+    private function replyPartialOk(array $analysis): string
+    {
+        $parts = [];
+
+        $ok = $analysis['processed_ok'];
+        $parts[] = "Zpracováno úspěšně: {$ok} " . ($ok === 1 ? 'doklad' : ($ok < 5 ? 'doklady' : 'dokladů')) . '.';
+
+        if (!empty($analysis['duplicates'])) {
+            $count = count($analysis['duplicates']);
+            $parts[] = "Přeskočeno (duplicita): {$count} — " . implode(', ', $analysis['duplicates']) . '.';
+        }
+
+        if (!empty($analysis['errors'])) {
+            $count = count($analysis['errors']);
+            $parts[] = "Selhalo: {$count} — zkuste tyto soubory zaslat znovu.";
+        }
+
+        if (!empty($analysis['invalid_attachments'])) {
+            $parts[] = 'Nepodporovaný formát: ' . implode(', ', $analysis['invalid_attachments']) . '. Podporujeme PDF, JPG a PNG.';
+        }
+
+        return $this->replyTemplate(...$parts);
+    }
+
+    /**
+     * Odstraní technické detaily z chybových zpráv pro uživatele.
+     */
+    private function sanitizeError(string $error): string
+    {
+        // Odstraň názvy souborů s cestami, stack traces, API klíče
+        $error = preg_replace('/\/[^\s:]+/', '', $error);
+        $error = preg_replace('/\b[A-Za-z0-9]{20,}\b/', '***', $error);
+
+        // Zkrátit na rozumnou délku
+        if (mb_strlen($error) > 120) {
+            $error = mb_substr($error, 0, 117) . '...';
+        }
+
+        // Pokud po sanitizaci zbyde jen název souboru + něco, zjednoduš
+        if (preg_match('/^(.+?):\s*(.+)$/', $error, $m)) {
+            return $m[1] . ': nepodařilo se zpracovat';
+        }
+
+        return $error ?: 'nepodařilo se zpracovat';
     }
 
     /**
