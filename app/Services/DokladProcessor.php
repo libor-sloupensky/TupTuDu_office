@@ -68,7 +68,8 @@ class DokladProcessor
     }
 
     /**
-     * Zpracuje multi-page PDF - každá stránka se posílá do AI zvlášť.
+     * Zpracuje multi-page PDF - každá stránka se posílá do AI zvlášť pro kvalitu,
+     * ale výsledkem je vždy JEDEN záznam v DB (celý soubor = 1 doklad).
      *
      * @return Doklad[]
      */
@@ -80,12 +81,13 @@ class DokladProcessor
         string $zdroj,
         string $originalFileBytes
     ): array {
-        $doklady = [];
-        $globalIndex = 0;
-        $baseName = pathinfo($originalName, PATHINFO_FILENAME);
+        $firstDocData = null;
+        $firstTextractBlocks = null;
+        $totalDocsDetected = 0;
+        $lastError = null;
 
         foreach ($pages as $pageNum => $pageBytes) {
-            // Upload stránky na S3 jako temp
+            // Upload stránky na S3 jako temp (pro Textract)
             $pageTempPath = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}_p{$pageNum}.pdf";
             Storage::disk('s3')->put($pageTempPath, $pageBytes);
 
@@ -102,6 +104,7 @@ class DokladProcessor
                     $visionResult = $this->analyzeWithVision($pageBytes, 'pdf', $firma, $textractOcr);
                 } catch (\Exception $e) {
                     $lastPageError = $e;
+                    $lastError = $e;
                     Log::warning("DokladProcessor Vision page {$pageNum} attempt {$attempt}/{$maxAttempts}: {$e->getMessage()}", [
                         'firma_ico' => $firma->ico,
                         'file' => $originalName,
@@ -127,174 +130,83 @@ class DokladProcessor
                 }
             }
 
+            // Smazat temp stránku (není potřeba dál)
+            try { Storage::disk('s3')->delete($pageTempPath); } catch (\Exception $e) {}
+
             if ($visionResult === null && $lastPageError) {
                 Log::error("DokladProcessor Vision error page {$pageNum}: {$lastPageError->getMessage()}", [
                     'firma_ico' => $firma->ico,
                     'file' => $originalName,
                     'page' => $pageNum,
                 ]);
-
-                $this->logFailedFile("{$baseName}_p{$pageNum}.pdf", $firma->ico, $lastPageError->getMessage(), $pageBytes);
-
-                $doklad = Doklad::create([
-                    'firma_ico' => $firma->ico,
-                    'nazev_souboru' => "{$baseName} (s{$pageNum}).pdf",
-                    'cesta_souboru' => $pageTempPath,
-                    'hash_souboru' => $fileHash,
-                    'stav' => 'chyba',
-                    'chybova_zprava' => "Chyba AI zpracování stránky {$pageNum}: " . $lastPageError->getMessage(),
-                    'zdroj' => $zdroj,
-                    'poradi_v_souboru' => ++$globalIndex,
-                ]);
-                $doklady[] = $doklad;
                 continue;
             }
 
             $documents = $visionResult['dokumenty'] ?? [];
+            $totalDocsDetected += count($documents);
 
-            if (empty($documents)) {
-                // Stránka neobsahuje žádný rozpoznaný doklad - smazat temp
-                try { Storage::disk('s3')->delete($pageTempPath); } catch (\Exception $e) {}
-                continue;
+            // Uchováme data z první nalezené stránky s dokladem
+            if ($firstDocData === null && !empty($documents)) {
+                $firstDocData = $documents[0];
+                $firstTextractBlocks = $textractBlocks;
             }
-
-            $docsOnPage = count($documents);
-            $multiDocOnThisPage = $docsOnPage > 1;
-            if ($multiDocOnThisPage) {
-                $this->hadMultiDocPage = true;
-            }
-
-            foreach ($documents as $docIdx => $docData) {
-                $globalIndex++;
-                $docNum = $docIdx + 1;
-
-                // Název: "Epson_15012024 (s1-2).pdf" = stránka 1, doklad 2
-                $nazev = $docsOnPage > 1
-                    ? "{$baseName} (s{$pageNum}-{$docNum}).pdf"
-                    : "{$baseName} (s{$pageNum}).pdf";
-
-                try {
-                    $doklad = $this->createDokladFromPage(
-                        $docData, $firma, $nazev, $fileHash,
-                        $zdroj, $pageTempPath, $pageBytes, $globalIndex,
-                        $multiDocOnThisPage, $textractBlocks
-                    );
-                    $doklady[] = $doklad;
-                } catch (\Exception $e) {
-                    Log::error("DokladProcessor create error: {$e->getMessage()}", [
-                        'firma_ico' => $firma->ico,
-                        'file' => $originalName,
-                        'page' => $pageNum,
-                        'doc' => $docNum,
-                    ]);
-
-                    $doklad = Doklad::create([
-                        'firma_ico' => $firma->ico,
-                        'nazev_souboru' => $nazev,
-                        'cesta_souboru' => $pageTempPath,
-                        'hash_souboru' => $fileHash,
-                        'stav' => 'chyba',
-                        'chybova_zprava' => $e->getMessage(),
-                        'zdroj' => $zdroj,
-                        'poradi_v_souboru' => $globalIndex,
-                    ]);
-                    $doklady[] = $doklad;
-                }
-            }
-
-            // Smazat temp stránku (každý doklad má svoji S3 kopii)
-            try { Storage::disk('s3')->delete($pageTempPath); } catch (\Exception $e) {}
         }
 
-        if (empty($doklady)) {
+        // Upload celého původního souboru na S3 jako temp
+        $tempPath = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}.pdf";
+        Storage::disk('s3')->put($tempPath, $originalFileBytes);
+
+        if ($firstDocData === null) {
             // Žádný doklad nenalezen na žádné stránce
-            $tempPath = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}.pdf";
-            Storage::disk('s3')->put($tempPath, $originalFileBytes);
+            $errMsg = $lastError
+                ? 'Chyba AI zpracování: ' . $lastError->getMessage()
+                : 'AI nerozpoznalo žádný doklad v souboru (' . count($pages) . ' stránek).';
+            if ($lastError) {
+                $this->logFailedFile($originalName, $firma->ico, $lastError->getMessage(), $originalFileBytes);
+            }
             $doklad = Doklad::create([
                 'firma_ico' => $firma->ico,
                 'nazev_souboru' => $originalName,
                 'cesta_souboru' => $tempPath,
                 'hash_souboru' => $fileHash,
                 'stav' => 'chyba',
-                'chybova_zprava' => 'AI nerozpoznalo žádný doklad v souboru (' . count($pages) . ' stránek).',
+                'chybova_zprava' => $errMsg,
                 'zdroj' => $zdroj,
             ]);
-            $doklady[] = $doklad;
+            return [$doklad];
         }
 
-        // Deduplikace v rámci jednoho multi-page PDF:
-        // Pokud více stránek obsahuje stejný doklad (originál + kopie),
-        // zachováme jen ten s nejlepší kvalitou a ostatní smažeme.
-        $doklady = $this->deduplicateWithinBatch($doklady);
-
-        return $doklady;
-    }
-
-    /**
-     * Deduplikace dokladů v rámci jednoho souboru (multi-page PDF).
-     * Pokud více stránek obsahuje stejný doklad (originál + kopie),
-     * zachová jen ten s nejlepší kvalitou a ostatní smaže z DB i S3.
-     *
-     * @param Doklad[] $doklady
-     * @return Doklad[]
-     */
-    private function deduplicateWithinBatch(array $doklady): array
-    {
-        $kvalitaPriorita = ['dobra' => 0, 'nizka' => 1, 'necitelna' => 2];
-
-        // Seskupení podle cislo_dokladu + dodavatel_ico
-        $groups = [];
-        $noKey = [];
-        foreach ($doklady as $d) {
-            if ($d->cislo_dokladu && $d->dodavatel_ico) {
-                $key = $d->cislo_dokladu . '|' . $d->dodavatel_ico;
-                $groups[$key][] = $d;
-            } else {
-                $noKey[] = $d;
-            }
+        // Pokud bylo detekováno více dokladů, přidáme varování ale vytvoříme jen 1 záznam
+        if ($totalDocsDetected > 1) {
+            $this->hadMultiDocPage = true;
+            $multiNote = "V souboru bylo detekováno {$totalDocsDetected} dokladů – nahráno jako jeden záznam";
+            $existing = $firstDocData['kvalita_poznamka'] ?? null;
+            $firstDocData['kvalita_poznamka'] = $existing ? $existing . '. ' . $multiNote : $multiNote;
         }
 
-        $result = $noKey;
-        foreach ($groups as $group) {
-            if (count($group) <= 1) {
-                $result[] = $group[0];
-                continue;
-            }
-
-            // Seřadíme podle kvality (nejlepší první)
-            usort($group, function ($a, $b) use ($kvalitaPriorita) {
-                $ka = $kvalitaPriorita[$a->kvalita] ?? 1;
-                $kb = $kvalitaPriorita[$b->kvalita] ?? 1;
-                return $ka <=> $kb;
-            });
-
-            // Zachováme první (nejlepší), ostatní smažeme
-            $best = array_shift($group);
-            $result[] = $best;
-
-            // Vyčistíme duplicita_id u zachovaného (odkazoval na sebe v rámci souboru)
-            if ($best->duplicita_id) {
-                $smazaneIds = array_map(fn($d) => $d->id, $group);
-                if (in_array($best->duplicita_id, $smazaneIds)) {
-                    $best->update(['duplicita_id' => null]);
-                }
-            }
-
-            foreach ($group as $dup) {
-                Log::info("Deduplikace v rámci PDF: smazán doklad #{$dup->id} (duplicita #{$best->id}, č. {$dup->cislo_dokladu})", [
-                    'firma_ico' => $dup->firma_ico,
-                    'zachovany_id' => $best->id,
-                    'smazany_id' => $dup->id,
-                ]);
-                // Smazat S3 soubor duplikátu
-                if ($dup->cesta_souboru && $dup->cesta_souboru !== $best->cesta_souboru) {
-                    try { Storage::disk('s3')->delete($dup->cesta_souboru); } catch (\Exception $e) {}
-                }
-                $dup->delete();
-            }
+        try {
+            $doklad = $this->createDokladFromPage(
+                $firstDocData, $firma, $originalName, $fileHash,
+                $zdroj, $tempPath, $originalFileBytes, 1,
+                false, $firstTextractBlocks
+            );
+        } catch (\Exception $e) {
+            Log::error("DokladProcessor create error: {$e->getMessage()}", [
+                'firma_ico' => $firma->ico,
+                'file' => $originalName,
+            ]);
+            $doklad = Doklad::create([
+                'firma_ico' => $firma->ico,
+                'nazev_souboru' => $originalName,
+                'cesta_souboru' => $tempPath,
+                'hash_souboru' => $fileHash,
+                'stav' => 'chyba',
+                'chybova_zprava' => $e->getMessage(),
+                'zdroj' => $zdroj,
+            ]);
         }
 
-        return $result;
+        return [$doklad];
     }
 
     /**
@@ -391,53 +303,41 @@ class DokladProcessor
             return [$doklad];
         }
 
-        $doklady = [];
+        // Vždy vytvoříme jen 1 záznam – pokud AI detekuje více dokladů, použijeme první
+        // a přidáme varování
         $celkem = count($documents);
-        $multiDocPage = $celkem > 1;
-        if ($multiDocPage) {
-            $this->hadMultiDocPage = true;
-        }
+        $docData = $documents[0];
 
-        foreach ($documents as $index => $docData) {
-            $poradi = $index + 1;
-            $nazev = $celkem > 1
-                ? pathinfo($originalName, PATHINFO_FILENAME) . " ({$poradi})." . $ext
-                : $originalName;
-
-            try {
-                $doklad = $this->createDokladFromPage(
-                    $docData, $firma, $nazev, $fileHash,
-                    $zdroj, $tempS3Path, $fileBytes, $poradi,
-                    $multiDocPage, $textractBlocks
-                );
-                $doklady[] = $doklad;
-            } catch (\Exception $e) {
-                Log::error("DokladProcessor create error: {$e->getMessage()}", [
-                    'firma_ico' => $firma->ico,
-                    'file' => $originalName,
-                    'poradi' => $poradi,
-                ]);
-
-                $doklad = Doklad::create([
-                    'firma_ico' => $firma->ico,
-                    'nazev_souboru' => $originalName,
-                    'cesta_souboru' => $tempS3Path,
-                    'hash_souboru' => $fileHash,
-                    'stav' => 'chyba',
-                    'chybova_zprava' => $e->getMessage(),
-                    'zdroj' => $zdroj,
-                    'poradi_v_souboru' => $poradi,
-                ]);
-                $doklady[] = $doklad;
-            }
-        }
-
-        // Multi-doc na jedné stránce: smazat temp (každý doklad má svou S3 kopii)
         if ($celkem > 1) {
-            try { Storage::disk('s3')->delete($tempS3Path); } catch (\Exception $e) {}
+            $this->hadMultiDocPage = true;
+            $multiNote = "V souboru bylo detekováno {$celkem} dokladů – nahráno jako jeden záznam";
+            $existing = $docData['kvalita_poznamka'] ?? null;
+            $docData['kvalita_poznamka'] = $existing ? $existing . '. ' . $multiNote : $multiNote;
         }
 
-        return $doklady;
+        try {
+            $doklad = $this->createDokladFromPage(
+                $docData, $firma, $originalName, $fileHash,
+                $zdroj, $tempS3Path, $fileBytes, 1,
+                false, $textractBlocks
+            );
+        } catch (\Exception $e) {
+            Log::error("DokladProcessor create error: {$e->getMessage()}", [
+                'firma_ico' => $firma->ico,
+                'file' => $originalName,
+            ]);
+            $doklad = Doklad::create([
+                'firma_ico' => $firma->ico,
+                'nazev_souboru' => $originalName,
+                'cesta_souboru' => $tempS3Path,
+                'hash_souboru' => $fileHash,
+                'stav' => 'chyba',
+                'chybova_zprava' => $e->getMessage(),
+                'zdroj' => $zdroj,
+            ]);
+        }
+
+        return [$doklad];
     }
 
     /**
