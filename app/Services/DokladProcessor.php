@@ -83,6 +83,7 @@ class DokladProcessor
     ): array {
         $firstDocData = null;
         $firstTextractBlocks = null;
+        $allTextractOcr = [];
         $totalDocsDetected = 0;
         $lastError = null;
 
@@ -145,6 +146,11 @@ class DokladProcessor
             $documents = $visionResult['dokumenty'] ?? [];
             $totalDocsDetected += count($documents);
 
+            // Sbíráme OCR text ze všech stránek pro fulltext vyhledávání
+            if ($textractOcr) {
+                $allTextractOcr[] = $textractOcr;
+            }
+
             // Uchováme data z první nalezené stránky s dokladem
             if ($firstDocData === null && !empty($documents)) {
                 $firstDocData = $documents[0];
@@ -185,10 +191,11 @@ class DokladProcessor
         }
 
         try {
+            $combinedOcr = implode("\n--- stránka ---\n", $allTextractOcr) ?: null;
             $doklad = $this->createDokladFromPage(
                 $firstDocData, $firma, $originalName, $fileHash,
                 $zdroj, $tempPath, $originalFileBytes, 1,
-                false, $firstTextractBlocks
+                false, $firstTextractBlocks, $combinedOcr
             );
         } catch (\Exception $e) {
             Log::error("DokladProcessor create error: {$e->getMessage()}", [
@@ -319,7 +326,7 @@ class DokladProcessor
             $doklad = $this->createDokladFromPage(
                 $docData, $firma, $originalName, $fileHash,
                 $zdroj, $tempS3Path, $fileBytes, 1,
-                false, $textractBlocks
+                false, $textractBlocks, $textractOcr
             );
         } catch (\Exception $e) {
             Log::error("DokladProcessor create error: {$e->getMessage()}", [
@@ -354,7 +361,8 @@ class DokladProcessor
         string $pageBytes,
         int $poradi,
         bool $multiDocPage = false,
-        ?array $textractBlocks = null
+        ?array $textractBlocks = null,
+        ?string $textractOcr = null
     ): Doklad {
         $kvalita = $docData['kvalita'] ?? 'dobra';
         $typDokladu = $docData['typ_dokladu'] ?? 'faktura';
@@ -388,7 +396,7 @@ class DokladProcessor
             'kvalita' => $kvalita,
             'kvalita_poznamka' => $kvalitaPoznamka,
             'poradi_v_souboru' => $poradi,
-            'raw_text' => $docData['raw_text'] ?? null,
+            'raw_text' => $textractOcr ?: ($docData['raw_text'] ?? null),
             'raw_ai_odpoved' => json_encode($docData, JSON_UNESCAPED_UNICODE),
         ]);
 
