@@ -165,9 +165,9 @@ class ProcessEmailDoklady extends Command
             }
         } catch (\Throwable $e) {}
 
-        // 5. Process valid attachments + inline images
+        // 5. Process valid attachments only (inline images = loga, podpisy, vizitky)
         $results = $this->processFiles(
-            array_merge($parts['valid'], $parts['inlineImages']),
+            $parts['valid'],
             $firma,
             $processor,
             $senderEmail
@@ -619,9 +619,8 @@ class ProcessEmailDoklady extends Command
                 foreach ($messages as $message) {
                     $senderEmail = $this->extractSenderEmail($message);
                     $parts = $this->collectMessageParts($message);
-                    $allFiles = array_merge($parts['valid'], $parts['inlineImages']);
 
-                    $results = $this->processFiles($allFiles, $firma, $processor, $senderEmail);
+                    $results = $this->processFiles($parts['valid'], $firma, $processor, $senderEmail);
                     $processed += $results['processed_ok'];
 
                     // Custom mailboxes: no auto-reply (firma manages own email)
