@@ -216,20 +216,15 @@ class ProcessEmailDoklady extends Command
             $name = $attachment->getName() ?? '';
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
+            // Inline obrázky přeskočit vždy (loga, podpisy, vložené screenshoty)
+            if ($disposition === 'inline' && str_starts_with($contentType, 'image/')) {
+                $inlineImages[] = ['attachment' => $attachment, 'name' => $name];
+                continue;
+            }
+
             if (in_array($ext, self::ALLOWED_EXTENSIONS)) {
                 // Regular attachment with valid extension
                 $valid[] = ['attachment' => $attachment, 'name' => $name];
-            } elseif ($disposition === 'inline' && str_starts_with($contentType, 'image/')) {
-                // Inline pasted image (screenshot)
-                $imgExt = match (true) {
-                    str_contains($contentType, 'png') => 'png',
-                    str_contains($contentType, 'jpeg'), str_contains($contentType, 'jpg') => 'jpg',
-                    default => 'png',
-                };
-                $inlineImages[] = [
-                    'attachment' => $attachment,
-                    'name' => 'inline_' . time() . '_' . (count($inlineImages) + 1) . '.' . $imgExt,
-                ];
             } elseif (!empty($name) && $ext !== '') {
                 // File with unsupported extension
                 $invalid[] = $name;

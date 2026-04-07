@@ -329,6 +329,9 @@ function escHtml(s) {
     d.textContent = s;
     return d.innerHTML;
 }
+function escAttr(s) {
+    return escHtml(s).replace(/'/g, '&#39;').replace(/\n/g, ' ').replace(/\r/g, '');
+}
 
 function addNotification(opts) {
     // opts: { status, icon, name, detail, size, autoHide }
@@ -571,7 +574,7 @@ function cellValue(d, colId) {
         case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
         case 'nahral': return d.nahral || '-';
         case 'soubor': return d.nazev_souboru || '-';
-        case 'smazat': return permMazat ? '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escHtml(d.cislo_dokladu||d.nazev_souboru).replace(/'/g, "\\'")+'\',\''+d.destroy_url+'\')">&times;</button>' : '';
+        case 'smazat': return permMazat ? '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escAttr(d.cislo_dokladu||d.nazev_souboru)+'\',\''+d.destroy_url+'\')">&times;</button>' : '';
         default: return '-';
     }
 }
