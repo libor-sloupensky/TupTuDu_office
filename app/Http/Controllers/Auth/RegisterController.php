@@ -104,19 +104,51 @@ class RegisterController extends Controller
                 return back()->withErrors(['ico' => 'IČO nebylo nalezeno v ARES.'])->withInput();
             }
 
-            // Kontrola: firma již existuje a má uživatele → blokovat
+            // Kontrola: firma již existuje a má uživatele
             $existujiciFirma = Firma::find($request->ico);
             if ($existujiciFirma && $existujiciFirma->users()->exists()) {
-                $superadmin = $existujiciFirma->users()->withPivot('interni_role')
-                    ->wherePivot('interni_role', 'superadmin')->first();
+                // Zkontroluj, zda pro tento email existuje platná pozvánka do této firmy
+                $pozvankaProEmail = Pozvani::where('firma_ico', $request->ico)
+                    ->where('email', $request->email)
+                    ->whereNull('accepted_at')
+                    ->where('expires_at', '>', now())
+                    ->first();
 
-                return back()->withInput()->with([
-                    'firma_obsazena' => true,
-                    'firma_nazev' => $existujiciFirma->nazev,
-                    'firma_ico' => $existujiciFirma->ico,
-                    'superadmin_prijmeni' => $superadmin?->prijmeni ?? 'správce',
-                    'superadmin_email_masked' => $superadmin ? User::maskEmail($superadmin->email) : '',
-                ]);
+                if ($pozvankaProEmail) {
+                    // Pozvánka existuje — zpracuj jako pozvánkovou registraci
+                    $user = User::create([
+                        'jmeno' => $request->jmeno,
+                        'prijmeni' => $request->prijmeni,
+                        'email' => $request->email,
+                        'telefon' => $request->telefon,
+                        'password' => $request->password,
+                    ]);
+
+                    $user->firmy()->attach($existujiciFirma->ico, [
+                        'role' => 'firma',
+                        'interni_role' => $pozvankaProEmail->interni_role,
+                    ]);
+
+                    $pozvankaProEmail->update(['accepted_at' => now()]);
+
+                    Auth::login($user);
+                    session(['aktivni_firma_ico' => $existujiciFirma->ico]);
+                    $user->update(['email_verified_at' => now()]);
+
+                    return redirect()->route('doklady.index');
+                } else {
+                    // Žádná pozvánka — blokovat
+                    $superadmin = $existujiciFirma->users()->withPivot('interni_role')
+                        ->wherePivot('interni_role', 'superadmin')->first();
+
+                    return back()->withInput()->with([
+                        'firma_obsazena' => true,
+                        'firma_nazev' => $existujiciFirma->nazev,
+                        'firma_ico' => $existujiciFirma->ico,
+                        'superadmin_prijmeni' => $superadmin?->prijmeni ?? 'správce',
+                        'superadmin_email_masked' => $superadmin ? User::maskEmail($superadmin->email) : '',
+                    ]);
+                }
             }
 
             $user = User::create([
