@@ -124,6 +124,7 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::post('/nastaveni/uzivatele', [FirmaController::class, 'pridatUzivatele'])->name('firma.pridatUzivatele');
     Route::patch('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'upravitUzivatele'])->name('firma.upravitUzivatele');
     Route::delete('/nastaveni/uzivatele/{userId}', [FirmaController::class, 'odebratUzivatele'])->name('firma.odebratUzivatele');
+    Route::delete('/nastaveni/pozvanky/{id}', [FirmaController::class, 'zrusitPozvanku'])->name('firma.zrusitPozvanku');
 
     // Klienti (pouze ucetni)
     Route::middleware('role:ucetni')->group(function () {

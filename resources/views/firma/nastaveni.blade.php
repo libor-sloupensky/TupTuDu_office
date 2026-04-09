@@ -600,7 +600,9 @@
                             <option value="superadmin" {{ $p->interni_role === 'superadmin' ? 'selected' : '' }}>Superadmin</option>
                         </select>
                     </td>
-                    <td></td>
+                    <td>
+                        <button type="button" class="usr-remove" onclick="cancelInvite({{ $p->id }}, '{{ addslashes($p->jmeno) }}')" title="Zrušit pozvánku">&times;</button>
+                    </td>
                 </tr>
                 @endforeach
                 <tr class="usr-new">
@@ -990,6 +992,24 @@
         if (nameInput) nameInput.addEventListener('input', () => scheduleUsrSave(userId));
         if (roleSelect) roleSelect.addEventListener('change', () => saveUser(userId));
     });
+
+    window.cancelInvite = function(id, name) {
+        if (!confirm('Zrušit pozvánku pro ' + name + '?')) return;
+        fetch('{{ url("/nastaveni/pozvanky") }}/' + id, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                document.querySelector('tr[data-pozvani-id="'+id+'"]').remove();
+                showUsrStatus('Pozvánka zrušena', '#27ae60');
+            } else {
+                showUsrStatus(data.error || 'Chyba', '#e74c3c');
+            }
+        })
+        .catch(() => showUsrStatus('Chyba připojení', '#e74c3c'));
+    };
 
     window.removeUser = function(userId, name) {
         if (!confirm('Odebrat uživatele ' + name + '?')) return;

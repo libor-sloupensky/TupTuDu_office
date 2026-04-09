@@ -646,6 +646,29 @@ class FirmaController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function zrusitPozvanku(int $id)
+    {
+        $firma = auth()->user()->aktivniFirma();
+        $user = auth()->user();
+
+        if (!$firma || !$user->jeSuperadmin($firma->ico)) {
+            return response()->json(['ok' => false, 'error' => 'Nemáte oprávnění.'], 403);
+        }
+
+        $pozvani = \App\Models\Pozvani::where('id', $id)
+            ->where('firma_ico', $firma->ico)
+            ->whereNull('accepted_at')
+            ->first();
+
+        if (!$pozvani) {
+            return response()->json(['ok' => false, 'error' => 'Pozvánka nenalezena.'], 404);
+        }
+
+        $pozvani->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
     public function odebratUzivatele(int $userId)
     {
         $firma = auth()->user()->aktivniFirma();
