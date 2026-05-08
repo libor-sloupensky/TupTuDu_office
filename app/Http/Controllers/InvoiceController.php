@@ -472,6 +472,56 @@ class InvoiceController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function downloadSelected(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+        ]);
+
+        $firma = $this->aktivniFirma();
+
+        $doklady = Doklad::whereIn('id', $request->ids)
+            ->where('firma_ico', $firma->ico)
+            ->where('cesta_souboru', '!=', '')
+            ->get();
+
+        if ($doklady->isEmpty()) {
+            abort(404, 'Žádné doklady ke stažení.');
+        }
+
+        $zipName = 'doklady_' . now()->format('Y-m-d_His') . '.zip';
+        $tempZip = tempnam(sys_get_temp_dir(), 'doklady_') . '.zip';
+        $zip = new ZipArchive();
+
+        if ($zip->open($tempZip, ZipArchive::CREATE) !== true) {
+            abort(500, 'Nepodařilo se vytvořit ZIP archiv.');
+        }
+
+        $disk = Storage::disk('s3');
+        $pouzitaJmena = [];
+        foreach ($doklady as $doklad) {
+            if (!$disk->exists($doklad->cesta_souboru)) {
+                continue;
+            }
+            $jmeno = $doklad->nazev_souboru ?: ('doklad_' . $doklad->id);
+            // Zabraň kolizím názvů v ZIP
+            $finalni = $jmeno;
+            $i = 1;
+            while (isset($pouzitaJmena[$finalni])) {
+                $info = pathinfo($jmeno);
+                $finalni = ($info['filename'] ?? 'doklad') . "_{$i}" . (isset($info['extension']) ? '.' . $info['extension'] : '');
+                $i++;
+            }
+            $pouzitaJmena[$finalni] = true;
+            $zip->addFromString($finalni, $disk->get($doklad->cesta_souboru));
+        }
+
+        $zip->close();
+
+        return response()->download($tempZip, $zipName)->deleteFileAfterSend(true);
+    }
+
     public function downloadMonth(Request $request, string $mesic)
     {
         if (!preg_match('/^\d{4}-\d{2}$/', $mesic)) {

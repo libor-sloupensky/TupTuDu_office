@@ -105,6 +105,12 @@
     .btn-del-sm { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.4rem; line-height: 1; }
     .btn-del-sm:hover { color: #e74c3c; }
 
+    .btn-download-sel { display: none; background: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; text-decoration: none; }
+    .btn-download-sel:hover { background: #2980b9; }
+    .btn-download-sel.active { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .doklady-table input[type="checkbox"].sel-cb { cursor: pointer; }
+    .doklady-table th[data-col="select"], .doklady-table td[data-col="select"] { width: 28px; text-align: center; padding-left: 0.4rem; padding-right: 0.4rem; }
+
     .expand-btn { background: none; border: none; cursor: pointer; color: #95a5a6; font-size: 0.7rem; padding: 0; line-height: 1; }
     .expand-btn:hover { color: #555; }
     .detail-row td { padding: 0; background: #fafbfc; }
@@ -182,6 +188,9 @@
 <div class="card">
     <div class="page-header">
         <h2>Doklady</h2>
+        <button type="button" id="btnDownloadSel" class="btn-download-sel" onclick="downloadSelected()">
+            &#11015; Stáhnout (<span id="selCount">0</span>)
+        </button>
     </div>
 
     @if (!$firma)
@@ -442,6 +451,7 @@ function updateNotifHeader() {
 
 // ===== Column definitions =====
 const COLUMNS = [
+    { id: 'select',    label: '',           tip: null, sortable: false, editable: false, fixed: true,  field: null },
     { id: 'expand',    label: '',           tip: null, sortable: false, editable: false, fixed: true,  field: null },
     { id: 'nahrano',   label: 'Nahráno',    tip: 'Datum a čas vložení do systému', sortable: 'created_at', editable: false, fixed: false, field: null },
     { id: 'cas_nahrani', label: 'Čas',      tip: 'Čas nahrání dokladu', sortable: false, editable: false, fixed: false, field: null },
@@ -466,8 +476,8 @@ const COLUMNS = [
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
 
-const DEFAULT_VISIBLE = ['expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
-const FIXED_COLS = ['expand','smazat'];
+const DEFAULT_VISIBLE = ['select','expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
+const FIXED_COLS = ['select','expand','smazat'];
 
 function loadPref(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
 function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -520,6 +530,7 @@ function isRecentUpload(isoDate) {
 // ===== Cell value =====
 function cellValue(d, colId) {
     switch(colId) {
+        case 'select': return '<input type="checkbox" class="sel-cb" data-id="'+d.id+'" onclick="onRowSelectChange()"' + (selectedIds.has(d.id) ? ' checked' : '') + '>';
         case 'expand': return '<button class="expand-btn" onclick="toggleDetail('+d.id+',this)">&#9654;</button>';
         case 'nahrano': {
             const cls = isRecentUpload(d.created_at_iso) ? ' class="recent-upload"' : '';
@@ -605,6 +616,10 @@ function renderTable() {
         }
         const tip = c.tip ? '<span class="col-help" title="'+c.tip+'">?</span>' : '';
         const align = colId === 'castka' ? ' style="text-align:right"' : '';
+        if (colId === 'select') {
+            const allChecked = dokladyData.length > 0 && dokladyData.every(d => selectedIds.has(d.id));
+            label = '<input type="checkbox" class="sel-cb" id="selAll" onclick="onSelectAllChange(this)"' + (allChecked ? ' checked' : '') + '>';
+        }
         html += '<th data-col="'+colId+'"'+draggable+align+'>'+label+tip+'</th>';
     });
     html += '</tr></thead><tbody>';
@@ -622,6 +637,7 @@ function renderTable() {
 
     container.innerHTML = html;
     initDragDrop();
+    updateDownloadBtn();
 }
 
 // ===== Detail field config =====
@@ -961,7 +977,7 @@ function updateTableRow(d) {
     tds.forEach((td, i) => {
         if (i < cols.length) {
             const colId = cols[i];
-            if (colId !== 'expand' && colId !== 'smazat') {
+            if (colId !== 'expand' && colId !== 'smazat' && colId !== 'select') {
                 td.innerHTML = cellValue(d, colId);
             }
         }
@@ -1198,6 +1214,63 @@ function uploadSingleFile(file) {
     });
 }
 
+// ===== Výběr dokladů ke stažení =====
+const selectedIds = new Set();
+
+function onRowSelectChange() {
+    selectedIds.clear();
+    document.querySelectorAll('.doklady-table tbody input.sel-cb:checked').forEach(cb => {
+        selectedIds.add(parseInt(cb.dataset.id, 10));
+    });
+    updateSelectAllState();
+    updateDownloadBtn();
+}
+
+function onSelectAllChange(cb) {
+    if (cb.checked) {
+        dokladyData.forEach(d => selectedIds.add(d.id));
+    } else {
+        selectedIds.clear();
+    }
+    document.querySelectorAll('.doklady-table tbody input.sel-cb').forEach(c => {
+        c.checked = selectedIds.has(parseInt(c.dataset.id, 10));
+    });
+    updateDownloadBtn();
+}
+
+function updateSelectAllState() {
+    const selAll = document.getElementById('selAll');
+    if (!selAll) return;
+    selAll.checked = dokladyData.length > 0 && dokladyData.every(d => selectedIds.has(d.id));
+}
+
+function updateDownloadBtn() {
+    const btn = document.getElementById('btnDownloadSel');
+    const cnt = document.getElementById('selCount');
+    if (!btn || !cnt) return;
+    const n = selectedIds.size;
+    cnt.textContent = n;
+    btn.classList.toggle('active', n > 0);
+}
+
+function downloadSelected() {
+    if (selectedIds.size === 0) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ route("doklady.downloadSelected") }}';
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden'; csrf.name = '_token'; csrf.value = csrfToken;
+    form.appendChild(csrf);
+    selectedIds.forEach(id => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'ids[]'; inp.value = id;
+        form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
 // ===== Delete doklad (AJAX) =====
 function deleteDoklad(id, nazev, url) {
     if (!confirm('Smazat doklad ' + nazev + '?')) return;
@@ -1209,6 +1282,7 @@ function deleteDoklad(id, nazev, url) {
         if (data.ok) {
             addNotification({ status: 'ok', icon: '&#10003;', name: 'Doklad ' + escHtml(data.nazev) + ' smazán' });
             dokladyData = dokladyData.filter(d => d.id !== id);
+            selectedIds.delete(id);
             renderTable();
         } else {
             addNotification({ status: 'error', icon: '&#10007;', name: 'Chyba při mazání ' + escHtml(nazev) });
