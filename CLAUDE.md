@@ -1,0 +1,40 @@
+# TupTuDu Office — Pravidla pro Claude Code
+
+## Jazyk
+- Commit messages, komentáře v kódu a komunikace: **česky**
+
+## Stack
+- Framework: Laravel 12, PHP 8.2+
+- Databáze: MySQL (Webglobe shared hosting)
+- Storage: AWS S3
+- AI: Anthropic Claude API (Haiku)
+- OCR: AWS Textract
+- Cloud sync: Google Drive API
+- Frontend: Vanilla JS + inline CSS v Blade (žádný framework, žádný build step)
+- Deploy: GitHub Actions → SFTP (lftp) na Webglobe
+
+## Workflow
+- Před úpravou kódu vždy přečíst aktuální stav souboru
+- Preferovat úpravu existujících souborů před vytvářením nových
+- Na začátku práce na modulu přečíst příslušný `modules/*.md`
+- Na konci sezení nebo na výzvu „aktualizuj kontext": aktualizovat příslušný `modules/*.md`
+
+## Konvence
+- Tabulky s prefixem `sys_` (systémové)
+- PK firmy = IČO (string, 8 číslic), ne auto-increment
+- Aktivní firma v session: `session('aktivni_firma_ico')`
+- Refresh token šifrovaný v DB (`encrypt()` / `decrypt()`)
+- Frontend: vanilla JS, žádný Alpine/React/Vue
+
+## Styl práce
+- Stručné odpovědi, rovnou k věci — žádné zbytečné vysvětlování
+- Opravit → stručné shrnutí → commit+push když uživatel požádá
+- Produkce na office.tuptudu.cz — push na main = deploy, každý commit musí být funkční
+
+## Moduly
+| Modul | Soubor | Popis |
+|-------|--------|-------|
+| Nahrávání a extrakce | `modules/nahravani-extrakce.md` | Upload souborů, OCR, AI zpracování |
+| Zobrazení souborů | `modules/zobrazeni-souboru.md` | Prohlížeč, preview, zvýrazňování |
+| Ostatní | `modules/ostatni.md` | Auth, firmy, nastavení, Google Drive, deploy |
+| Mobilní aplikace | `modules/mobilni-aplikace.md` | Capacitor Android — skenování dokladů přes Google ML Kit |

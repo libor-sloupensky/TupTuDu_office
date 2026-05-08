@@ -6,6 +6,12 @@
         "build": "vite build",
         "dev": "vite"
     },
+    "dependencies": {
+        "@capacitor/android": "^8.3.0",
+        "@capacitor/cli": "^8.3.0",
+        "@capacitor/core": "^8.3.0",
+        "@capawesome/capacitor-mlkit-document-scanner": "^7.4.0"
+    },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.11.0",

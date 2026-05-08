@@ -9,11 +9,20 @@ use App\Http\Controllers\FirmaController;
 use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KlientiController;
+use App\Http\Controllers\MobileController;
 use App\Http\Controllers\VazbyController;
 use Illuminate\Support\Facades\Route;
 
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
+
+// --- Mobile app routes ---
+Route::get('/mobile/prihlaseni', [MobileController::class, 'prihlaseni'])->name('mobile.prihlaseni');
+Route::post('/mobile/prihlaseni', [MobileController::class, 'login'])->name('mobile.login');
+Route::middleware(['auth', 'verified', 'firma'])->group(function () {
+    Route::get('/mobile/skenovat', [MobileController::class, 'skenovat'])->name('mobile.skenovat');
+    Route::post('/mobile/odhlaseni', [MobileController::class, 'logout'])->name('mobile.logout');
+});
 
 // --- Guest routes ---
 Route::middleware('guest')->group(function () {
