@@ -39,7 +39,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <h1>TupTuDu</h1>
+        <h1>TupTuDu office</h1>
         <div class="nav-links">
             @auth
                 @php
