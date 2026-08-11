@@ -28,7 +28,7 @@
 
         .results { width: 100%; max-width: 420px; }
         .result-item { background: white; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.6rem; display: flex; align-items: flex-start; gap: 0.6rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-        .result-icon { font-size: 1.3rem; flex-shrink: 0; line-height: 1.2; }
+        .result-icon { font-size: 1.3rem; flex-shrink: 0; line-height: 1.2; width: 1.3rem; text-align: center; }
         .result-body { flex: 1; min-width: 0; }
         .result-name { font-weight: 600; font-size: 0.92rem; word-break: break-word; }
         .result-msg { font-size: 0.8rem; color: #7f8c8d; margin-top: 0.15rem; }
@@ -41,6 +41,7 @@
         .web-warn { background: #fffbea; border: 1px solid #f0c36d; color: #856404; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; max-width: 420px; width: 100%; }
 
         .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .spinner-dark { width: 16px; height: 16px; border-color: rgba(52,152,219,0.25); border-top-color: #3498db; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -119,26 +120,66 @@ function setBusy(busy) {
     const lbl = document.getElementById('scanBtnLabel');
     btn.disabled = busy;
     if (busy) {
-        lbl.innerHTML = '<span class="spinner"></span>&nbsp;Zpracovávám…';
+        lbl.innerHTML = '<span class="spinner"></span>&nbsp;Otevírám skener…';
     } else {
         lbl.textContent = 'Skenovat doklad';
     }
 }
 
-function addResult(item) {
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+}
+
+function cas() {
+    const d = new Date();
+    const dva = n => String(n).padStart(2, '0');
+    return dva(d.getDate()) + '.' + dva(d.getMonth() + 1) + '. ' + dva(d.getHours()) + ':' + dva(d.getMinutes());
+}
+
+// Krátký název: 26-08-11-a3f9c1.pdf — datum kvůli řazení, hex kvůli jedinečnosti
+function novyNazev() {
+    const d = new Date();
+    const dva = n => String(n).padStart(2, '0');
+    const datum = dva(d.getFullYear() % 100) + '-' + dva(d.getMonth() + 1) + '-' + dva(d.getDate());
+    let hex = '';
+    for (let i = 0; i < 6; i++) hex += '0123456789abcdef'[Math.floor(Math.random() * 16)];
+    return datum + '-' + hex + '.pdf';
+}
+
+// Založí položku ve stavu "nahrávám" a vrátí handle pro pozdější dokončení.
+// Uživatel může mezitím skenovat dál — každý doklad si drží svůj řádek.
+function pridatPolozku(nazev) {
     const wrap = document.getElementById('results');
     const div = document.createElement('div');
     div.className = 'result-item';
-    let cls = 'result-ok', icon = '✓';
-    if (item.status === 'duplicate') { cls = 'result-dup'; icon = '⊝'; }
-    else if (item.status === 'warning') { cls = 'result-warn'; icon = '⚠'; }
-    else if (item.status === 'error') { cls = 'result-err'; icon = '✕'; }
-    const name = (item.name || 'Doklad').replace(/[<>&]/g, '');
-    const msg = (item.message || '').replace(/[<>&]/g, '');
-    div.innerHTML = '<div class="result-icon ' + cls + '">' + icon + '</div>' +
-                    '<div class="result-body"><div class="result-name">' + name + '</div>' +
-                    (msg ? '<div class="result-msg">' + msg + '</div>' : '') + '</div>';
+    div.innerHTML =
+        '<div class="result-icon"><span class="spinner spinner-dark"></span></div>' +
+        '<div class="result-body">' +
+            '<div class="result-name">' + escapeHtml(nazev) + '</div>' +
+            '<div class="result-msg">' + cas() + ' · zpracovávám…</div>' +
+        '</div>';
     wrap.insertBefore(div, wrap.firstChild);
+
+    return {
+        dokoncit(item) {
+            let cls = 'result-ok', icon = '✓';
+            if (item.status === 'duplicate') { cls = 'result-dup'; icon = '⊝'; }
+            else if (item.status === 'warning') { cls = 'result-warn'; icon = '⚠'; }
+            else if (item.status === 'error') { cls = 'result-err'; icon = '✕'; }
+
+            div.querySelector('.result-icon').className = 'result-icon ' + cls;
+            div.querySelector('.result-icon').textContent = icon;
+            if (item.name) {
+                div.querySelector('.result-name').textContent = item.name;
+            }
+            div.querySelector('.result-msg').textContent = cas() + ' · ' + (item.message || 'Nahráno');
+        },
+    };
+}
+
+// Jednorázová hláška bez navazujícího zpracování (chyby skeneru apod.)
+function addResult(item) {
+    pridatPolozku(item.name || 'Doklad').dokoncit(item);
 }
 
 function base64NaBlob(base64, mime) {
@@ -187,8 +228,25 @@ async function startScan() {
         // podá přes nativní bridge jako base64.
         const soubor = await Filesystem.readFile({ path: result.pdf.uri });
         const blob = base64NaBlob(soubor.data, 'application/pdf');
+        const fileName = novyNazev();
 
-        const fileName = 'sken_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.pdf';
+        // Tlačítko uvolníme hned po skenu — rozpoznávání AI trvá desítky sekund
+        // a uživatel může mezitím skenovat další doklad. Upload doběhne na pozadí.
+        setBusy(false);
+        nahratNaPozadi(blob, fileName);
+    } catch (err) {
+        setBusy(false);
+        const msg = (err && err.message) ? err.message : String(err);
+        if (!msg || !msg.toLowerCase().includes('cancel')) {
+            addResult({ status: 'error', name: 'Chyba skeneru', message: msg });
+        }
+    }
+}
+
+async function nahratNaPozadi(blob, fileName) {
+    const polozka = pridatPolozku(fileName);
+
+    try {
         const formData = new FormData();
         formData.append('documents[]', blob, fileName);
 
@@ -206,20 +264,18 @@ async function startScan() {
 
         const data = await upResp.json();
         const items = Array.isArray(data) ? data : (data.results || []);
+
         if (items.length === 0) {
-            addResult({ status: 'ok', name: fileName, message: 'Nahráno' });
+            polozka.dokoncit({ status: 'ok', message: 'Nahráno' });
         } else {
-            items.forEach(it => addResult(it));
+            // Z jednoho skenu může vzniknout víc dokladů — první doplní
+            // stávající řádek, další dostanou vlastní.
+            polozka.dokoncit(items[0]);
+            items.slice(1).forEach(it => addResult(it));
         }
     } catch (err) {
         const msg = (err && err.message) ? err.message : String(err);
-        if (msg && msg.toLowerCase().includes('cancel')) {
-            // Uživatel zrušil — žádná chyba
-        } else {
-            addResult({ status: 'error', name: 'Chyba', message: msg });
-        }
-    } finally {
-        setBusy(false);
+        polozka.dokoncit({ status: 'error', message: 'Nahrání selhalo: ' + msg });
     }
 }
 </script>
