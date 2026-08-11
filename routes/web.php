@@ -17,6 +17,16 @@ use Illuminate\Support\Facades\Route;
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
 
+// Stažení APK mobilní aplikace (sideload, appka není v Google Play)
+Route::get('/app', function () {
+    $apk = public_path('app/tuptudu-doklady.apk');
+
+    return view('app-download', [
+        'velikost' => file_exists($apk) ? round(filesize($apk) / 1024 / 1024, 1) . ' MB' : '—',
+        'verze' => file_exists($apk) ? date('j. n. Y', filemtime($apk)) : '—',
+    ]);
+})->name('app.download');
+
 // --- Přihlášení přes Google (Socialite) ---
 // Pozor: /google/* níže je Drive sync, tohle je identita. Callback URI musí být
 // whitelistnutá v Google Cloud Console: https://office.tuptudu.cz/auth/google/callback

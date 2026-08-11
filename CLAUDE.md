@@ -28,8 +28,9 @@
 
 ## Styl práce
 - Stručné odpovědi, rovnou k věci — žádné zbytečné vysvětlování
-- Opravit → stručné shrnutí → commit+push když uživatel požádá
+- Opravit → stručné shrnutí → **commit+push ihned**, bez ptaní
 - Produkce na office.tuptudu.cz — push na main = deploy, každý commit musí být funkční
+- Web je zatím v testovacím režimu, chodí na něj jen vlastník → deploy je levný, neváhat s ním
 
 ## Moduly
 | Modul | Soubor | Popis |
