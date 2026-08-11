@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\OvereniEmailu;
+use App\Models\Pozvani;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,10 @@ class VerificationController extends Controller
         if (!$user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
+
+        // Teprve teď je e-mail prokazatelně uživatelův — můžou se přijmout
+        // všechny čekající pozvánky, ne jen ta, přes kterou se registroval.
+        Pozvani::prijmoutCekajiciPro($user);
 
         if (!Auth::check()) {
             Auth::login($user);

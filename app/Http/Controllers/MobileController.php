@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Firma;
+use App\Models\Pozvani;
 use App\Models\UcetniVazba;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -31,7 +32,11 @@ class MobileController extends Controller
 
         $request->session()->regenerate();
 
-        $prvniFirma = Auth::user()->firmy()->first();
+        /** @var User $user */
+        $user = Auth::user();
+        Pozvani::prijmoutCekajiciPro($user);
+
+        $prvniFirma = $user->firmy()->first();
         if ($prvniFirma && !session('aktivni_firma_ico')) {
             session(['aktivni_firma_ico' => $prvniFirma->ico]);
         }

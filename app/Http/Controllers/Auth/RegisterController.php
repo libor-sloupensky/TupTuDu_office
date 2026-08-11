@@ -135,6 +135,9 @@ class RegisterController extends Controller
                     session(['aktivni_firma_ico' => $existujiciFirma->ico]);
                     $user->update(['email_verified_at' => now()]);
 
+                    // Na stejný e-mail mohly přijít pozvánky i do dalších firem
+                    Pozvani::prijmoutCekajiciPro($user);
+
                     return redirect()->route('doklady.index');
                 } else {
                     // Žádná pozvánka — blokovat
@@ -191,6 +194,10 @@ class RegisterController extends Controller
         if ($pozvani) {
             // Invitation registration — email is pre-verified (came from invitation link)
             $user->update(['email_verified_at' => now()]);
+
+            // Na stejný e-mail mohly přijít pozvánky i do dalších firem
+            Pozvani::prijmoutCekajiciPro($user);
+
             return redirect()->route('doklady.index');
         }
 
