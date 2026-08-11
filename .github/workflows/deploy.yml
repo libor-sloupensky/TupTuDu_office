@@ -71,7 +71,9 @@ jobs:
         SESSION_LIFETIME=120
         FILESYSTEM_DISK=local
         QUEUE_CONNECTION=sync
-        CACHE_STORE=array
+        # file, ne array — array cache nepřežije request, takže by nefungoval
+        # one-time token pro Google login v mobilní appce ani throttle: limity
+        CACHE_STORE=file
 
         AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
