@@ -16,19 +16,29 @@ jobs:
 
     - name: Determine changes
       id: changes
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        BEFORE="${{ github.event.before }}"
-        if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-          echo "vendor_changed=true" >> $GITHUB_OUTPUT
-          git ls-files > /tmp/changed_files.txt
+        # Základ pro diff je poslední ÚSPĚŠNĚ nasazený commit, ne předchozí push.
+        # Kdyby se porovnávalo s github.event.before, soubory ze selhaného
+        # deploye by se v dalším pushi neobjevily a nikdy by se nenahrály.
+        BASE=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy.yml/runs?status=success&branch=main&per_page=1" \
+                 --jq '.workflow_runs[0].head_sha' 2>/dev/null || true)
+
+        if [ -n "$BASE" ] && [ "$BASE" != "null" ] && git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+          echo "Základ pro diff: poslední úspěšný deploy $BASE"
+          git diff --name-only "$BASE" HEAD > /tmp/changed_files.txt
         else
-          git diff --name-only "$BEFORE" HEAD > /tmp/changed_files.txt
-          if grep -q "composer.lock" /tmp/changed_files.txt; then
-            echo "vendor_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "vendor_changed=false" >> $GITHUB_OUTPUT
-          fi
+          echo "Poslední úspěšný deploy nenalezen — nahrávám všechno."
+          git ls-files > /tmp/changed_files.txt
         fi
+
+        if grep -q "composer.lock" /tmp/changed_files.txt; then
+          echo "vendor_changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "vendor_changed=false" >> $GITHUB_OUTPUT
+        fi
+
         echo "Changed files in this push:"
         cat /tmp/changed_files.txt
         echo "---"
@@ -203,7 +213,11 @@ jobs:
 
         exit 1
 
+    # Webglobe blokuje IP GitHub runnerů na přístup k DB ("Your IP is blocked").
+    # Deploy souborů na tom nesmí padat — migrace se v tom případě spustí ručně
+    # (php artisan migrate z lokálu, .env míří na produkční DB).
     - name: Run DB migrations
+      continue-on-error: true
       env:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       run: |
