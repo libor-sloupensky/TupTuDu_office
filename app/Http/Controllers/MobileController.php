@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Firma;
+use App\Models\UcetniVazba;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -28,18 +31,43 @@ class MobileController extends Controller
 
         $request->session()->regenerate();
 
+        $prvniFirma = Auth::user()->firmy()->first();
+        if ($prvniFirma && !session('aktivni_firma_ico')) {
+            session(['aktivni_firma_ico' => $prvniFirma->ico]);
+        }
+
         return redirect()->route('mobile.skenovat');
     }
 
     public function skenovat()
     {
+        /** @var User $user */
         $user = Auth::user();
-        $firma = $user->aktivniFirma();
 
         return view('mobile.skenovat', [
-            'firma' => $firma,
+            'firma' => $user->aktivniFirma(),
             'user' => $user,
+            'firmy' => $this->dostupneFirmy($user),
         ]);
+    }
+
+    /**
+     * Přepnutí aktivní firmy přímo z mobilní appky — stejná kontrola přístupu
+     * jako FirmaController::prepnout, jen redirect zpět na skener.
+     */
+    public function prepnoutFirmu(string $ico)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $jeVlastni = $user->firmy()->where('ico', $ico)->exists();
+        if (!$jeVlastni && !$user->jeKlientFirma($ico)) {
+            abort(403, 'Nemáte přístup k této firmě.');
+        }
+
+        session(['aktivni_firma_ico' => $ico]);
+
+        return redirect()->route('mobile.skenovat');
     }
 
     public function logout(Request $request)
@@ -48,5 +76,32 @@ class MobileController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('mobile.prihlaseni');
+    }
+
+    /**
+     * Vlastní firmy uživatele + klientské firmy (pokud je účetní),
+     * jako jeden seznam pro výběr ve skeneru.
+     *
+     * @return \Illuminate\Support\Collection<int, Firma>
+     */
+    private function dostupneFirmy(User $user)
+    {
+        $vlastni = $user->firmy;
+
+        $ucetniIcos = $user->firmy()->wherePivot('role', 'ucetni')->pluck('ico')->toArray();
+        if (empty($ucetniIcos)) {
+            return $vlastni;
+        }
+
+        $klientIcos = UcetniVazba::whereIn('ucetni_ico', $ucetniIcos)
+            ->where('stav', 'schvaleno')
+            ->pluck('klient_ico')
+            ->toArray();
+
+        if (empty($klientIcos)) {
+            return $vlastni;
+        }
+
+        return $vlastni->concat(Firma::whereIn('ico', $klientIcos)->get())->unique('ico')->values();
     }
 }

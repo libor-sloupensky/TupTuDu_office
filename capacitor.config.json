@@ -4,7 +4,13 @@
     "webDir": "public",
     "server": {
         "url": "https://office.tuptudu.cz/mobile/prihlaseni",
-        "cleartext": false
+        "cleartext": false,
+        "allowNavigation": [
+            "office.tuptudu.cz",
+            "accounts.google.com",
+            "*.google.com",
+            "*.googleusercontent.com"
+        ]
     },
     "android": {
         "allowMixedContent": false,

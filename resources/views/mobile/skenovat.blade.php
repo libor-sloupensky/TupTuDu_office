@@ -14,6 +14,11 @@
         .firma { font-size: 0.78rem; color: #7f8c8d; margin-top: 0.1rem; }
         .logout { background: none; border: none; color: #7f8c8d; font-size: 0.85rem; cursor: pointer; padding: 0.4rem; }
 
+        .firma-box { width: 100%; max-width: 420px; background: white; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .firma-box label { display: block; font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.35rem; }
+        .firma-box select { width: 100%; padding: 0.7rem; font-size: 1rem; border: 1px solid #d0d8e0; border-radius: 8px; background: white; color: #2c3e50; }
+        .firma-box .jedna { font-size: 1rem; font-weight: 600; }
+
         .wrap { padding: 1.5rem; padding-bottom: calc(env(safe-area-inset-bottom, 0) + 1.5rem); display: flex; flex-direction: column; align-items: center; }
 
         .scan-btn { width: 100%; max-width: 420px; padding: 1.5rem; font-size: 1.15rem; font-weight: 600; background: #3498db; color: white; border: none; border-radius: 14px; cursor: pointer; margin-bottom: 1rem; box-shadow: 0 4px 14px rgba(52, 152, 219, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.6rem; }
@@ -44,7 +49,7 @@
 <div class="topbar">
     <div>
         <h1>Skenovat doklad</h1>
-        <div class="firma">{{ $firma->nazev ?? '' }}</div>
+        <div class="firma">{{ $user->cele_jmeno }}</div>
     </div>
     <form method="POST" action="{{ route('mobile.logout') }}" style="margin:0">
         @csrf
@@ -55,6 +60,23 @@
 <div class="wrap">
     <div id="webWarn" class="web-warn" style="display:none">
         Tato stránka je určená pro mobilní aplikaci TupTuDu. Otevřete ji v aplikaci pro spuštění skeneru.
+    </div>
+
+    {{-- Doklad se uloží k firmě vybrané zde (= aktivní firma v session, stejně jako na webu) --}}
+    <div class="firma-box">
+        <label for="firmaSelect">Uložit k firmě</label>
+        @if ($firmy->count() > 1)
+            <form method="POST" action="{{ route('mobile.prepnoutFirmu', ['ico' => '__ICO__']) }}" id="firmaForm" style="margin:0">
+                @csrf
+                <select id="firmaSelect" onchange="prepnoutFirmu(this.value)">
+                    @foreach ($firmy as $f)
+                        <option value="{{ $f->ico }}" @selected($firma && $f->ico === $firma->ico)>{{ $f->nazev }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @else
+            <div class="jedna">{{ $firma->nazev ?? 'Žádná firma' }}</div>
+        @endif
     </div>
 
     <button id="scanBtn" class="scan-btn" onclick="startScan()">
@@ -85,6 +107,13 @@ if (!isNative()) {
     document.getElementById('webWarn').style.display = 'block';
 }
 
+// Přepnutí firmy — POST na server, aby se změnila aktivní firma v session
+function prepnoutFirmu(ico) {
+    const form = document.getElementById('firmaForm');
+    form.action = form.action.replace(/[^/]*$/, encodeURIComponent(ico));
+    form.submit();
+}
+
 function setBusy(busy) {
     const btn = document.getElementById('scanBtn');
     const lbl = document.getElementById('scanBtnLabel');
@@ -112,6 +141,15 @@ function addResult(item) {
     wrap.insertBefore(div, wrap.firstChild);
 }
 
+function base64NaBlob(base64, mime) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+}
+
 async function startScan() {
     if (!isNative()) {
         addResult({ status: 'error', name: 'Skener není dostupný', message: 'Otevřete v mobilní aplikaci.' });
@@ -120,11 +158,23 @@ async function startScan() {
 
     try {
         setBusy(true);
-        const { DocumentScanner } = window.Capacitor.Plugins;
+        const { DocumentScanner, Filesystem } = window.Capacitor.Plugins;
 
-        const result = await DocumentScanner.scan({
+        // Skener je součást Google Play Services a na některých zařízeních
+        // se stahuje až na vyžádání — dokud modul chybí, scanDocument() spadne.
+        const dostupnost = await DocumentScanner.isGoogleDocumentScannerModuleAvailable();
+        if (!dostupnost.available) {
+            addResult({ status: 'warning', name: 'Instaluji skener', message: 'Stahuje se modul Google skeneru, zkuste to prosím za chvíli znovu.' });
+            await DocumentScanner.installGoogleDocumentScannerModule();
+            setBusy(false);
+            return;
+        }
+
+        const result = await DocumentScanner.scanDocument({
             pageLimit: 10,
-            resultFormats: ['pdf'],
+            resultFormats: 'PDF',
+            scannerMode: 'FULL',
+            galleryImportAllowed: true,
         });
 
         if (!result || !result.pdf || !result.pdf.uri) {
@@ -132,8 +182,11 @@ async function startScan() {
             return;
         }
 
-        const fileResp = await fetch(result.pdf.uri);
-        const blob = await fileResp.blob();
+        // PDF nečteme přes fetch(file://) — WebView běží na https://office.tuptudu.cz
+        // a lokální soubor by mu origin policy nedovolila. Filesystem plugin ho
+        // podá přes nativní bridge jako base64.
+        const soubor = await Filesystem.readFile({ path: result.pdf.uri });
+        const blob = base64NaBlob(soubor.data, 'application/pdf');
 
         const fileName = 'sken_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.pdf';
         const formData = new FormData();

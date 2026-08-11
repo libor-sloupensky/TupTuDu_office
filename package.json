@@ -4,13 +4,18 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "android:sync": "cap sync android && node scripts/android-deeplink.mjs",
+        "android:open": "cap open android"
     },
     "dependencies": {
+        "@capacitor-mlkit/document-scanner": "^8.1.0",
         "@capacitor/android": "^8.3.0",
+        "@capacitor/app": "^8.1.0",
+        "@capacitor/browser": "^8.0.3",
         "@capacitor/cli": "^8.3.0",
         "@capacitor/core": "^8.3.0",
-        "@capawesome/capacitor-mlkit-document-scanner": "^7.4.0"
+        "@capacitor/filesystem": "^8.1.2"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

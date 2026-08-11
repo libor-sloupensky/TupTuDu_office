@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AresController;
+use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -16,11 +17,22 @@ use Illuminate\Support\Facades\Route;
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
 
+// --- Přihlášení přes Google (Socialite) ---
+// Pozor: /google/* níže je Drive sync, tohle je identita. Callback URI musí být
+// whitelistnutá v Google Cloud Console: https://office.tuptudu.cz/auth/google/callback
+Route::get('/auth/google/redirect', [GoogleLoginController::class, 'redirect'])->name('google.login');
+Route::get('/auth/google/callback', [GoogleLoginController::class, 'callback'])->name('google.login.callback');
+// Bridge pro mobilní appku — one-time token z deep linku založí session ve WebView
+Route::get('/mobile/auth-bridge/{token}', [GoogleLoginController::class, 'mobileAuthBridge'])
+    ->middleware('throttle:10,1')
+    ->name('mobile.authBridge');
+
 // --- Mobile app routes ---
 Route::get('/mobile/prihlaseni', [MobileController::class, 'prihlaseni'])->name('mobile.prihlaseni');
 Route::post('/mobile/prihlaseni', [MobileController::class, 'login'])->name('mobile.login');
 Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::get('/mobile/skenovat', [MobileController::class, 'skenovat'])->name('mobile.skenovat');
+    Route::post('/mobile/prepnout-firmu/{ico}', [MobileController::class, 'prepnoutFirmu'])->name('mobile.prepnoutFirmu');
     Route::post('/mobile/odhlaseni', [MobileController::class, 'logout'])->name('mobile.logout');
 });
 

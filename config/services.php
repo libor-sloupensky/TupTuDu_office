@@ -49,7 +49,11 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // Drive sync (GoogleDriveController) — scope drive.file + offline access
         'redirect_uri' => env('APP_URL') . '/google/callback',
+        // Přihlášení přes Google (Socialite) — jen identita, jiná redirect URI.
+        // Obě URI musí být whitelistnuté v Google Cloud Console.
+        'redirect' => env('APP_URL') . '/auth/google/callback',
     ],
 
     'slack' => [
