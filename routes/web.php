@@ -17,8 +17,10 @@ use Illuminate\Support\Facades\Route;
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
 
-// Stažení APK mobilní aplikace (sideload, appka není v Google Play)
-Route::get('/app', function () {
+// Stažení APK mobilní aplikace (sideload, appka není v Google Play).
+// Pozor: NE /app — pod public/app/ leží samotné APK a Apache by routu
+// přebil přesměrováním na výpis adresáře.
+Route::get('/aplikace', function () {
     $apk = public_path('app/tuptudu-doklady.apk');
 
     return view('app-download', [
