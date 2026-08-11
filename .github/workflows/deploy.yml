@@ -154,30 +154,54 @@ jobs:
         echo ""
         echo "Connecting to SFTP..."
         echo "LFTP commands: ${LFTP_SCRIPT}"
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p 222';
-          set xfer:clobber on;
-          set net:timeout 30;
-          set net:max-retries 2;
-          set net:reconnect-interval-base 5;
-          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          ${LFTP_SCRIPT}
-          quit
-        "
-        echo "Upload complete."
+
+        # Webglobe SFTP občas spojení vůbec nepřijme (Connection timed out).
+        # Vlastní lftp retries nestačí — celý přenos opakujeme až 3x s pauzou.
+        for pokus in 1 2 3; do
+          echo "--- pokus $pokus/3 ---"
+          if lftp -e "
+            set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 222';
+            set xfer:clobber on;
+            set net:timeout 60;
+            set net:max-retries 5;
+            set net:reconnect-interval-base 10;
+            open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+            ${LFTP_SCRIPT}
+            quit
+          "; then
+            echo "Upload complete."
+            exit 0
+          fi
+          echo "Pokus $pokus selhal."
+          [ "$pokus" -lt 3 ] && sleep 60
+        done
+
+        echo "Upload se nepodařil ani na třetí pokus."
+        exit 1
 
     - name: Deploy vendor
       if: steps.changes.outputs.vendor_changed == 'true'
       run: |
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p 222';
-          set xfer:clobber on;
-          set net:timeout 30;
-          set net:max-retries 2;
-          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          mirror --reverse --parallel=5 --verbose --no-perms vendor/ /tuptudu.cz/laravel-office/vendor/;
-          quit
-        "
+        # Stejná retry logika jako u souborů — Webglobe SFTP je nespolehlivý
+        for pokus in 1 2 3; do
+          echo "--- vendor, pokus $pokus/3 ---"
+          if lftp -e "
+            set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 222';
+            set xfer:clobber on;
+            set net:timeout 60;
+            set net:max-retries 5;
+            set net:reconnect-interval-base 10;
+            open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+            mirror --reverse --parallel=5 --verbose --no-perms vendor/ /tuptudu.cz/laravel-office/vendor/;
+            quit
+          "; then
+            exit 0
+          fi
+          echo "Pokus $pokus selhal."
+          [ "$pokus" -lt 3 ] && sleep 60
+        done
+
+        exit 1
 
     - name: Run DB migrations
       env:
