@@ -6,15 +6,21 @@ use Illuminate\Http\Request;
 define('LARAVEL_START', microtime(true));
 
 // Detect base path — adresář `laravel-office` leží mimo webroot a podle
-// hostingu může být o 1 až několik úrovní výš. Hledáme ho směrem nahoru,
-// aby index.php fungoval na jakékoli struktuře (fallback = lokální vývoj).
+// hostingu může být o 1 až několik úrovní výš, případně v podadresáři pro
+// data (Český hosting nedovolí zakládat adresáře v kořeni účtu, takže tam
+// Laravel sídlí v /data). Hledáme ho směrem nahoru, aby index.php fungoval
+// na jakékoli struktuře (fallback = lokální vývoj).
 $basePath = __DIR__.'/..';
 $probe = __DIR__;
+
 for ($i = 0; $i < 6; $i++) {
     $probe = dirname($probe);
-    if (file_exists($probe.'/laravel-office/vendor/autoload.php')) {
-        $basePath = $probe.'/laravel-office';
-        break;
+
+    foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
+        if (file_exists($probe.$kandidat.'/vendor/autoload.php')) {
+            $basePath = $probe.$kandidat;
+            break 2;
+        }
     }
 }
 

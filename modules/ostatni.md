@@ -98,7 +98,7 @@ Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
 | `SFTP_HOST` | `irene.thinline.cz` | SFTP server |
 | `SFTP_USER` | `tuptudu_cz` | SFTP uživatel |
 | `SFTP_PORT` | `22` | SFTP port |
-| `REMOTE_APP` | `/laravel-office` | Kořen Laravelu (mimo webroot) |
+| `REMOTE_APP` | `/data/laravel-office` | Kořen Laravelu (mimo webroot; v kořeni účtu nelze zakládat adresáře) |
 | `REMOTE_PUB` | `/office.tuptudu.cz` | Webroot subdomény office (DocumentRoot = adresář subdomény) |
 | `REMOTE_LANDING` | — | Webroot hlavní domény pro `landing/`; prázdné = nenasazuje se |
 | `DB_HOST` / `DB_NAME` / `DB_USER` | `127.0.0.1` / `tuptuducz` / `tuptuducz001` | Produkční MariaDB |
@@ -122,8 +122,12 @@ Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_
 | `.github/workflows/remote-ls.yml` | ručně | Výpis struktury adresářů na serveru |
 | `.github/workflows/fix-perms.yml` | ručně | Oprava práv souborů |
 
-`public/index.php` hledá `laravel-office/` až 6 úrovní nad webrootem — deploy tak
-nezávisí na konkrétní adresářové struktuře hostingu.
+`public/index.php` hledá `laravel-office/` (i variantu `data/laravel-office/`) až 6 úrovní
+nad webrootem — deploy tak nezávisí na konkrétní adresářové struktuře hostingu.
+
+Kořen FTP účtu je chroot, ve kterém nejde zakládat adresáře. Zapisovatelné jsou
+jen `/data/` a adresáře domén (`/tuptudu.cz/`, `/office.tuptudu.cz/`), které jsou
+zároveň DocumentRooty — proto Laravel sídlí v `/data/laravel-office`.
 
 ## Cron routy (tajný token)
 - `GET /cron/{token}` — email processing

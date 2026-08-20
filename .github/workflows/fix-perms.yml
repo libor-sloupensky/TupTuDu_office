@@ -31,13 +31,15 @@ jobs:
 
         $dirs = [__DIR__];
 
-        // Hledej laravel-office až 6 úrovní nad webrootem
+        // Hledej laravel-office až 6 úrovní nad webrootem (i v podadresáři /data)
         $probe = __DIR__;
         for ($i = 0; $i < 6; $i++) {
             $probe = dirname($probe);
-            if (is_dir($probe . '/laravel-office')) {
-                $dirs[] = $probe . '/laravel-office';
-                break;
+            foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
+                if (is_dir($probe . $kandidat)) {
+                    $dirs[] = $probe . $kandidat;
+                    break 2;
+                }
             }
         }
 
