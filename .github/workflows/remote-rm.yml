@@ -24,7 +24,9 @@ env:
 jobs:
   rm:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Mazání jde přes SFTP soubor po souboru, takže adresář s vendorem
+    # (~10 tisíc souborů) trvá klidně půl hodiny.
+    timeout-minutes: 60
     if: ${{ github.event.inputs.confirm == 'SMAZAT' }}
 
     steps:
