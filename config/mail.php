@@ -79,6 +79,12 @@ return [
             'transport' => 'array',
         ],
 
+        // Odesílání přes PHP mail() — jediná cesta na hostinzích, které blokují
+        // odchozí SMTP a zakazují proc_open. Registruje AppServiceProvider.
+        'php_mail' => [
+            'transport' => 'php_mail',
+        ],
+
         'failover' => [
             'transport' => 'failover',
             'mailers' => [
@@ -97,8 +103,10 @@ return [
             'retry_after' => 60,
         ],
 
+        // Mailer pro odpovědi na doklady — odesílá z adresy {IČO}@doména,
+        // proto je oddělený od výchozího. Způsob odeslání sdílí s MAIL_MAILER.
         'doklady' => [
-            'transport' => 'smtp',
+            'transport' => env('MAIL_MAILER', 'smtp') === 'php_mail' ? 'php_mail' : 'smtp',
             'scheme' => env('MAIL_SCHEME'),
             'host' => env('MAIL_HOST', 'smtp.cesky-hosting.cz'),
             'port' => env('MAIL_PORT', 587),

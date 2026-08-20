@@ -132,7 +132,10 @@ jobs:
 
         ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
 
-        MAIL_MAILER=smtp
+        # Hosting blokuje odchozí SMTP na všech portech a zakazuje proc_open,
+        # takže nefunguje ani sendmail transport. Jediná cesta ven je mail(),
+        # pro kterou má aplikace vlastní transport (App\Mail\Transport).
+        MAIL_MAILER=${{ vars.MAIL_MAILER || 'php_mail' }}
         MAIL_HOST=${{ env.PROD_MAIL_HOST }}
         MAIL_PORT=587
         MAIL_USERNAME=${{ env.PROD_MAIL_USER }}
