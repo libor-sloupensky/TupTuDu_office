@@ -121,6 +121,7 @@ Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_
 | `.github/workflows/cron.yml` | každých 15 min (jen při `CRON_ENABLED=1`) | Náhrada cronu hostingu |
 | `.github/workflows/remote-ls.yml` | ručně | Výpis struktury adresářů na serveru |
 | `.github/workflows/fix-perms.yml` | ručně | Oprava práv souborů |
+| `.github/workflows/remote-rm.yml` | ručně | Smazání adresáře na serveru (vyžaduje potvrzení) |
 
 ### Rozložení na serveru
 ```
@@ -152,6 +153,16 @@ Má výjimku z vynucení HTTPS, aby šla spustit i před vydáním certifikátu.
 | `sys_pozvani` | id | Pozvánky: firma_ico, email, token, expires_at, accepted_at |
 | `sys_ucetni_vazby` | id | Účetní vazby: ucetni_ico, klient_ico, stav, perm_* |
 | `fak_kategorie` | id | Kategorie: firma_ico, nazev, poradi (15 výchozích) |
+
+## Odesílání pošty
+Hosting blokuje odchozí SMTP na všech portech (25/465/587) a zakazuje `proc_open`,
+takže nefunguje ani `sendmail` transport Symfony. Jediná cesta ven je PHP `mail()`
+(`sendmail_path=php_mail`), pro kterou má aplikace vlastní transport
+`App\Mail\Transport\PhpMailTransport` registrovaný v `AppServiceProvider`.
+
+Zapíná se `MAIL_MAILER=php_mail`; mailer `doklady` způsob odeslání dědí.
+Transport nesestavuje zprávu znovu — rozdělí hotový MIME výstup Symfony na
+hlavičky a tělo, takže přílohy i kódování zůstanou nedotčené.
 
 ## Email doklady — adresace
 - Firmy přijímají doklady na `{IČO}@tuptudu.cz` (doména z `config('mail.doklady_domain')`).
