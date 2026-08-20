@@ -180,6 +180,14 @@ foreach ($cile as [$hostitel, $port]) {
     }
 }
 
+echo "\n=== Možnosti odesílání pošty ===\n";
+echo 'sendmail_path: ' . (ini_get('sendmail_path') ?: '(nenastaveno)') . "\n";
+echo 'disable_functions: ' . (ini_get('disable_functions') ?: '(žádné)') . "\n";
+
+foreach (['mail', 'proc_open', 'popen', 'exec'] as $fn) {
+    echo str_pad($fn . '()', 16), function_exists($fn) ? 'k dispozici' : 'ZAKÁZÁNO', "\n";
+}
+
 echo "\n=== Závěr ===\n";
 echo $chybi
     ? 'CHYBÍ POVINNÁ ROZŠÍŘENÍ: ' . implode(', ', $chybi) . "\n"
