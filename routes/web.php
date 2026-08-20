@@ -87,20 +87,34 @@ Route::get('/cron/{token}', function (string $token) {
     return response($output, 200)->header('Content-Type', 'text/plain');
 })->middleware('throttle:6,1');
 
-// --- Dočasný test odchozí pošty ---
-Route::get('/test-mail/{token}', function (string $token) {
-    if ($token !== 'f8k2Ld9xQm4vR7nW') {
+// --- Test odchozí pošty: /test-mail/{token}?to=adresa ---
+Route::get('/test-mail/{token}', function (string $token, Illuminate\Http\Request $request) {
+    if (!hash_equals('f8k2Ld9xQm4vR7nW', $token)) {
         abort(404);
     }
+
+    $komu = $request->query('to');
+
+    if (!$komu || !filter_var($komu, FILTER_VALIDATE_EMAIL)) {
+        return response(
+            "Zadej cílovou adresu: /test-mail/{token}?to=nekdo@example.cz",
+            422
+        )->header('Content-Type', 'text/plain');
+    }
+
     try {
         Illuminate\Support\Facades\Mail::mailer('doklady')
-            ->to('libor@sloupensky.net')
+            ->to($komu)
             ->send(new App\Mail\OdpovedNaDoklad('Toto je testovací email z TupTuDu.', 'Test'));
-        return response("OK - email odeslán", 200)->header('Content-Type', 'text/plain');
+
+        $mailer = config('mail.mailers.doklady.transport');
+
+        return response("OK - email odeslán na {$komu} (transport: {$mailer})", 200)
+            ->header('Content-Type', 'text/plain');
     } catch (\Throwable $e) {
-        return response("CHYBA: " . $e->getMessage(), 200)->header('Content-Type', 'text/plain');
+        return response('CHYBA: ' . $e->getMessage(), 500)->header('Content-Type', 'text/plain');
     }
-});
+})->middleware('throttle:6,1');
 
 // --- Žádost o přístup k firmě (bez auth, throttle) ---
 Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->middleware('throttle:3,60')->name('firma.zadostOPristup');
