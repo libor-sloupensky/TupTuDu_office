@@ -133,13 +133,49 @@ if (!isset($env['DB_HOST'])) {
 
 echo "\n=== Odchozí spojení ===\n";
 
-foreach ([['smtp', $env['MAIL_HOST'] ?? '', 587], ['imap', $env['IMAP_SYSTEM_HOST'] ?? '', 993], ['s3', 's3.eu-west-1.amazonaws.com', 443]] as [$nazev, $hostitel, $port]) {
-    if (!$hostitel) {
+// Odchozí SMTP bývá na sdílených hostinzích filtrované, proto zkoušíme
+// víc kombinací serveru a portu — ať je jasné, kudy pošta vůbec projde.
+$cile = [
+    ['smtp.cesky-hosting.cz', 587],
+    ['smtp.cesky-hosting.cz', 465],
+    ['smtp.cesky-hosting.cz', 25],
+    ['mail.cesky-hosting.cz', 587],
+    ['mail.cesky-hosting.cz', 465],
+    ['mail.cesky-hosting.cz', 993],
+    ['localhost', 25],
+    ['s3.eu-west-1.amazonaws.com', 443],
+    ['api.anthropic.com', 443],
+];
+
+if (!empty($env['MAIL_HOST'])) {
+    array_unshift($cile, [$env['MAIL_HOST'], (int) ($env['MAIL_PORT'] ?? 587)]);
+}
+
+$videno = [];
+
+foreach ($cile as [$hostitel, $port]) {
+    $klic = $hostitel . ':' . $port;
+
+    if (isset($videno[$klic])) {
         continue;
     }
+
+    $videno[$klic] = true;
+    $ip = gethostbyname($hostitel);
     $spojeni = @fsockopen($hostitel, $port, $errno, $errstr, 8);
-    echo str_pad("{$nazev} ({$hostitel}:{$port})", 44), $spojeni ? 'OK' : "CHYBA: {$errstr}", "\n";
+
+    echo str_pad($klic, 34), str_pad($ip === $hostitel ? 'nepřeloženo' : $ip, 18),
+        $spojeni ? 'OK' : "CHYBA: {$errstr}", "\n";
+
     if ($spojeni) {
+        // U SMTP ukázat uvítací hlášku, ať je vidět, že tam opravdu sedí server
+        if (in_array($port, [25, 465, 587], true)) {
+            stream_set_timeout($spojeni, 5);
+            $uvitani = trim((string) fgets($spojeni, 256));
+            if ($uvitani !== '') {
+                echo str_repeat(' ', 34), '→ ', $uvitani, "\n";
+            }
+        }
         fclose($spojeni);
     }
 }
