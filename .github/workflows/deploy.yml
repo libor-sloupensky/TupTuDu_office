@@ -79,7 +79,8 @@ jobs:
       if: steps.changes.outputs.vendor_changed == 'true'
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.4'
+        # Musí odpovídat verzi PHP na hostingu, jinak vendor spadne na platform check
+        php-version: ${{ vars.PHP_VERSION || '8.4' }}
         extensions: mbstring, xml, curl, zip, openssl
 
     - name: Install Composer dependencies

@@ -104,6 +104,7 @@ Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
 | `APP_URL` | `https://office.tuptudu.cz` | Cíl cronu a verifikace |
 | `CRON_ENABLED` | — | `1` zapne plánovaný cron přes GitHub Actions |
 | `CRON_TOKEN` | `f8k2Ld9xQm4vR7nW` | Token cron rout |
+| `PHP_VERSION` | `8.4` | Verze PHP pro composer install — musí odpovídat hostingu |
 
 Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `ANTHROPIC_API_KEY`, `MAIL_PASSWORD`, `IMAP_SYSTEM_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
