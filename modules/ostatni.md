@@ -25,7 +25,7 @@ Plně funkční — registrace (s pozvánkou i bez), přihlášení, správa už
 | `resources/views/firma/nastaveni.blade.php` | UI nastavení — rozbalovací sekce, AJAX operace |
 | `resources/views/auth/registrace.blade.php` | Registrační formulář — 2-krokový, pozvánka, žádost o přístup |
 | `routes/web.php` | Všechny routy — middleware: auth, verified, firma, role |
-| `.github/workflows/deploy.yml` | Deploy: push main → lftp SFTP na Webglobe, change detection, migrace |
+| `.github/workflows/deploy.yml` | Deploy: push main → lftp SFTP na Český hosting, change detection, migrace |
 
 ## Auth & registrace
 
@@ -99,8 +99,10 @@ Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
 | `SFTP_PORT` | `22` | SFTP port |
 | `REMOTE_APP` | `/laravel-office` | Kořen Laravelu (mimo webroot) |
 | `REMOTE_PUB` | `/office.tuptudu.cz/www` | Webroot subdomény office |
-| `DB_HOST` / `DB_NAME` / `DB_USER` | `localhost` / `tuptudu_office` / `tuptudu_office` | Produkční MySQL |
-| `MAIL_HOST` / `IMAP_HOST` | `smtp.cesky-hosting.cz` / `imap.cesky-hosting.cz` | Pošta |
+| `DB_HOST` / `DB_NAME` / `DB_USER` | `localhost` / `tuptuducz` / `tuptuducz001` | Produkční MariaDB |
+| `MAIL_HOST` / `MAIL_USER` | `smtp.cesky-hosting.cz` / `info@tuptudu.com` | Odchozí pošta |
+| `IMAP_HOST` / `IMAP_USER` | `mail.cesky-hosting.cz` / `doklady@tuptudu.cz` | Sběrná schránka dokladů |
+| `MAIL_DOKLADY_DOMAIN` | `doklady.tuptudu.cz` | Doména adres `{IČO}@…` pro příjem i odpovědi |
 | `APP_URL` | `https://office.tuptudu.cz` | Cíl cronu a verifikace |
 | `CRON_ENABLED` | — | `1` zapne plánovaný cron přes GitHub Actions |
 | `CRON_TOKEN` | `f8k2Ld9xQm4vR7nW` | Token cron rout |
@@ -136,5 +138,12 @@ nezávisí na konkrétní adresářové struktuře hostingu.
 | `sys_ucetni_vazby` | id | Účetní vazby: ucetni_ico, klient_ico, stav, perm_* |
 | `fak_kategorie` | id | Kategorie: firma_ico, nazev, poradi (15 výchozích) |
 
+## Email doklady — adresace
+- Firmy přijímají doklady na `{IČO}@doklady.tuptudu.cz` (doména z `config('mail.doklady_domain')`).
+- Na hostingu musí být MX pro `doklady.tuptudu.cz` a catch-all `*@doklady.tuptudu.cz` → `doklady@tuptudu.cz`.
+- Parser přijímá i historické adresy `{IČO}@tuptudu.cz` (starší firmy).
+- Odpovědi odesílá `ProcessEmailDoklady::sendReply()` z `{IČO}@doklady.tuptudu.cz`
+  přes mailer `doklady` (SMTP autentizace účtem `info@tuptudu.com`).
+
 ---
-*Aktualizováno: 2026-04-09*
+*Aktualizováno: 2026-08-20*

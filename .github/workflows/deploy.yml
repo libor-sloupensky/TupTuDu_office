@@ -20,10 +20,14 @@ env:
   REMOTE_APP: ${{ vars.REMOTE_APP || '/laravel-office' }}
   REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/www' }}
   PROD_DB_HOST: ${{ vars.DB_HOST || 'localhost' }}
-  PROD_DB_NAME: ${{ vars.DB_NAME || 'tuptudu_office' }}
-  PROD_DB_USER: ${{ vars.DB_USER || 'tuptudu_office' }}
+  PROD_DB_NAME: ${{ vars.DB_NAME || 'tuptuducz' }}
+  PROD_DB_USER: ${{ vars.DB_USER || 'tuptuducz001' }}
+  # Odchozí pošta (komunikační adresa aplikace)
   PROD_MAIL_HOST: ${{ vars.MAIL_HOST || 'smtp.cesky-hosting.cz' }}
-  PROD_IMAP_HOST: ${{ vars.IMAP_HOST || 'imap.cesky-hosting.cz' }}
+  PROD_MAIL_USER: ${{ vars.MAIL_USER || 'info@tuptudu.com' }}
+  # Sběrná schránka dokladů (catch-all *@doklady.tuptudu.cz)
+  PROD_IMAP_HOST: ${{ vars.IMAP_HOST || 'mail.cesky-hosting.cz' }}
+  PROD_IMAP_USER: ${{ vars.IMAP_USER || 'doklady@tuptudu.cz' }}
 
 jobs:
   deploy:
@@ -127,16 +131,19 @@ jobs:
         MAIL_MAILER=smtp
         MAIL_HOST=${{ env.PROD_MAIL_HOST }}
         MAIL_PORT=587
-        MAIL_USERNAME=office@tuptudu.cz
+        MAIL_USERNAME=${{ env.PROD_MAIL_USER }}
         MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
         MAIL_ENCRYPTION=tls
-        MAIL_FROM_ADDRESS=office@tuptudu.cz
+        MAIL_FROM_ADDRESS=${{ env.PROD_MAIL_USER }}
         MAIL_FROM_NAME=TupTuDu
+        # Doména, ze které chodí odpovědi na doklady ({ICO}@doména).
+        # Pokud ji SMTP odmítne (auth účet je na jiné doméně), přepnout na tuptudu.com.
+        MAIL_DOKLADY_DOMAIN=${{ vars.MAIL_DOKLADY_DOMAIN || 'doklady.tuptudu.cz' }}
 
         IMAP_SYSTEM_HOST=${{ env.PROD_IMAP_HOST }}
         IMAP_SYSTEM_PORT=993
         IMAP_SYSTEM_ENCRYPTION=ssl
-        IMAP_SYSTEM_USERNAME=faktury@tuptudu.cz
+        IMAP_SYSTEM_USERNAME=${{ env.PROD_IMAP_USER }}
         IMAP_SYSTEM_PASSWORD=${{ secrets.IMAP_SYSTEM_PASSWORD }}
 
         GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}

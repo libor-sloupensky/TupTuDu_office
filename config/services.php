@@ -39,10 +39,10 @@ return [
     ],
 
     'imap_system' => [
-        'host' => env('IMAP_SYSTEM_HOST', 'mailproxy.webglobe.com'),
+        'host' => env('IMAP_SYSTEM_HOST', 'mail.cesky-hosting.cz'),
         'port' => env('IMAP_SYSTEM_PORT', 993),
         'encryption' => env('IMAP_SYSTEM_ENCRYPTION', 'ssl'),
-        'username' => env('IMAP_SYSTEM_USERNAME', 'faktury@tuptudu.cz'),
+        'username' => env('IMAP_SYSTEM_USERNAME', 'doklady@tuptudu.cz'),
         'password' => env('IMAP_SYSTEM_PASSWORD'),
     ],
 

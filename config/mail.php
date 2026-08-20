@@ -100,7 +100,7 @@ return [
         'doklady' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
-            'host' => env('MAIL_HOST', 'mailproxy.webglobe.cz'),
+            'host' => env('MAIL_HOST', 'smtp.cesky-hosting.cz'),
             'port' => env('MAIL_PORT', 587),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
@@ -109,6 +109,19 @@ return [
         ],
 
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Doména odpovědí na doklady
+    |--------------------------------------------------------------------------
+    |
+    | Odpovědi na emailem zaslané doklady chodí z adresy {ICO}@doména.
+    | Když SMTP odmítne odesílání z cizí domény (autentizace je na jiné),
+    | stačí přepnout tuhle proměnnou.
+    |
+    */
+
+    'doklady_domain' => env('MAIL_DOKLADY_DOMAIN', 'doklady.tuptudu.cz'),
 
     /*
     |--------------------------------------------------------------------------

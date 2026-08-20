@@ -26,7 +26,7 @@ class ProcessEmailDoklady extends Command
         $processor = new DokladProcessor();
         $totalProcessed = 0;
 
-        // 1. Systémová schránka (faktury@tuptudu.cz)
+        // 1. Systémová schránka (doklady@tuptudu.cz, catch-all *@doklady.tuptudu.cz)
         if (!$this->option('skip-system')) {
             $totalProcessed += $this->processSystemMailbox($processor);
         }
@@ -373,8 +373,8 @@ class ProcessEmailDoklady extends Command
             'ico_not_found' => $this->replyTemplate(
                 'Nepodařilo se určit cílovou firmu.',
                 'Pro správné doručení dokladů zasílejte na adresu ve formátu:',
-                'ICO@doklady.tuptudu.cz',
-                'kde ICO je 8místné identifikační číslo firmy příjemce. Například: 12345678@doklady.tuptudu.cz.'
+                'ICO@' . config('mail.doklady_domain', 'doklady.tuptudu.cz'),
+                'kde ICO je 8místné identifikační číslo firmy příjemce. Například: 12345678@' . config('mail.doklady_domain', 'doklady.tuptudu.cz') . '.'
             ),
 
             'firma_not_found' => $this->replyTemplate(
@@ -538,11 +538,11 @@ class ProcessEmailDoklady extends Command
     }
 
     /**
-     * Odešle odpověď z adresy ICO@tuptudu.cz.
+     * Odešle odpověď z adresy ICO@{mail.doklady_domain}.
      */
     private function sendReply(string $text, string $toEmail, string $fromIco, string $originalSubject): void
     {
-        $fromAddress = $fromIco . '@tuptudu.cz';
+        $fromAddress = $fromIco . '@' . config('mail.doklady_domain', 'tuptudu.cz');
 
         Mail::mailer('doklady')
             ->to($toEmail)
@@ -638,7 +638,8 @@ class ProcessEmailDoklady extends Command
 
     private function extractIcoFromRecipients($message): ?string
     {
-        // Check To, CC headers for {8-digit}@tuptudu.cz pattern
+        // Hledá v To/CC adresy {8 číslic}@doklady.tuptudu.cz
+        // (plus historické {8 číslic}@tuptudu.cz u starších firem)
         $recipients = [];
 
         // getTo() vrací Attribute – použij toString() a parsuj emaily regexem
@@ -657,8 +658,10 @@ class ProcessEmailDoklady extends Command
             } catch (\Throwable $e) {}
         }
 
+        $domain = preg_quote(config('mail.doklady_domain', 'doklady.tuptudu.cz'), '/');
+
         foreach ($recipients as $email) {
-            if (preg_match('/^(\d{8})@tuptudu\.cz$/i', trim($email), $m)) {
+            if (preg_match('/^(\d{8})@(' . $domain . '|tuptudu\.cz)$/i', trim($email), $m)) {
                 return $m[1];
             }
         }

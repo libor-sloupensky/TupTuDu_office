@@ -174,7 +174,7 @@ class RegisterController extends Controller
             );
 
             if (!$firma->email_doklady) {
-                $firma->update(['email_doklady' => $request->ico . '@tuptudu.cz']);
+                $firma->update(['email_doklady' => $request->ico . '@' . config('mail.doklady_domain')]);
             }
 
             if ($firma->kategorie()->count() === 0) {
