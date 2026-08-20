@@ -28,7 +28,7 @@
     <hr style="border: none; border-top: 1px solid #eee; margin: 1.5rem 0;">
     <p style="color: #999; font-size: 0.85rem;">
         V případě komplikací nás kontaktujte na
-        <a href="mailto:info@tuptudu.com" style="color: #3498db;">info@tuptudu.com</a>
+        <a href="mailto:info@tuptudu.cz" style="color: #3498db;">info@tuptudu.cz</a>
     </p>
 </div>
 @endsection

@@ -115,13 +115,13 @@ return [
     | Doména odpovědí na doklady
     |--------------------------------------------------------------------------
     |
-    | Odpovědi na emailem zaslané doklady chodí z adresy {ICO}@doména.
-    | Když SMTP odmítne odesílání z cizí domény (autentizace je na jiné),
-    | stačí přepnout tuhle proměnnou.
+    | Firmy přijímají doklady na {IČO}@doména a odpovědi chodí ze stejné
+    | adresy. Mailový koš domény doručuje všechny takové adresy do jedné
+    | schránky (doklady@tuptudu.cz).
     |
     */
 
-    'doklady_domain' => env('MAIL_DOKLADY_DOMAIN', 'doklady.tuptudu.cz'),
+    'doklady_domain' => env('MAIL_DOKLADY_DOMAIN', 'tuptudu.cz'),
 
     /*
     |--------------------------------------------------------------------------

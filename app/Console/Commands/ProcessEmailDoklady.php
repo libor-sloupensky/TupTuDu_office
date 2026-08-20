@@ -26,7 +26,7 @@ class ProcessEmailDoklady extends Command
         $processor = new DokladProcessor();
         $totalProcessed = 0;
 
-        // 1. Systémová schránka (doklady@tuptudu.cz, catch-all *@doklady.tuptudu.cz)
+        // 1. Systémová schránka (doklady@tuptudu.cz — mailový koš pro {IČO}@tuptudu.cz)
         if (!$this->option('skip-system')) {
             $totalProcessed += $this->processSystemMailbox($processor);
         }
@@ -373,8 +373,8 @@ class ProcessEmailDoklady extends Command
             'ico_not_found' => $this->replyTemplate(
                 'Nepodařilo se určit cílovou firmu.',
                 'Pro správné doručení dokladů zasílejte na adresu ve formátu:',
-                'ICO@' . config('mail.doklady_domain', 'doklady.tuptudu.cz'),
-                'kde ICO je 8místné identifikační číslo firmy příjemce. Například: 12345678@' . config('mail.doklady_domain', 'doklady.tuptudu.cz') . '.'
+                'ICO@' . config('mail.doklady_domain', 'tuptudu.cz'),
+                'kde ICO je 8místné identifikační číslo firmy příjemce. Například: 12345678@' . config('mail.doklady_domain', 'tuptudu.cz') . '.'
             ),
 
             'firma_not_found' => $this->replyTemplate(
@@ -638,8 +638,8 @@ class ProcessEmailDoklady extends Command
 
     private function extractIcoFromRecipients($message): ?string
     {
-        // Hledá v To/CC adresy {8 číslic}@doklady.tuptudu.cz
-        // (plus historické {8 číslic}@tuptudu.cz u starších firem)
+        // Hledá v To/CC adresy {8 číslic}@tuptudu.cz
+        // (plus historickou variantu na subdoméně doklady.tuptudu.cz)
         $recipients = [];
 
         // getTo() vrací Attribute – použij toString() a parsuj emaily regexem
@@ -658,10 +658,18 @@ class ProcessEmailDoklady extends Command
             } catch (\Throwable $e) {}
         }
 
-        $domain = preg_quote(config('mail.doklady_domain', 'doklady.tuptudu.cz'), '/');
+        // Aktuální doména + historické varianty, které mohou být uložené u firem
+        $domains = array_unique(array_filter([
+            config('mail.doklady_domain', 'tuptudu.cz'),
+            'tuptudu.cz',
+            'doklady.tuptudu.cz',
+        ]));
+        $pattern = '/^(\d{8})@('
+            . implode('|', array_map(fn ($d) => preg_quote($d, '/'), $domains))
+            . ')$/i';
 
         foreach ($recipients as $email) {
-            if (preg_match('/^(\d{8})@(' . $domain . '|tuptudu\.cz)$/i', trim($email), $m)) {
+            if (preg_match($pattern, trim($email), $m)) {
                 return $m[1];
             }
         }

@@ -39,7 +39,7 @@ return [
     ],
 
     'imap_system' => [
-        'host' => env('IMAP_SYSTEM_HOST', 'mail.cesky-hosting.cz'),
+        'host' => env('IMAP_SYSTEM_HOST', 'mail.cesky-hosting.cz'), // příchozí POP3/IMAP
         'port' => env('IMAP_SYSTEM_PORT', 993),
         'encryption' => env('IMAP_SYSTEM_ENCRYPTION', 'ssl'),
         'username' => env('IMAP_SYSTEM_USERNAME', 'doklady@tuptudu.cz'),

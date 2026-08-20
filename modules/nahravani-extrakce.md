@@ -36,7 +36,7 @@ Upload / Email → DokladProcessor
 `nahrano` → `zpracovava_se` → `dokonceno` / `nekvalitni` / `chyba`
 
 ## Email zpracování
-- **Systémová schránka**: `doklady@tuptudu.cz` (catch-all `*@doklady.tuptudu.cz`), IČO z To/Cc (`{8číslic}@doklady.tuptudu.cz`)
+- **Systémová schránka**: `doklady@tuptudu.cz` (catch-all `*@tuptudu.cz`), IČO z To/Cc (`{8číslic}@tuptudu.cz`)
 - **Custom IMAP**: vlastní schránka per firma (bez auto-reply)
 - **Filtrování**: pouze přílohy (PDF, JPG, PNG), inline obrázky se přeskakují
 - **Auto-reply**: deterministické šablony (5 variant dle stavu zpracování)

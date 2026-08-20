@@ -99,17 +99,18 @@ Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
 | `SFTP_PORT` | `22` | SFTP port |
 | `REMOTE_APP` | `/laravel-office` | Kořen Laravelu (mimo webroot) |
 | `REMOTE_PUB` | `/office.tuptudu.cz/www` | Webroot subdomény office |
-| `DB_HOST` / `DB_NAME` / `DB_USER` | `localhost` / `tuptuducz` / `tuptuducz001` | Produkční MariaDB |
-| `MAIL_HOST` / `MAIL_USER` | `smtp.cesky-hosting.cz` / `info@tuptudu.com` | Odchozí pošta |
+| `DB_HOST` / `DB_NAME` / `DB_USER` | `127.0.0.1` / `tuptuducz` / `tuptuducz001` | Produkční MariaDB |
+| `MAIL_HOST` / `MAIL_USER` | `smtp.cesky-hosting.cz` / `info@tuptudu.cz` | Odchozí pošta |
 | `IMAP_HOST` / `IMAP_USER` | `mail.cesky-hosting.cz` / `doklady@tuptudu.cz` | Sběrná schránka dokladů |
-| `MAIL_DOKLADY_DOMAIN` | `doklady.tuptudu.cz` | Doména adres `{IČO}@…` pro příjem i odpovědi |
+| `MAIL_DOKLADY_DOMAIN` | `tuptudu.cz` | Doména adres `{IČO}@…` pro příjem i odpovědi |
 | `APP_URL` | `https://office.tuptudu.cz` | Cíl cronu a verifikace |
 | `CRON_ENABLED` | — | `1` zapne plánovaný cron přes GitHub Actions |
 | `CRON_TOKEN` | `f8k2Ld9xQm4vR7nW` | Token cron rout |
 | `PHP_VERSION` | `8.4` | Verze PHP pro composer install — musí odpovídat hostingu |
 
 Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`ANTHROPIC_API_KEY`, `MAIL_PASSWORD`, `IMAP_SYSTEM_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+`ANTHROPIC_API_KEY`, `MAIL_PASSWORD_INFO` (info@tuptudu.cz), `MAIL_PASSWORD_DOKLADY` (doklady@tuptudu.cz),
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
 ### Workflows
 | Soubor | Spouštění | Účel |
@@ -139,11 +140,11 @@ nezávisí na konkrétní adresářové struktuře hostingu.
 | `fak_kategorie` | id | Kategorie: firma_ico, nazev, poradi (15 výchozích) |
 
 ## Email doklady — adresace
-- Firmy přijímají doklady na `{IČO}@doklady.tuptudu.cz` (doména z `config('mail.doklady_domain')`).
-- Na hostingu musí být MX pro `doklady.tuptudu.cz` a catch-all `*@doklady.tuptudu.cz` → `doklady@tuptudu.cz`.
-- Parser přijímá i historické adresy `{IČO}@tuptudu.cz` (starší firmy).
-- Odpovědi odesílá `ProcessEmailDoklady::sendReply()` z `{IČO}@doklady.tuptudu.cz`
-  přes mailer `doklady` (SMTP autentizace účtem `info@tuptudu.com`).
+- Firmy přijímají doklady na `{IČO}@tuptudu.cz` (doména z `config('mail.doklady_domain')`).
+- Mailový koš domény `tuptudu.cz` doručuje všechny takové adresy do `doklady@tuptudu.cz`.
+- Parser bere i historickou variantu `{IČO}@doklady.tuptudu.cz`.
+- Odpovědi odesílá `ProcessEmailDoklady::sendReply()` z `{IČO}@tuptudu.cz`
+  přes mailer `doklady` (SMTP autentizace účtem `info@tuptudu.cz`).
 
 ---
 *Aktualizováno: 2026-08-20*
