@@ -86,7 +86,8 @@ Workflow:
 - Change detection: pouze změněné soubory (diff proti poslednímu úspěšnému deployi)
 - Ruční spuštění s `full=true` → kompletní deploy včetně vendoru (stěhování serveru)
 - `composer.lock` change → vendor install + mirror
-- Migrace: inline PHP (`continue-on-error` — hosting nemusí povolit vzdálený MySQL)
+- Migrace: `curl` na routu `/deploy-migrace/{token}` → `artisan migrate --force`
+  (MariaDB poslouchá jen na 127.0.0.1, z runneru se k ní připojit nedá)
 - Verifikace: HTTP 200 check na `office.tuptudu.cz`
 
 ### Konfigurace deploye (GitHub → Settings → Secrets and variables → Actions)
@@ -98,7 +99,8 @@ Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
 | `SFTP_USER` | `tuptudu_cz` | SFTP uživatel |
 | `SFTP_PORT` | `22` | SFTP port |
 | `REMOTE_APP` | `/laravel-office` | Kořen Laravelu (mimo webroot) |
-| `REMOTE_PUB` | `/office.tuptudu.cz/www` | Webroot subdomény office |
+| `REMOTE_PUB` | `/office.tuptudu.cz` | Webroot subdomény office (DocumentRoot = adresář subdomény) |
+| `REMOTE_LANDING` | — | Webroot hlavní domény pro `landing/`; prázdné = nenasazuje se |
 | `DB_HOST` / `DB_NAME` / `DB_USER` | `127.0.0.1` / `tuptuducz` / `tuptuducz001` | Produkční MariaDB |
 | `MAIL_HOST` / `MAIL_USER` | `smtp.cesky-hosting.cz` / `info@tuptudu.cz` | Odchozí pošta |
 | `IMAP_HOST` / `IMAP_USER` | `mail.cesky-hosting.cz` / `doklady@tuptudu.cz` | Sběrná schránka dokladů |
@@ -126,6 +128,7 @@ nezávisí na konkrétní adresářové struktuře hostingu.
 ## Cron routy (tajný token)
 - `GET /cron/{token}` — email processing
 - `GET /cron-drive/{token}` — Google Drive sync
+- `GET /deploy-migrace/{token}` — spuštění migrací z deploye
 - Volá je `.github/workflows/cron.yml` (nebo cron hostingu)
 
 ## Databázové tabulky

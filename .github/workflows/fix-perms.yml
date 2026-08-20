@@ -7,7 +7,7 @@ env:
   SFTP_HOST: ${{ vars.SFTP_HOST || 'irene.thinline.cz' }}
   SFTP_USER: ${{ vars.SFTP_USER || 'tuptudu_cz' }}
   SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
-  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/www' }}
+  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz' }}
 
 jobs:
   fix:

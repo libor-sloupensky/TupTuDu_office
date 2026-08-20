@@ -18,7 +18,9 @@ env:
   SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
   # Kořen Laravelu (mimo webroot) a webroot subdomény office.tuptudu.cz
   REMOTE_APP: ${{ vars.REMOTE_APP || '/laravel-office' }}
-  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/www' }}
+  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz' }}
+  # Rozcestník na hlavní doméně. Prázdné = landing/ se nenasazuje.
+  REMOTE_LANDING: ${{ vars.REMOTE_LANDING || '' }}
   PROD_DB_HOST: ${{ vars.DB_HOST || '127.0.0.1' }}
   PROD_DB_NAME: ${{ vars.DB_NAME || 'tuptuducz' }}
   PROD_DB_USER: ${{ vars.DB_USER || 'tuptuducz001' }}
@@ -187,6 +189,11 @@ jobs:
             artisan|composer.json|composer.lock)
               TARGET="$REMOTE_APP/$file"
               ;;
+            landing/*)
+              if [ -n "$REMOTE_LANDING" ]; then
+                TARGET="$REMOTE_LANDING/${file#landing/}"
+              fi
+              ;;
           esac
 
           if [ -n "$TARGET" ]; then
@@ -268,316 +275,22 @@ jobs:
 
         exit 1
 
-    # Hosting nemusí povolit vzdálený přístup k MySQL z IP GitHub runnerů.
-    # Deploy souborů na tom nesmí padat — migrace se v tom případě spustí ručně
-    # (php artisan migrate z lokálu, .env míří na produkční DB).
+    # MariaDB Českého hostingu poslouchá jen na 127.0.0.1, takže migrace nelze
+    # spustit přes síť z runneru — vyvolá je aplikace sama přes tajnou routu.
+    # Deploy souborů na případném selhání migrací nepadá.
     - name: Run DB migrations
       continue-on-error: true
       env:
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        CRON_TOKEN: ${{ vars.CRON_TOKEN || 'f8k2Ld9xQm4vR7nW' }}
       run: |
-        php -r "
-          \$pdo = new PDO('mysql:host=' . getenv('PROD_DB_HOST') . ';dbname=' . getenv('PROD_DB_NAME') . ';charset=utf8mb4', getenv('PROD_DB_USER'), getenv('DB_PASSWORD'));
-          \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-          // Drop ai_tokens columns if they exist
-          \$cols = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'ai_input_tokens'\")->fetchAll();
-          if (!empty(\$cols)) {
-            \$pdo->exec('ALTER TABLE fak_doklady DROP COLUMN ai_input_tokens, DROP COLUMN ai_output_tokens');
-            echo 'Migration: dropped ai_input_tokens, ai_output_tokens columns' . PHP_EOL;
-          } else {
-            echo 'Migration: ai_tokens columns already removed, skipping' . PHP_EOL;
-          }
-
-          // Drop pravidla_zpracovani column from sys_firmy if it exists
-          \$cols2 = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'pravidla_zpracovani'\")->fetchAll();
-          if (!empty(\$cols2)) {
-            \$pdo->exec('ALTER TABLE sys_firmy DROP COLUMN pravidla_zpracovani');
-            echo 'Migration: dropped pravidla_zpracovani column from sys_firmy' . PHP_EOL;
-          } else {
-            echo 'Migration: pravidla_zpracovani already gone, skipping' . PHP_EOL;
-          }
-
-          // Create fak_kategorie table
-          \$pdo->exec(\"
-            CREATE TABLE IF NOT EXISTS fak_kategorie (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              firma_ico VARCHAR(20) NOT NULL,
-              nazev VARCHAR(100) NOT NULL,
-              popis VARCHAR(500) NULL,
-              poradi INT NOT NULL DEFAULT 0,
-              created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-              INDEX idx_firma_ico (firma_ico),
-              FOREIGN KEY (firma_ico) REFERENCES sys_firmy(ico) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-          \");
-          echo 'Migration: fak_kategorie table ensured' . PHP_EOL;
-
-          // Seed default categories for firms that have none
-          \$firmy = \$pdo->query(\"SELECT ico FROM sys_firmy WHERE ico NOT IN (SELECT DISTINCT firma_ico FROM fak_kategorie)\")->fetchAll(PDO::FETCH_COLUMN);
-          if (!empty(\$firmy)) {
-            \$defaults = [
-              ['Pohonné hmoty', 'benzín, nafta, CNG, LPG, AdBlue', 1],
-              ['Stravování', 'potraviny, restaurace, občerstvení', 2],
-              ['Telekomunikace', 'telefon, internet, hosting', 3],
-              ['Energie', 'elektřina, plyn, voda, teplo', 4],
-              ['Doprava', 'jízdenky, parkování, mýtné, taxi, poštovné, ubytování', 5],
-              ['Kancelářské potřeby', 'tonery, papír, drobný materiál', 6],
-              ['Software', 'předplatné, cloudové služby, licence', 7],
-              ['Opravy a údržba', 'servis, náhradní díly, revize', 8],
-              ['Služby', 'poskytování služeb, účetnictví', 9],
-              ['Reklama', 'inzerce, propagace, marketing', 10],
-              ['Školení', 'kurzy, semináře, konference', 11],
-              ['Pojištění', 'vozidla, majetek, odpovědnost', 12],
-              ['Nájem', 'pronájem prostor, leasing', 13],
-              ['Dokumenty', 'smlouvy, objednávky, upomínky, protokoly', 14],
-              ['Ostatní', 'pokuty, penále', 15],
-            ];
-            \$stmt = \$pdo->prepare('INSERT INTO fak_kategorie (firma_ico, nazev, popis, poradi) VALUES (?, ?, ?, ?)');
-            foreach (\$firmy as \$ico) {
-              foreach (\$defaults as \$kat) {
-                \$stmt->execute([\$ico, \$kat[0], \$kat[1], \$kat[2]]);
-              }
-            }
-            echo 'Migration: seeded default categories for ' . count(\$firmy) . ' firms' . PHP_EOL;
-          }
-
-          // Add interni_role column to sys_user_firma if missing
-          \$cols3 = \$pdo->query(\"SHOW COLUMNS FROM sys_user_firma LIKE 'interni_role'\")->fetchAll();
-          if (empty(\$cols3)) {
-            \$pdo->exec(\"ALTER TABLE sys_user_firma ADD COLUMN interni_role VARCHAR(20) NOT NULL DEFAULT 'spravce' AFTER role\");
-            echo 'Migration: added interni_role column to sys_user_firma' . PHP_EOL;
-            // Set oldest user per firma as superadmin
-            \$pdo->exec(\"
-              UPDATE sys_user_firma uf
-              INNER JOIN (
-                SELECT firma_ico, MIN(id) as min_id FROM sys_user_firma GROUP BY firma_ico
-              ) oldest ON uf.firma_ico = oldest.firma_ico AND uf.id = oldest.min_id
-              SET uf.interni_role = 'superadmin'
-            \");
-            echo 'Migration: set founders as superadmin' . PHP_EOL;
-          } else {
-            echo 'Migration: interni_role already exists, skipping' . PHP_EOL;
-          }
-
-          // Add cesta_originalu column to fak_doklady if missing
-          \$cols4 = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'cesta_originalu'\")->fetchAll();
-          if (empty(\$cols4)) {
-            \$pdo->exec(\"ALTER TABLE fak_doklady ADD COLUMN cesta_originalu VARCHAR(500) NULL AFTER cesta_souboru\");
-            echo 'Migration: added cesta_originalu column to fak_doklady' . PHP_EOL;
-          } else {
-            echo 'Migration: cesta_originalu already exists, skipping' . PHP_EOL;
-          }
-
-          // Create sys_pozvani table
-          \$pdo->exec(\"
-            CREATE TABLE IF NOT EXISTS sys_pozvani (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              firma_ico VARCHAR(20) NOT NULL,
-              jmeno VARCHAR(255) NOT NULL,
-              email VARCHAR(255) NOT NULL,
-              interni_role VARCHAR(20) NOT NULL DEFAULT 'spravce',
-              token VARCHAR(64) NOT NULL UNIQUE,
-              created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-              expires_at TIMESTAMP NULL,
-              accepted_at TIMESTAMP NULL,
-              INDEX idx_token (token),
-              INDEX idx_firma_ico (firma_ico),
-              FOREIGN KEY (firma_ico) REFERENCES sys_firmy(ico) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-          \");
-          echo 'Migration: sys_pozvani table ensured' . PHP_EOL;
-
-          // Email doklady: nové sloupce pro systémový + vlastní IMAP
-          \$colCheck = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'email_system_aktivni'\")->fetchAll();
-          if (empty(\$colCheck)) {
-            \$pdo->exec(\"ALTER TABLE sys_firmy
-              ADD COLUMN email_system_aktivni BOOLEAN NOT NULL DEFAULT FALSE,
-              ADD COLUMN email_vlastni_aktivni BOOLEAN NOT NULL DEFAULT FALSE,
-              ADD COLUMN email_vlastni VARCHAR(255) NULL,
-              ADD COLUMN email_vlastni_host VARCHAR(255) NULL,
-              ADD COLUMN email_vlastni_port SMALLINT UNSIGNED NULL,
-              ADD COLUMN email_vlastni_sifrovani VARCHAR(10) NULL DEFAULT 'ssl',
-              ADD COLUMN email_vlastni_uzivatel VARCHAR(255) NULL,
-              ADD COLUMN email_vlastni_heslo VARCHAR(255) NULL
-            \");
-            echo 'Migration: added email columns to sys_firmy' . PHP_EOL;
-          } else {
-            echo 'Migration: email columns already exist, skipping' . PHP_EOL;
-          }
-
-          // Add zadost_odeslana_at column to sys_ucetni_vazby if missing
-          \$colVazba = \$pdo->query(\"SHOW COLUMNS FROM sys_ucetni_vazby LIKE 'zadost_odeslana_at'\")->fetchAll();
-          if (empty(\$colVazba)) {
-            \$pdo->exec(\"ALTER TABLE sys_ucetni_vazby ADD COLUMN zadost_odeslana_at DATETIME NULL\");
-            echo 'Migration: added zadost_odeslana_at column to sys_ucetni_vazby' . PHP_EOL;
-          } else {
-            echo 'Migration: zadost_odeslana_at already exists, skipping' . PHP_EOL;
-          }
-
-          // Add permission columns to sys_ucetni_vazby
-          \$colPerm = \$pdo->query(\"SHOW COLUMNS FROM sys_ucetni_vazby LIKE 'perm_vkladat'\")->fetchAll();
-          if (empty(\$colPerm)) {
-            \$pdo->exec(\"ALTER TABLE sys_ucetni_vazby
-              ADD COLUMN perm_vkladat BOOLEAN NOT NULL DEFAULT TRUE,
-              ADD COLUMN perm_upravovat BOOLEAN NOT NULL DEFAULT TRUE,
-              ADD COLUMN perm_mazat BOOLEAN NOT NULL DEFAULT FALSE
-            \");
-            echo 'Migration: added permission columns to sys_ucetni_vazby' . PHP_EOL;
-          } else {
-            echo 'Migration: permission columns already exist, skipping' . PHP_EOL;
-          }
-
-          // Add nahral column to fak_doklady
-          \$colNahral = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'nahral'\")->fetchAll();
-          if (empty(\$colNahral)) {
-            \$pdo->exec(\"ALTER TABLE fak_doklady ADD COLUMN nahral VARCHAR(255) NULL AFTER zdroj\");
-            echo 'Migration: added nahral column to fak_doklady' . PHP_EOL;
-          } else {
-            echo 'Migration: nahral already exists, skipping' . PHP_EOL;
-          }
-
-          // Fix overeno_adresat: re-check by ICO match (normalized)
-          \$fixRows = \$pdo->exec(\"
-            UPDATE fak_doklady d
-            INNER JOIN sys_firmy f ON d.firma_ico = f.ico
-            SET d.overeno_adresat = 1
-            WHERE d.adresni = 1
-              AND d.overeno_adresat = 0
-              AND d.odberatel_ico IS NOT NULL
-              AND TRIM(LEADING '0' FROM REPLACE(d.odberatel_ico, ' ', ''))
-                = TRIM(LEADING '0' FROM REPLACE(f.ico, ' ', ''))
-          \");
-          echo 'Migration: fixed overeno_adresat by ICO for ' . \$fixRows . ' doklady' . PHP_EOL;
-
-          // Fix overeno_adresat: re-check by name match (case-insensitive contains)
-          \$fixRows2 = \$pdo->exec(\"
-            UPDATE fak_doklady d
-            INNER JOIN sys_firmy f ON d.firma_ico = f.ico
-            SET d.overeno_adresat = 1
-            WHERE d.adresni = 1
-              AND d.overeno_adresat = 0
-              AND d.odberatel_nazev IS NOT NULL
-              AND f.nazev IS NOT NULL
-              AND (
-                LOWER(d.odberatel_nazev) LIKE CONCAT('%', LOWER(f.nazev), '%')
-                OR LOWER(f.nazev) LIKE CONCAT('%', LOWER(d.odberatel_nazev), '%')
-              )
-          \");
-          echo 'Migration: fixed overeno_adresat by name for ' . \$fixRows2 . ' doklady' . PHP_EOL;
-
-          // Deduplikace: smaž duplikáty v rámci stejného souboru (hash)
-          // Zachová nejstarší (nejnižší ID) pro každou skupinu cislo_dokladu+dodavatel_ico+hash
-          \$dupRows = \$pdo->exec(\"
-            DELETE d FROM fak_doklady d
-            INNER JOIN (
-              SELECT firma_ico, cislo_dokladu, dodavatel_ico, hash_souboru, MIN(id) as keep_id
-              FROM fak_doklady
-              WHERE cislo_dokladu IS NOT NULL AND dodavatel_ico IS NOT NULL AND hash_souboru IS NOT NULL
-              GROUP BY firma_ico, cislo_dokladu, dodavatel_ico, hash_souboru
-              HAVING COUNT(*) > 1
-            ) dup ON d.firma_ico = dup.firma_ico
-              AND d.cislo_dokladu = dup.cislo_dokladu
-              AND d.dodavatel_ico = dup.dodavatel_ico
-              AND d.hash_souboru = dup.hash_souboru
-              AND d.id != dup.keep_id
-          \");
-          echo 'Migration: removed ' . \$dupRows . ' intra-file duplicate doklady' . PHP_EOL;
-
-          // Vyčisti osiřelé duplicita_id (odkazují na smazané záznamy)
-          \$pdo->exec(\"
-            UPDATE fak_doklady d
-            LEFT JOIN fak_doklady ref ON d.duplicita_id = ref.id
-            SET d.duplicita_id = NULL
-            WHERE d.duplicita_id IS NOT NULL AND ref.id IS NULL
-          \");
-
-          // Add odberatel columns to fak_doklady
-          \$colOdbNazev = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'odberatel_nazev'\")->fetchAll();
-          if (empty(\$colOdbNazev)) {
-            \$pdo->exec(\"ALTER TABLE fak_doklady
-              ADD COLUMN odberatel_ico VARCHAR(20) NULL AFTER dodavatel_nazev,
-              ADD COLUMN odberatel_nazev VARCHAR(255) NULL AFTER odberatel_ico
-            \");
-            echo 'Migration: added odberatel columns to fak_doklady' . PHP_EOL;
-          } else {
-            echo 'Migration: odberatel columns already exist, skipping' . PHP_EOL;
-          }
-
-          // Add payment/invoice detail columns to fak_doklady
-          \$colVS = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'variabilni_symbol'\")->fetchAll();
-          if (empty(\$colVS)) {
-            \$pdo->exec(\"ALTER TABLE fak_doklady
-              ADD COLUMN variabilni_symbol VARCHAR(20) NULL AFTER cislo_dokladu,
-              ADD COLUMN cislo_uctu VARCHAR(50) NULL AFTER variabilni_symbol,
-              ADD COLUMN iban VARCHAR(34) NULL AFTER cislo_uctu,
-              ADD COLUMN zpusob_platby VARCHAR(20) NULL AFTER iban,
-              ADD COLUMN reverse_charge BOOLEAN NOT NULL DEFAULT FALSE AFTER zpusob_platby,
-              ADD COLUMN castka_zaklad DECIMAL(12,2) NULL AFTER castka_celkem,
-              ADD COLUMN poznamka TEXT NULL AFTER kategorie
-            \");
-            echo 'Migration: added payment columns to fak_doklady' . PHP_EOL;
-          } else {
-            echo 'Migration: payment columns already exist, skipping' . PHP_EOL;
-          }
-
-          // Create fak_polozky table
-          \$pdo->exec(\"
-            CREATE TABLE IF NOT EXISTS fak_polozky (
-              id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-              doklad_id BIGINT UNSIGNED NOT NULL,
-              poradi SMALLINT NOT NULL DEFAULT 1,
-              text VARCHAR(500) NOT NULL,
-              mnozstvi DECIMAL(12,3) NULL,
-              jednotka VARCHAR(20) NULL,
-              cena_za_jednotku DECIMAL(12,2) NULL,
-              zaklad_dane DECIMAL(12,2) NULL,
-              sazba_dph DECIMAL(5,2) NULL,
-              castka_dph DECIMAL(12,2) NULL,
-              castka_celkem DECIMAL(12,2) NULL,
-              created_at TIMESTAMP NULL,
-              updated_at TIMESTAMP NULL,
-              FOREIGN KEY (doklad_id) REFERENCES fak_doklady(id) ON DELETE CASCADE
-            )
-          \");
-          echo 'Migration: fak_polozky table ensured' . PHP_EOL;
-
-          // Google Drive columns on sys_firmy
-          \$colGD = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'google_drive_aktivni'\")->fetchAll();
-          if (empty(\$colGD)) {
-            \$pdo->exec(\"ALTER TABLE sys_firmy
-              ADD COLUMN google_drive_aktivni BOOLEAN NOT NULL DEFAULT FALSE,
-              ADD COLUMN google_refresh_token TEXT NULL,
-              ADD COLUMN google_folder_id VARCHAR(100) NULL
-            \");
-            echo 'Migration: added Google Drive columns to sys_firmy' . PHP_EOL;
-          } else {
-            echo 'Migration: Google Drive columns already exist on sys_firmy, skipping' . PHP_EOL;
-          }
-
-          // Google Drive template column on sys_firmy
-          \$colGDS = \$pdo->query(\"SHOW COLUMNS FROM sys_firmy LIKE 'google_drive_sablona'\")->fetchAll();
-          if (empty(\$colGDS)) {
-            \$pdo->exec(\"ALTER TABLE sys_firmy ADD COLUMN google_drive_sablona VARCHAR(255) NULL\");
-            echo 'Migration: added google_drive_sablona to sys_firmy' . PHP_EOL;
-          } else {
-            echo 'Migration: google_drive_sablona already exists, skipping' . PHP_EOL;
-          }
-
-          // Google Drive columns on fak_doklady
-          \$colGDD = \$pdo->query(\"SHOW COLUMNS FROM fak_doklady LIKE 'google_drive_file_id'\")->fetchAll();
-          if (empty(\$colGDD)) {
-            \$pdo->exec(\"ALTER TABLE fak_doklady
-              ADD COLUMN google_drive_file_id VARCHAR(100) NULL,
-              ADD COLUMN google_drive_ucetni_file_id VARCHAR(100) NULL,
-              ADD COLUMN google_drive_nahrano_at DATETIME NULL
-            \");
-            echo 'Migration: added Google Drive columns to fak_doklady' . PHP_EOL;
-          } else {
-            echo 'Migration: Google Drive columns already exist on fak_doklady, skipping' . PHP_EOL;
-          }
-        "
+        APP_URL="${{ vars.APP_URL || 'https://office.tuptudu.cz' }}"
+        echo "Spouštím migrace na $APP_URL ..."
+        HTTP_CODE=$(curl -sS --max-time 300 -o /tmp/migrace.txt -w "%{http_code}" \
+          "$APP_URL/deploy-migrace/$CRON_TOKEN" || echo "000")
+        cat /tmp/migrace.txt
+        echo ""
+        echo "HTTP status: $HTTP_CODE"
+        [ "$HTTP_CODE" = "200" ]
 
     - name: Verify deployment
       run: |

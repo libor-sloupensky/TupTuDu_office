@@ -65,6 +65,18 @@ Route::middleware('guest')->group(function () {
 // --- ARES (bez auth) ---
 Route::get('/api/ares/{ico}', [AresController::class, 'lookup'])->middleware('throttle:30,1')->name('ares.lookup');
 
+// --- Deploy: spuštění migrací (tajný token) ---
+// MariaDB hostingu poslouchá jen na 127.0.0.1, takže migrace nejde spustit
+// z GitHub Actions přes síť — deploy si je vyvolá touhle routou.
+Route::get('/deploy-migrace/{token}', function (string $token) {
+    if (!hash_equals('f8k2Ld9xQm4vR7nW', $token)) {
+        abort(404);
+    }
+    Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    $output = Illuminate\Support\Facades\Artisan::output();
+    return response($output, 200)->header('Content-Type', 'text/plain');
+})->middleware('throttle:6,1');
+
 // --- Cron endpoint (tajný token) ---
 Route::get('/cron/{token}', function (string $token) {
     if ($token !== 'f8k2Ld9xQm4vR7nW') {
