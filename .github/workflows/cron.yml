@@ -1,0 +1,33 @@
+name: Cron (email + Google Drive)
+
+# Náhrada za cron hostingu — pinguje cron routy aplikace.
+# Zapíná se proměnnou CRON_ENABLED=1 (Settings → Variables → Actions),
+# aby se dala plánovaná úloha vypnout bez commitu.
+# Pozor: GitHub plánované workflow uspí po 60 dnech bez aktivity v repu.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+env:
+  APP_URL: ${{ vars.APP_URL || 'https://office.tuptudu.cz' }}
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ vars.CRON_ENABLED == '1' }}
+
+    steps:
+    - name: Zpracování emailových dokladů
+      env:
+        CRON_TOKEN: ${{ vars.CRON_TOKEN || 'f8k2Ld9xQm4vR7nW' }}
+      run: |
+        curl -sS --max-time 600 "$APP_URL/cron/$CRON_TOKEN" || echo "cron/email selhal"
+
+    - name: Synchronizace na Google Drive
+      env:
+        CRON_TOKEN: ${{ vars.CRON_TOKEN || 'f8k2Ld9xQm4vR7nW' }}
+      run: |
+        curl -sS --max-time 600 "$APP_URL/cron-drive/$CRON_TOKEN" || echo "cron/drive selhal"

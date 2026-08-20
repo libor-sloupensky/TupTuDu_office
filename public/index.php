@@ -5,16 +5,17 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// Detect base path:
-// - public_html/ (tuptudu.cz) => ../laravel-office/
-// - _sub/office/ (office.tuptudu.cz) => ../../laravel-office/
-// - local dev => ../
-if (file_exists(__DIR__.'/../laravel-office/vendor/autoload.php')) {
-    $basePath = __DIR__.'/../laravel-office';
-} elseif (file_exists(__DIR__.'/../../laravel-office/vendor/autoload.php')) {
-    $basePath = __DIR__.'/../../laravel-office';
-} else {
-    $basePath = __DIR__.'/..';
+// Detect base path — adresář `laravel-office` leží mimo webroot a podle
+// hostingu může být o 1 až několik úrovní výš. Hledáme ho směrem nahoru,
+// aby index.php fungoval na jakékoli struktuře (fallback = lokální vývoj).
+$basePath = __DIR__.'/..';
+$probe = __DIR__;
+for ($i = 0; $i < 6; $i++) {
+    $probe = dirname($probe);
+    if (file_exists($probe.'/laravel-office/vendor/autoload.php')) {
+        $basePath = $probe.'/laravel-office';
+        break;
+    }
 }
 
 // Determine if the application is in maintenance mode...

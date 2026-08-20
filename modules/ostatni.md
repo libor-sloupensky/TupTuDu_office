@@ -82,15 +82,47 @@ Workflow:
 - Konfigurace: email dokladů (systémový/vlastní IMAP), Google Drive šablona, kategorie
 
 ## Deploy
-- GitHub Actions → SFTP (lftp) na Webglobe
-- Change detection: pouze změněné soubory
-- `composer.lock` change → vendor install
-- Migrace: inline PHP
+- GitHub Actions → SFTP (lftp) na Český hosting (`irene.thinline.cz`, port 22, uživatel `tuptudu_cz`)
+- Change detection: pouze změněné soubory (diff proti poslednímu úspěšnému deployi)
+- Ruční spuštění s `full=true` → kompletní deploy včetně vendoru (stěhování serveru)
+- `composer.lock` change → vendor install + mirror
+- Migrace: inline PHP (`continue-on-error` — hosting nemusí povolit vzdálený MySQL)
 - Verifikace: HTTP 200 check na `office.tuptudu.cz`
+
+### Konfigurace deploye (GitHub → Settings → Secrets and variables → Actions)
+Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
+
+| Variable | Výchozí | Význam |
+|----------|---------|--------|
+| `SFTP_HOST` | `irene.thinline.cz` | SFTP server |
+| `SFTP_USER` | `tuptudu_cz` | SFTP uživatel |
+| `SFTP_PORT` | `22` | SFTP port |
+| `REMOTE_APP` | `/laravel-office` | Kořen Laravelu (mimo webroot) |
+| `REMOTE_PUB` | `/office.tuptudu.cz/www` | Webroot subdomény office |
+| `DB_HOST` / `DB_NAME` / `DB_USER` | `localhost` / `tuptudu_office` / `tuptudu_office` | Produkční MySQL |
+| `MAIL_HOST` / `IMAP_HOST` | `smtp.cesky-hosting.cz` / `imap.cesky-hosting.cz` | Pošta |
+| `APP_URL` | `https://office.tuptudu.cz` | Cíl cronu a verifikace |
+| `CRON_ENABLED` | — | `1` zapne plánovaný cron přes GitHub Actions |
+| `CRON_TOKEN` | `f8k2Ld9xQm4vR7nW` | Token cron rout |
+
+Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`ANTHROPIC_API_KEY`, `MAIL_PASSWORD`, `IMAP_SYSTEM_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+### Workflows
+| Soubor | Spouštění | Účel |
+|--------|-----------|------|
+| `.github/workflows/deploy.yml` | push na main + ručně | Deploy |
+| `.github/workflows/cron.yml` | každých 15 min (jen při `CRON_ENABLED=1`) | Náhrada cronu hostingu |
+| `.github/workflows/remote-ls.yml` | ručně | Výpis struktury adresářů na serveru |
+| `.github/workflows/fix-perms.yml` | ručně | Oprava práv souborů |
+
+`public/index.php` hledá `laravel-office/` až 6 úrovní nad webrootem — deploy tak
+nezávisí na konkrétní adresářové struktuře hostingu.
 
 ## Cron routy (tajný token)
 - `GET /cron/{token}` — email processing
 - `GET /cron-drive/{token}` — Google Drive sync
+- Volá je `.github/workflows/cron.yml` (nebo cron hostingu)
 
 ## Databázové tabulky
 

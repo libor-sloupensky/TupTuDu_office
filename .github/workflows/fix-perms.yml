@@ -3,6 +3,12 @@ name: Fix permissions
 on:
   workflow_dispatch:
 
+env:
+  SFTP_HOST: ${{ vars.SFTP_HOST || 'irene.thinline.cz' }}
+  SFTP_USER: ${{ vars.SFTP_USER || 'tuptudu_cz' }}
+  SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
+  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/www' }}
+
 jobs:
   fix:
     runs-on: ubuntu-latest
@@ -10,24 +16,32 @@ jobs:
 
     steps:
     - name: Upload and run fix-perms script
+      env:
+        SFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
       run: |
         sudo apt-get install -y lftp
+        SFTP_PASS_ENC=$(printf %s "$SFTP_PASSWORD" | jq -sRr @uri)
 
-        # Create PHP script
+        # Skript si sám najde kořen Laravelu (laravel-office) nad webrootem,
+        # takže funguje bez ohledu na strukturu adresářů hostingu.
         cat > /tmp/fix-perms.php << 'EOF'
         <?php
         $key = isset($_GET['key']) ? $_GET['key'] : '';
         if ($key !== 'deploy-fix-2026') { http_response_code(403); echo 'Forbidden'; exit; }
 
-        $base = realpath(__DIR__ . '/../..');
+        $dirs = [__DIR__];
+
+        // Hledej laravel-office až 6 úrovní nad webrootem
+        $probe = __DIR__;
+        for ($i = 0; $i < 6; $i++) {
+            $probe = dirname($probe);
+            if (is_dir($probe . '/laravel-office')) {
+                $dirs[] = $probe . '/laravel-office';
+                break;
+            }
+        }
+
         $results = [];
-
-        $dirs = [
-            $base . '/laravel-office',
-            $base . '/_sub/office',
-            $base . '/public_html'
-        ];
-
         foreach ($dirs as $dir) {
             if (!is_dir($dir)) {
                 $results[] = "SKIP: $dir not found";
@@ -39,8 +53,16 @@ jobs:
                 RecursiveIteratorIterator::SELF_FIRST
             );
             foreach ($it as $file) {
-                $perm = $file->isDir() ? 0755 : 0644;
-                if (@chmod($file->getPathname(), $perm)) {
+                $path = $file->getPathname();
+                // storage a bootstrap/cache musí být zapisovatelné
+                $writable = strpos($path, '/storage/') !== false
+                         || strpos($path, '/bootstrap/cache') !== false;
+                if ($file->isDir()) {
+                    $perm = $writable ? 0775 : 0755;
+                } else {
+                    $perm = $writable ? 0664 : 0644;
+                }
+                if (@chmod($path, $perm)) {
                     $count++;
                 }
             }
@@ -50,36 +72,22 @@ jobs:
         echo implode("\n", $results);
         EOF
 
-        # Try uploading to public_html
         lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p $SFTP_PORT';
           set xfer:clobber on;
-          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          put /tmp/fix-perms.php -o /public_html/fix-perms.php;
+          open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
+          put /tmp/fix-perms.php -o $REMOTE_PUB/fix-perms.php;
           quit
-        " 2>&1 || echo "Upload to public_html failed"
+        " || echo "Upload selhal"
 
-        # Try uploading to _sub/office
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
-          set xfer:clobber on;
-          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          put /tmp/fix-perms.php -o /_sub/office/fix-perms.php;
-          quit
-        " 2>&1 || echo "Upload to _sub/office failed"
-
-        # Call script from both URLs
-        echo "=== Calling tuptudu.cz ==="
-        curl -s "https://tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || echo "curl tuptudu.cz failed"
+        echo "=== Volám office.tuptudu.cz ==="
+        curl -s "https://office.tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || echo "curl selhal"
         echo ""
-        echo "=== Calling office.tuptudu.cz ==="
-        curl -s "https://office.tuptudu.cz/fix-perms.php?key=deploy-fix-2026" || echo "curl office failed"
 
-        # Cleanup
+        # Úklid
         lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p 222';
-          open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-          rm -f /public_html/fix-perms.php;
-          rm -f /_sub/office/fix-perms.php;
+          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p $SFTP_PORT';
+          open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
+          rm -f $REMOTE_PUB/fix-perms.php;
           quit
-        " 2>&1 || true
+        " || true

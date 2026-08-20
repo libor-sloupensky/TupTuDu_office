@@ -3,6 +3,27 @@ name: Deploy Office to SFTP
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'Kompletní deploy — nahraje všechny soubory včetně vendoru'
+        type: boolean
+        default: false
+
+# Nastavení serveru. Vše je přepsatelné bez commitu přes
+# GitHub → Settings → Secrets and variables → Actions → Variables.
+env:
+  SFTP_HOST: ${{ vars.SFTP_HOST || 'irene.thinline.cz' }}
+  SFTP_USER: ${{ vars.SFTP_USER || 'tuptudu_cz' }}
+  SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
+  # Kořen Laravelu (mimo webroot) a webroot subdomény office.tuptudu.cz
+  REMOTE_APP: ${{ vars.REMOTE_APP || '/laravel-office' }}
+  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/www' }}
+  PROD_DB_HOST: ${{ vars.DB_HOST || 'localhost' }}
+  PROD_DB_NAME: ${{ vars.DB_NAME || 'tuptudu_office' }}
+  PROD_DB_USER: ${{ vars.DB_USER || 'tuptudu_office' }}
+  PROD_MAIL_HOST: ${{ vars.MAIL_HOST || 'smtp.cesky-hosting.cz' }}
+  PROD_IMAP_HOST: ${{ vars.IMAP_HOST || 'imap.cesky-hosting.cz' }}
 
 jobs:
   deploy:
@@ -22,6 +43,16 @@ jobs:
         # Základ pro diff je poslední ÚSPĚŠNĚ nasazený commit, ne předchozí push.
         # Kdyby se porovnávalo s github.event.before, soubory ze selhaného
         # deploye by se v dalším pushi neobjevily a nikdy by se nenahrály.
+        # Ruční spuštění s full=true nahraje celý projekt — nutné při stěhování
+        # na nový server, kde diff proti poslednímu deployi nedává smysl.
+        if [ "${{ github.event.inputs.full }}" = "true" ]; then
+          echo "Kompletní deploy vyžádán ručně — nahrávám všechno."
+          git ls-files > /tmp/changed_files.txt
+          echo "vendor_changed=true" >> $GITHUB_OUTPUT
+          echo "File count: $(wc -l < /tmp/changed_files.txt)"
+          exit 0
+        fi
+
         BASE=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy.yml/runs?status=success&branch=main&per_page=1" \
                  --jq '.workflow_runs[0].head_sha' 2>/dev/null || true)
 
@@ -71,10 +102,10 @@ jobs:
         LOG_LEVEL=error
 
         DB_CONNECTION=mysql
-        DB_HOST=db.dw328.webglobe.com
+        DB_HOST=${{ env.PROD_DB_HOST }}
         DB_PORT=3306
-        DB_DATABASE=tuptudu_office
-        DB_USERNAME=tuptudu_office
+        DB_DATABASE=${{ env.PROD_DB_NAME }}
+        DB_USERNAME=${{ env.PROD_DB_USER }}
         DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
         SESSION_DRIVER=cookie
@@ -93,7 +124,7 @@ jobs:
         ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
 
         MAIL_MAILER=smtp
-        MAIL_HOST=mailproxy.webglobe.cz
+        MAIL_HOST=${{ env.PROD_MAIL_HOST }}
         MAIL_PORT=587
         MAIL_USERNAME=office@tuptudu.cz
         MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
@@ -101,7 +132,7 @@ jobs:
         MAIL_FROM_ADDRESS=office@tuptudu.cz
         MAIL_FROM_NAME=TupTuDu
 
-        IMAP_SYSTEM_HOST=mailproxy.webglobe.com
+        IMAP_SYSTEM_HOST=${{ env.PROD_IMAP_HOST }}
         IMAP_SYSTEM_PORT=993
         IMAP_SYSTEM_ENCRYPTION=ssl
         IMAP_SYSTEM_USERNAME=faktury@tuptudu.cz
@@ -114,8 +145,13 @@ jobs:
         sed -i 's/^        //' /tmp/deploy.env
 
     - name: Deploy changed files via lftp
+      env:
+        SFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
       run: |
         sudo apt-get install -y lftp
+
+        # Heslo se dává do URL, takže musí být URL-encoded (může obsahovat @, /, : …)
+        SFTP_PASS_ENC=$(printf %s "$SFTP_PASSWORD" | jq -sRr @uri)
 
         CHANGED_FILES=$(cat /tmp/changed_files.txt)
         echo "Files to deploy:"
@@ -135,13 +171,13 @@ jobs:
           TARGET=""
           case "$file" in
             app/*|bootstrap/*|config/*|database/*|resources/*|routes/*)
-              TARGET="/tuptudu.cz/laravel-office/$file"
+              TARGET="$REMOTE_APP/$file"
               ;;
             public/*)
-              TARGET="/tuptudu.cz/_sub/office/${file#public/}"
+              TARGET="$REMOTE_PUB/${file#public/}"
               ;;
             artisan|composer.json|composer.lock)
-              TARGET="/tuptudu.cz/laravel-office/$file"
+              TARGET="$REMOTE_APP/$file"
               ;;
           esac
 
@@ -157,25 +193,32 @@ jobs:
           fi
         done
 
+        # Zapisovatelné adresáře Laravelu — na novém serveru ještě nemusí existovat
+        for d in storage/framework/sessions storage/framework/views \
+                 storage/framework/cache/data storage/logs \
+                 storage/app/private storage/app/public bootstrap/cache; do
+          LFTP_SCRIPT="mkdir -pf $REMOTE_APP/$d;${LFTP_SCRIPT}"
+        done
+
         # Always upload .env and last_push.txt
-        LFTP_SCRIPT="${LFTP_SCRIPT}put /tmp/deploy.env -o /tuptudu.cz/laravel-office/.env;"
-        LFTP_SCRIPT="${LFTP_SCRIPT}put public/last_push.txt -o /tuptudu.cz/_sub/office/last_push.txt;"
+        LFTP_SCRIPT="${LFTP_SCRIPT}put /tmp/deploy.env -o $REMOTE_APP/.env;"
+        LFTP_SCRIPT="${LFTP_SCRIPT}put public/last_push.txt -o $REMOTE_PUB/last_push.txt;"
 
         echo ""
-        echo "Connecting to SFTP..."
+        echo "Connecting to SFTP ($SFTP_USER@$SFTP_HOST:$SFTP_PORT)..."
         echo "LFTP commands: ${LFTP_SCRIPT}"
 
-        # Webglobe SFTP občas spojení vůbec nepřijme (Connection timed out).
+        # SFTP občas spojení vůbec nepřijme (Connection timed out).
         # Vlastní lftp retries nestačí — celý přenos opakujeme až 3x s pauzou.
         for pokus in 1 2 3; do
           echo "--- pokus $pokus/3 ---"
           if lftp -e "
-            set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 222';
+            set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p $SFTP_PORT';
             set xfer:clobber on;
             set net:timeout 60;
             set net:max-retries 5;
             set net:reconnect-interval-base 10;
-            open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
+            open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
             ${LFTP_SCRIPT}
             quit
           "; then
@@ -191,18 +234,22 @@ jobs:
 
     - name: Deploy vendor
       if: steps.changes.outputs.vendor_changed == 'true'
+      env:
+        SFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
       run: |
-        # Stejná retry logika jako u souborů — Webglobe SFTP je nespolehlivý
+        SFTP_PASS_ENC=$(printf %s "$SFTP_PASSWORD" | jq -sRr @uri)
+
+        # Stejná retry logika jako u souborů — SFTP bývá nespolehlivý
         for pokus in 1 2 3; do
           echo "--- vendor, pokus $pokus/3 ---"
           if lftp -e "
-            set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 222';
+            set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p $SFTP_PORT';
             set xfer:clobber on;
             set net:timeout 60;
             set net:max-retries 5;
             set net:reconnect-interval-base 10;
-            open sftp://multi_833363:${{ secrets.FTP_PASSWORD }}@ftp.tuptudu.cz;
-            mirror --reverse --parallel=5 --verbose --no-perms vendor/ /tuptudu.cz/laravel-office/vendor/;
+            open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
+            mirror --reverse --parallel=5 --verbose --no-perms vendor/ $REMOTE_APP/vendor/;
             quit
           "; then
             exit 0
@@ -213,7 +260,7 @@ jobs:
 
         exit 1
 
-    # Webglobe blokuje IP GitHub runnerů na přístup k DB ("Your IP is blocked").
+    # Hosting nemusí povolit vzdálený přístup k MySQL z IP GitHub runnerů.
     # Deploy souborů na tom nesmí padat — migrace se v tom případě spustí ručně
     # (php artisan migrate z lokálu, .env míří na produkční DB).
     - name: Run DB migrations
@@ -222,7 +269,7 @@ jobs:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       run: |
         php -r "
-          \$pdo = new PDO('mysql:host=db.dw328.webglobe.com;dbname=tuptudu_office;charset=utf8mb4', 'tuptudu_office', getenv('DB_PASSWORD'));
+          \$pdo = new PDO('mysql:host=' . getenv('PROD_DB_HOST') . ';dbname=' . getenv('PROD_DB_NAME') . ';charset=utf8mb4', getenv('PROD_DB_USER'), getenv('DB_PASSWORD'));
           \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
           // Drop ai_tokens columns if they exist
