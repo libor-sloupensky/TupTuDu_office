@@ -264,6 +264,7 @@ jobs:
             set net:max-retries 5;
             set net:reconnect-interval-base 10;
             open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
+            mkdir -pf $REMOTE_APP/vendor;
             mirror --reverse --parallel=5 --verbose --no-perms vendor/ $REMOTE_APP/vendor/;
             quit
           "; then
