@@ -1,0 +1,116 @@
+<?php
+
+/**
+ * Vytvoří SQL dump produkční databáze pro přenos na jiný hosting.
+ *
+ * Použití: php scripts/dump-db.php <host> <databáze> <uživatel> [heslo]
+ * Bez hesla se vezme DB_PASSWORD z .env.
+ *
+ * Výsledek jde do temporary/<databáze>.sql (adresář je v .gitignore —
+ * dump obsahuje osobní údaje a hashe hesel, do repozitáře nepatří).
+ *
+ * Provozní tabulky (cache, sessions, fronty) se přenášejí jen strukturou,
+ * jejich obsah je po přesunu bezcenný a jen by nafukoval dump.
+ */
+
+$bezDat = ['cache', 'cache_locks', 'sessions', 'sys_sessions', 'jobs', 'job_batches', 'failed_jobs'];
+
+$host = $argv[1] ?? null;
+$databaze = $argv[2] ?? null;
+$uzivatel = $argv[3] ?? null;
+$heslo = $argv[4] ?? null;
+
+if (!$host || !$databaze || !$uzivatel) {
+    fwrite(STDERR, "Použití: php scripts/dump-db.php <host> <databáze> <uživatel> [heslo]\n");
+    exit(1);
+}
+
+if ($heslo === null) {
+    foreach (file(__DIR__ . '/../.env') as $radek) {
+        if (str_starts_with($radek, 'DB_PASSWORD=')) {
+            $heslo = trim(substr($radek, strlen('DB_PASSWORD=')));
+            break;
+        }
+    }
+}
+
+$pdo = new PDO(
+    "mysql:host={$host};dbname={$databaze};charset=utf8mb4",
+    $uzivatel,
+    $heslo,
+    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 30]
+);
+
+$cil = __DIR__ . '/../temporary/' . $databaze . '.sql';
+
+if (!is_dir(dirname($cil))) {
+    mkdir(dirname($cil), 0777, true);
+}
+
+$out = fopen($cil, 'w');
+
+fwrite($out, "-- Dump databáze {$databaze} z {$host}\n");
+fwrite($out, "-- Vytvořeno: " . date('Y-m-d H:i:s') . "\n\n");
+fwrite($out, "SET NAMES utf8mb4;\n");
+fwrite($out, "SET FOREIGN_KEY_CHECKS = 0;\n");
+fwrite($out, "SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n");
+
+$tabulky = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+$radkuCelkem = 0;
+
+foreach ($tabulky as $tabulka) {
+    $create = $pdo->query("SHOW CREATE TABLE `{$tabulka}`")->fetch(PDO::FETCH_NUM)[1];
+
+    fwrite($out, "\n--\n-- Tabulka {$tabulka}\n--\n\n");
+    fwrite($out, "DROP TABLE IF EXISTS `{$tabulka}`;\n");
+    fwrite($out, $create . ";\n\n");
+
+    if (in_array($tabulka, $bezDat, true)) {
+        fwrite($out, "-- (provozní tabulka, data se nepřenášejí)\n");
+        echo str_pad($tabulka, 28), "struktura\n";
+        continue;
+    }
+
+    $stmt = $pdo->query("SELECT * FROM `{$tabulka}`");
+    $radku = 0;
+    $davka = [];
+
+    while ($radek = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $hodnoty = array_map(
+            fn ($h) => $h === null ? 'NULL' : $pdo->quote((string) $h),
+            array_values($radek)
+        );
+
+        $davka[] = '(' . implode(',', $hodnoty) . ')';
+        $radku++;
+
+        // Po 200 řádcích zapsat, ať dump nedrží celou tabulku v paměti
+        if (count($davka) >= 200) {
+            zapsatDavku($out, $tabulka, array_keys($radek), $davka);
+            $davka = [];
+        }
+    }
+
+    if ($davka) {
+        zapsatDavku($out, $tabulka, array_keys($radek ?: []), $davka);
+    }
+
+    $radkuCelkem += $radku;
+    echo str_pad($tabulka, 28), $radku, " řádků\n";
+}
+
+fwrite($out, "\nSET FOREIGN_KEY_CHECKS = 1;\n");
+fclose($out);
+
+echo "\nHotovo: {$cil}\n";
+echo 'Velikost: ' . round(filesize($cil) / 1024, 1) . " kB, řádků celkem: {$radkuCelkem}\n";
+
+function zapsatDavku($out, string $tabulka, array $sloupce, array $davka): void
+{
+    if (!$sloupce) {
+        return;
+    }
+
+    $seznam = '`' . implode('`,`', $sloupce) . '`';
+    fwrite($out, "INSERT INTO `{$tabulka}` ({$seznam}) VALUES\n" . implode(",\n", $davka) . ";\n");
+}

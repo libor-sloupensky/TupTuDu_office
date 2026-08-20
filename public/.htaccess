@@ -2,7 +2,10 @@
     RewriteEngine On
 
     # Force HTTPS
+    # Výjimka pro kontrola.php: než se po přepnutí DNS vydá certifikát,
+    # hosting posílá https zpátky na http a vznikla by přesměrovací smyčka.
     RewriteCond %{HTTPS} off
+    RewriteCond %{REQUEST_URI} !^/kontrola\.php$
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Handle Authorization Header

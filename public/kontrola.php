@@ -1,0 +1,149 @@
+<?php
+
+/**
+ * Kontrola prostředí hostingu — spouští se ručně přes
+ * https://office.tuptudu.cz/kontrola.php?key={token}
+ *
+ * Záměrně nebootuje Laravel, aby fungovala i ve chvíli, kdy je aplikace
+ * rozbitá (chybějící rozšíření PHP, špatná cesta k vendoru, nedostupná DB).
+ * Používá se hlavně při stěhování hostingu, kdy je potřeba ověřit server
+ * ještě před přepnutím DNS.
+ */
+
+if (($_GET['key'] ?? '') !== 'f8k2Ld9xQm4vR7nW') {
+    http_response_code(404);
+    exit;
+}
+
+header('Content-Type: text/plain; charset=utf-8');
+
+// Rozšíření, bez kterých aplikace nefunguje
+$povinna = [
+    'pdo_mysql', 'mbstring', 'openssl', 'curl', 'zip',
+    'fileinfo', 'tokenizer', 'ctype', 'json', 'dom',
+];
+
+// Volitelná — bez nich funguje vše kromě zmíněné oblasti
+$volitelna = [
+    'bcmath' => 'přesné výpočty v AWS SDK',
+    'intl' => 'formátování čísel a datumů',
+    'imap' => 'nepovinné, webklex/php-imap má vlastní implementaci',
+    'gd' => 'nepoužíváme, obrázky zpracovává Textract',
+];
+
+echo "=== PHP ===\n";
+echo 'Verze: ' . PHP_VERSION . "\n";
+echo 'SAPI: ' . PHP_SAPI . "\n";
+echo 'memory_limit: ' . ini_get('memory_limit') . "\n";
+echo 'max_execution_time: ' . ini_get('max_execution_time') . "\n";
+echo 'upload_max_filesize: ' . ini_get('upload_max_filesize') . "\n";
+echo 'post_max_size: ' . ini_get('post_max_size') . "\n";
+echo 'open_basedir: ' . (ini_get('open_basedir') ?: '(bez omezení)') . "\n";
+
+echo "\n=== Povinná rozšíření ===\n";
+$chybi = [];
+
+foreach ($povinna as $ext) {
+    $ok = extension_loaded($ext);
+    echo str_pad($ext, 16), $ok ? 'ANO' : 'CHYBÍ', "\n";
+    if (!$ok) {
+        $chybi[] = $ext;
+    }
+}
+
+echo "\n=== Volitelná rozšíření ===\n";
+foreach ($volitelna as $ext => $ucel) {
+    echo str_pad($ext, 16), str_pad(extension_loaded($ext) ? 'ANO' : 'ne', 6), $ucel, "\n";
+}
+
+echo "\n=== Cesty ===\n";
+echo 'Webroot: ' . __DIR__ . "\n";
+
+$basePath = null;
+$probe = __DIR__;
+
+for ($i = 0; $i < 6; $i++) {
+    $probe = dirname($probe);
+
+    foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
+        if (is_dir($probe . $kandidat)) {
+            $basePath = $probe . $kandidat;
+            break 2;
+        }
+    }
+}
+
+echo 'Kořen Laravelu: ' . ($basePath ?: 'NENALEZEN') . "\n";
+
+if ($basePath) {
+    echo 'vendor/autoload.php: ' . (file_exists($basePath . '/vendor/autoload.php') ? 'ANO' : 'CHYBÍ') . "\n";
+    echo '.env: ' . (is_readable($basePath . '/.env') ? 'ANO' : 'NEČITELNÝ') . "\n";
+
+    echo "\n=== Zapisovatelnost ===\n";
+    foreach (['storage/logs', 'storage/framework/cache/data', 'storage/framework/views', 'storage/app', 'bootstrap/cache'] as $dir) {
+        $cesta = $basePath . '/' . $dir;
+        $stav = !is_dir($cesta) ? 'CHYBÍ' : (is_writable($cesta) ? 'zapisovatelné' : 'JEN PRO ČTENÍ');
+        echo str_pad($dir, 34), $stav, "\n";
+    }
+}
+
+echo "\n=== Databáze ===\n";
+
+$env = [];
+
+if ($basePath && is_readable($basePath . '/.env')) {
+    foreach (file($basePath . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $radek) {
+        if ($radek === '' || $radek[0] === '#' || !str_contains($radek, '=')) {
+            continue;
+        }
+        [$k, $v] = explode('=', $radek, 2);
+        $env[trim($k)] = trim($v, " \t\"'");
+    }
+}
+
+if (!isset($env['DB_HOST'])) {
+    echo "Nelze načíst .env, přeskakuji.\n";
+} else {
+    echo "Host: {$env['DB_HOST']}, databáze: {$env['DB_DATABASE']}, uživatel: {$env['DB_USERNAME']}\n";
+
+    try {
+        $pdo = new PDO(
+            "mysql:host={$env['DB_HOST']};dbname={$env['DB_DATABASE']};charset=utf8mb4",
+            $env['DB_USERNAME'],
+            $env['DB_PASSWORD'] ?? '',
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 10]
+        );
+        $tabulky = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+        echo 'Připojeno. Tabulek: ' . count($tabulky) . "\n";
+
+        if (in_array('sys_firmy', $tabulky, true)) {
+            $pocet = $pdo->query('SELECT COUNT(*) FROM sys_firmy')->fetchColumn();
+            $doklady = in_array('fak_doklady', $tabulky, true)
+                ? $pdo->query('SELECT COUNT(*) FROM fak_doklady')->fetchColumn()
+                : '-';
+            echo "Firem: {$pocet}, dokladů: {$doklady}\n";
+        } else {
+            echo "Data zatím nenaimportována.\n";
+        }
+    } catch (Throwable $e) {
+        echo 'CHYBA: ' . $e->getMessage() . "\n";
+    }
+}
+
+echo "\n=== Odchozí spojení ===\n";
+
+foreach ([['smtp', $env['MAIL_HOST'] ?? '', 587], ['imap', $env['IMAP_SYSTEM_HOST'] ?? '', 993], ['s3', 's3.eu-west-1.amazonaws.com', 443]] as [$nazev, $hostitel, $port]) {
+    if (!$hostitel) {
+        continue;
+    }
+    $spojeni = @fsockopen($hostitel, $port, $errno, $errstr, 8);
+    echo str_pad("{$nazev} ({$hostitel}:{$port})", 44), $spojeni ? 'OK' : "CHYBA: {$errstr}", "\n";
+    if ($spojeni) {
+        fclose($spojeni);
+    }
+}
+
+echo "\n=== Závěr ===\n";
+echo $chybi
+    ? 'CHYBÍ POVINNÁ ROZŠÍŘENÍ: ' . implode(', ', $chybi) . "\n"
+    : "Povinná rozšíření jsou v pořádku.\n";

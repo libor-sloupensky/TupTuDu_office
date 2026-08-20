@@ -4,16 +4,28 @@
  * ?mode=upload  - simuluje kompletní upload procesor (přiložit soubor přes formulář)
  * bez parametru - základní diagnostika
  */
+// Bootuje celou aplikaci s výpisem chyb, takže bez zámku nemá na webu co dělat
+if (($_GET['key'] ?? '') !== 'f8k2Ld9xQm4vR7nW') {
+    http_response_code(404);
+    exit;
+}
+
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
 // Detekce base path (stejně jako index.php)
-if (file_exists(__DIR__.'/../laravel-office/vendor/autoload.php')) {
-    $basePath = __DIR__.'/../laravel-office';
-} elseif (file_exists(__DIR__.'/../../laravel-office/vendor/autoload.php')) {
-    $basePath = __DIR__.'/../../laravel-office';
-} else {
-    $basePath = __DIR__.'/..';
+$basePath = __DIR__.'/..';
+$probe = __DIR__;
+
+for ($i = 0; $i < 6; $i++) {
+    $probe = dirname($probe);
+
+    foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
+        if (file_exists($probe.$kandidat.'/vendor/autoload.php')) {
+            $basePath = $probe.$kandidat;
+            break 2;
+        }
+    }
 }
 
 require $basePath . '/vendor/autoload.php';
