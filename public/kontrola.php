@@ -59,16 +59,17 @@ foreach ($volitelna as $ext => $ucel) {
 echo "\n=== Cesty ===\n";
 echo 'Webroot: ' . __DIR__ . "\n";
 
-$basePath = null;
-$probe = __DIR__;
+$basePath = is_dir(dirname(__DIR__) . '/app') ? dirname(__DIR__) : null;
 
-for ($i = 0; $i < 6; $i++) {
-    $probe = dirname($probe);
+if ($basePath === null) {
+    $probe = __DIR__;
 
-    foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
-        if (is_dir($probe . $kandidat)) {
-            $basePath = $probe . $kandidat;
-            break 2;
+    for ($i = 0; $i < 6; $i++) {
+        $probe = dirname($probe);
+
+        if (@is_dir($probe . '/laravel-office')) {
+            $basePath = $probe . '/laravel-office';
+            break;
         }
     }
 }

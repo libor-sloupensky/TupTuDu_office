@@ -17,9 +17,10 @@ env:
   SFTP_USER: ${{ vars.SFTP_USER || 'tuptudu_cz' }}
   SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
   # Kořen Laravelu (mimo webroot) a webroot subdomény office.tuptudu.cz.
-  # V kořeni účtu nejde zakládat adresáře, proto Laravel sídlí v /data.
-  REMOTE_APP: ${{ vars.REMOTE_APP || '/data/laravel-office' }}
-  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz' }}
+  # DocumentRoot subdomény je posunutý na podadresář public, takže kořen
+  # Laravelu je adresář subdomény — .env a vendor/ leží mimo dosah webserveru.
+  REMOTE_APP: ${{ vars.REMOTE_APP || '/office.tuptudu.cz' }}
+  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/public' }}
   # Rozcestník na hlavní doméně. Prázdné = landing/ se nenasazuje.
   REMOTE_LANDING: ${{ vars.REMOTE_LANDING || '' }}
   PROD_DB_HOST: ${{ vars.DB_HOST || '127.0.0.1' }}

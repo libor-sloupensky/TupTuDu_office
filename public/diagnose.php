@@ -15,15 +15,16 @@ ini_set('display_errors', '1');
 
 // Detekce base path (stejně jako index.php)
 $basePath = __DIR__.'/..';
-$probe = __DIR__;
 
-for ($i = 0; $i < 6; $i++) {
-    $probe = dirname($probe);
+if (!file_exists($basePath.'/vendor/autoload.php')) {
+    $probe = __DIR__;
 
-    foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
-        if (file_exists($probe.$kandidat.'/vendor/autoload.php')) {
-            $basePath = $probe.$kandidat;
-            break 2;
+    for ($i = 0; $i < 6; $i++) {
+        $probe = dirname($probe);
+
+        if (@file_exists($probe.'/laravel-office/vendor/autoload.php')) {
+            $basePath = $probe.'/laravel-office';
+            break;
         }
     }
 }

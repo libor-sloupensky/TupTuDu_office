@@ -7,7 +7,7 @@ env:
   SFTP_HOST: ${{ vars.SFTP_HOST || 'irene.thinline.cz' }}
   SFTP_USER: ${{ vars.SFTP_USER || 'tuptudu_cz' }}
   SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
-  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz' }}
+  REMOTE_PUB: ${{ vars.REMOTE_PUB || '/office.tuptudu.cz/public' }}
 
 jobs:
   fix:
@@ -31,16 +31,9 @@ jobs:
 
         $dirs = [__DIR__];
 
-        // Hledej laravel-office až 6 úrovní nad webrootem (i v podadresáři /data)
-        $probe = __DIR__;
-        for ($i = 0; $i < 6; $i++) {
-            $probe = dirname($probe);
-            foreach (['/laravel-office', '/data/laravel-office'] as $kandidat) {
-                if (is_dir($probe . $kandidat)) {
-                    $dirs[] = $probe . $kandidat;
-                    break 2;
-                }
-            }
+        // Kořen aplikace je o úroveň nad webrootem (DocumentRoot = public/)
+        if (is_dir(dirname(__DIR__) . '/app')) {
+            $dirs[] = dirname(__DIR__);
         }
 
         $results = [];
