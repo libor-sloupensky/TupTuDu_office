@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       path:
-        description: 'Absolutní cesta k adresáři (např. /data/laravel-office)'
+        description: 'Absolutní cesty oddělené mezerou (např. /data/laravel-office)'
         type: string
         required: true
       confirm:
@@ -38,36 +38,37 @@ jobs:
         sudo apt-get install -y lftp
         SFTP_PASS_ENC=$(printf %s "$SFTP_PASSWORD" | jq -sRr @uri)
 
-        case "$CESTA" in
-          /|/office.tuptudu.cz|/tuptudu.cz|"")
-            echo "Odmítám mazat $CESTA — to je kořen nebo webroot."
-            exit 1
-            ;;
-        esac
+        PRIKAZY=""
 
+        for cesta in $CESTA; do
+          case "$cesta" in
+            /|/office.tuptudu.cz|/office.tuptudu.cz/public|/tuptudu.cz|/data|"")
+              echo "Odmítám mazat $cesta — to je kořen, webroot nebo kořen aplikace."
+              exit 1
+              ;;
+          esac
+
+          echo "MAZAT: $cesta"
+          PRIKAZY="${PRIKAZY}rm -r -f $cesta;"
+        done
+
+        echo ""
         echo "=== Obsah před smazáním ==="
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p $SFTP_PORT';
           open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
-          find -d 2 $CESTA;
+          $(for c in $CESTA; do printf 'find -d 2 %s;' "$c"; done)
           quit
-        "
+        " || true
 
         echo ""
-        echo "=== Mažu $CESTA ==="
+        echo "=== Mažu ==="
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p $SFTP_PORT';
           set net:timeout 60;
           open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
-          rm -r -f $CESTA;
+          ${PRIKAZY}
           quit
         "
 
-        echo ""
-        echo "=== Kontrola po smazání ==="
-        lftp -e "
-          set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -p $SFTP_PORT';
-          open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
-          find -d 1 $CESTA;
-          quit
-        " || echo "Adresář už neexistuje."
+        echo "Hotovo."
