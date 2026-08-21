@@ -8,7 +8,7 @@
     # Porovnává se THE_REQUEST, ne REQUEST_URI — po přepsání na index.php
     # projdou pravidla znovu a REQUEST_URI už by nesl /index.php.
     RewriteCond %{HTTPS} off
-    RewriteCond %{THE_REQUEST} !\s/(kontrola\.php|test-mail/)
+    RewriteCond %{THE_REQUEST} !\s/(kontrola\.php|test-mail/|cron/)
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Handle Authorization Header

@@ -15,6 +15,11 @@ on:
         description: 'Hloubka zanoření'
         type: string
         default: '2'
+      protocol:
+        description: 'Protokol — sftp (port 22) nebo ftp (port 21)'
+        type: choice
+        options: [sftp, ftp]
+        default: sftp
 
 env:
   SFTP_HOST: ${{ vars.SFTP_HOST || 'irene.thinline.cz' }}
@@ -34,11 +39,20 @@ jobs:
         sudo apt-get install -y lftp
         SFTP_PASS_ENC=$(printf %s "$SFTP_PASSWORD" | jq -sRr @uri)
 
+        # Porovnání sftp vs ftp — každý protokol může mít jiný domovský adresář
+        if [ "${{ github.event.inputs.protocol }}" = "ftp" ]; then
+          URL="ftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST:21"
+        else
+          URL="sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST"
+        fi
+
         lftp -e "
           set sftp:connect-program 'ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p $SFTP_PORT';
+          set ftp:ssl-allow no;
           set net:timeout 60;
-          open sftp://$SFTP_USER:$SFTP_PASS_ENC@$SFTP_HOST;
+          open $URL;
           pwd;
+          cls -l;
           find -d ${{ github.event.inputs.depth }} ${{ github.event.inputs.path }};
           quit
         "

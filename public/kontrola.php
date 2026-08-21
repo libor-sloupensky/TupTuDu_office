@@ -115,17 +115,19 @@ if (!isset($env['DB_HOST'])) {
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 10]
         );
         $tabulky = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
-        echo 'Připojeno. Tabulek: ' . count($tabulky) . "\n";
+        echo 'Připojeno. Tabulek: ' . count($tabulky) . "\n\n";
 
-        if (in_array('sys_firmy', $tabulky, true)) {
-            $pocet = $pdo->query('SELECT COUNT(*) FROM sys_firmy')->fetchColumn();
-            $doklady = in_array('fak_doklady', $tabulky, true)
-                ? $pdo->query('SELECT COUNT(*) FROM fak_doklady')->fetchColumn()
-                : '-';
-            echo "Firem: {$pocet}, dokladů: {$doklady}\n";
-        } else {
-            echo "Data zatím nenaimportována.\n";
+        foreach ($tabulky as $tabulka) {
+            $pocet = $pdo->query("SELECT COUNT(*) FROM `{$tabulka}`")->fetchColumn();
+            echo '  ' . str_pad($tabulka, 30), str_pad((string) $pocet, 8, ' ', STR_PAD_LEFT), " řádků\n";
         }
+
+        $klice = $pdo->query("
+            SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ")->fetchColumn();
+
+        echo "\n  Cizích klíčů: {$klice} (očekáváno 10)\n";
     } catch (Throwable $e) {
         echo 'CHYBA: ' . $e->getMessage() . "\n";
     }
