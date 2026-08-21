@@ -1125,6 +1125,13 @@
     if (toggleVlastni) {
         toggleVlastni.addEventListener('change', function() {
             document.getElementById('vlastniEmailForm').style.display = this.checked ? '' : 'none';
+
+            // Vypnutí uložit rovnou — tlačítko Uložit je uvnitř formuláře, který
+            // se právě skryl, takže jinak by změna nešla potvrdit.
+            // Zapnutí se neukládá hned: napřed je potřeba vyplnit přihlašovací údaje.
+            if (!this.checked) {
+                window.ulozitVlastniEmail();
+            }
         });
     }
 

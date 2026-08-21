@@ -63,4 +63,11 @@ return [
         ],
     ],
 
+    /*
+     * Tajný token servisních rout (cron, migrace, diagnostika). Repozitář je
+     * veřejný, takže token nesmí být v kódu — hodnota jde z .env, které se
+     * generuje při deployi z GitHub secrets.
+     */
+    'servisni_token' => env('SERVISNI_TOKEN'),
+
 ];

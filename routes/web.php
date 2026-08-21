@@ -14,6 +14,20 @@ use App\Http\Controllers\MobileController;
 use App\Http\Controllers\VazbyController;
 use Illuminate\Support\Facades\Route;
 
+/**
+ * Ověří token servisních rout (cron, migrace, test pošty, log).
+ *
+ * Hodnota je v .env (SERVISNI_TOKEN), ne v kódu — repozitář je veřejný.
+ * Když token není nastavený, servisní routy se tváří jako neexistující,
+ * ať se nedají volat prázdným parametrem.
+ */
+function servisniTokenPlati(string $token): bool
+{
+    $ocekavany = (string) config('services.servisni_token');
+
+    return $ocekavany !== '' && hash_equals($ocekavany, $token);
+}
+
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
 
@@ -69,7 +83,7 @@ Route::get('/api/ares/{ico}', [AresController::class, 'lookup'])->middleware('th
 // MariaDB hostingu poslouchá jen na 127.0.0.1, takže migrace nejde spustit
 // z GitHub Actions přes síť — deploy si je vyvolá touhle routou.
 Route::get('/deploy-migrace/{token}', function (string $token) {
-    if (!hash_equals('f8k2Ld9xQm4vR7nW', $token)) {
+    if (!servisniTokenPlati($token)) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
@@ -79,7 +93,7 @@ Route::get('/deploy-migrace/{token}', function (string $token) {
 
 // --- Cron endpoint (tajný token) ---
 Route::get('/cron/{token}', function (string $token) {
-    if ($token !== 'f8k2Ld9xQm4vR7nW') {
+    if (!servisniTokenPlati($token)) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('doklady:process-email');
@@ -89,7 +103,7 @@ Route::get('/cron/{token}', function (string $token) {
 
 // --- Test odchozí pošty: /test-mail/{token}?to=adresa ---
 Route::get('/test-mail/{token}', function (string $token, Illuminate\Http\Request $request) {
-    if (!hash_equals('f8k2Ld9xQm4vR7nW', $token)) {
+    if (!servisniTokenPlati($token)) {
         abort(404);
     }
 
@@ -115,6 +129,29 @@ Route::get('/test-mail/{token}', function (string $token, Illuminate\Http\Reques
         return response('CHYBA: ' . $e->getMessage(), 500)->header('Content-Type', 'text/plain');
     }
 })->middleware('throttle:6,1');
+
+// --- Log aplikace: /log/{token}?bytes=N ---
+// Chyby při zpracování dokladů z emailu se jinak dají dohledat jen přes FTP.
+Route::get('/log/{token}', function (string $token, Illuminate\Http\Request $request) {
+    if (!servisniTokenPlati($token)) {
+        abort(404);
+    }
+
+    $soubor = storage_path('logs/laravel.log');
+
+    if (!is_readable($soubor)) {
+        return response("Log neexistuje: {$soubor}", 404)->header('Content-Type', 'text/plain');
+    }
+
+    $bytes = min(max((int) $request->query('bytes', 20000), 1000), 500000);
+    $velikost = filesize($soubor);
+    $od = max(0, $velikost - $bytes);
+
+    $obsah = file_get_contents($soubor, false, null, $od);
+
+    return response("=== posledních {$bytes} B z {$velikost} B ===\n\n" . $obsah, 200)
+        ->header('Content-Type', 'text/plain; charset=utf-8');
+})->middleware('throttle:20,1');
 
 // --- Žádost o přístup k firmě (bez auth, throttle) ---
 Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->middleware('throttle:3,60')->name('firma.zadostOPristup');
@@ -145,7 +182,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 // --- Cron endpoint: Google Drive sync ---
 Route::get('/cron-drive/{token}', function (string $token) {
-    if ($token !== 'f8k2Ld9xQm4vR7nW') {
+    if (!servisniTokenPlati($token)) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('doklady:sync-drive');

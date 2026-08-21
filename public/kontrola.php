@@ -10,7 +10,18 @@
  * ještě před přepnutím DNS.
  */
 
-if (($_GET['key'] ?? '') !== 'f8k2Ld9xQm4vR7nW') {
+// Token se čte z .env (SERVISNI_TOKEN) — repozitář je veřejný, v kódu být nesmí.
+$ocekavany = '';
+foreach (['/../.env', '/../../laravel-office/.env'] as $kandidat) {
+    if (is_readable(__DIR__ . $kandidat)) {
+        if (preg_match('/^SERVISNI_TOKEN=(.+)$/m', file_get_contents(__DIR__ . $kandidat), $m)) {
+            $ocekavany = trim($m[1]);
+        }
+        break;
+    }
+}
+
+if ($ocekavany === '' || !hash_equals($ocekavany, (string) ($_GET['key'] ?? ''))) {
     http_response_code(404);
     exit;
 }

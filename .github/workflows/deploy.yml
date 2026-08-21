@@ -153,6 +153,9 @@ jobs:
         IMAP_SYSTEM_USERNAME=${{ env.PROD_IMAP_USER }}
         IMAP_SYSTEM_PASSWORD=${{ secrets.MAIL_PASSWORD_DOKLADY }}
 
+        # Token servisních rout (cron, migrace, log, diagnostika)
+        SERVISNI_TOKEN=${{ secrets.SERVISNI_TOKEN }}
+
         GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
         ENVEOF
@@ -287,7 +290,7 @@ jobs:
     - name: Run DB migrations
       continue-on-error: true
       env:
-        CRON_TOKEN: ${{ vars.CRON_TOKEN || 'f8k2Ld9xQm4vR7nW' }}
+        CRON_TOKEN: ${{ secrets.SERVISNI_TOKEN }}
       run: |
         APP_URL="${{ vars.APP_URL || 'https://office.tuptudu.cz' }}"
         echo "Spouštím migrace na $APP_URL ..."

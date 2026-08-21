@@ -107,12 +107,16 @@ Vše je v **Variables**, aby šlo měnit bez commitu; hesla ve **Secrets**.
 | `MAIL_DOKLADY_DOMAIN` | `tuptudu.cz` | Doména adres `{IČO}@…` pro příjem i odpovědi |
 | `APP_URL` | `https://office.tuptudu.cz` | Cíl cronu a verifikace |
 | `CRON_ENABLED` | — | `1` zapne plánovaný cron přes GitHub Actions |
-| `CRON_TOKEN` | `f8k2Ld9xQm4vR7nW` | Token cron rout |
 | `PHP_VERSION` | `8.4` | Verze PHP pro composer install — musí odpovídat hostingu |
 
 Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `ANTHROPIC_API_KEY`, `MAIL_PASSWORD_INFO` (info@tuptudu.cz), `MAIL_PASSWORD_DOKLADY` (doklady@tuptudu.cz),
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SERVISNI_TOKEN`.
+
+**`SERVISNI_TOKEN`** chrání servisní routy (`/cron`, `/cron-drive`, `/deploy-migrace`,
+`/test-mail`, `/log`) i skripty `kontrola.php` a `diagnose.php`. Repozitář je veřejný,
+proto token nesmí být v kódu — routy ho čtou přes `config('services.servisni_token')`,
+skripty přímo z `.env`.
 
 ### Workflows
 | Soubor | Spouštění | Účel |
@@ -141,6 +145,8 @@ Má výjimku z vynucení HTTPS, aby šla spustit i před vydáním certifikátu.
 - `GET /cron/{token}` — email processing
 - `GET /cron-drive/{token}` — Google Drive sync
 - `GET /deploy-migrace/{token}` — spuštění migrací z deploye
+- `GET /log/{token}?bytes=N` — konec aplikačního logu
+- `GET /test-mail/{token}?to=…` — test odchozí pošty
 - Volá je `.github/workflows/cron.yml` (nebo cron hostingu)
 
 ## Databázové tabulky

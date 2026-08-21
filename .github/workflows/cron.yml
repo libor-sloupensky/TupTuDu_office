@@ -18,7 +18,7 @@ on:
 
 env:
   APP_URL: ${{ vars.APP_URL || 'https://office.tuptudu.cz' }}
-  CRON_TOKEN: ${{ vars.CRON_TOKEN || 'f8k2Ld9xQm4vR7nW' }}
+  CRON_TOKEN: ${{ secrets.SERVISNI_TOKEN }}
 
 # Kdyby se běhy překryly (opožděné spuštění), starý se ukončí — jinak by se
 # ve frontě hromadily a pingovaly schránku několikrát naráz.
@@ -38,7 +38,9 @@ jobs:
         for i in $(seq 1 5); do
           echo "--- kontrola schránky $i/5 ($(date '+%H:%M:%S')) ---"
           curl -sS --max-time 240 "$APP_URL/cron/$CRON_TOKEN" || echo "cron/email selhal"
-          [ "$i" -lt 5 ] && sleep 60
+          # Ne `[ … ] && sleep` — při poslední iteraci vrátí nepravdu a protože
+          # je to poslední příkaz kroku, celý krok by skončil chybou.
+          if [ "$i" -lt 5 ]; then sleep 60; fi
         done
 
     # Drive sync nahrává po 50 dokladech, nemá smysl ho volat každou minutu.
