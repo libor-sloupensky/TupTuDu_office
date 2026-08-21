@@ -66,8 +66,14 @@ foreach ($tabulky as $tabulka) {
 $tabulky = seradPodleZavislosti($definice);
 $radkuCelkem = 0;
 
+$cizíKlice = [];
+
 foreach ($tabulky as $tabulka) {
-    $create = $definice[$tabulka];
+    [$create, $klice] = oddelCiziKlice($definice[$tabulka]);
+
+    foreach ($klice as $klic) {
+        $cizíKlice[] = "ALTER TABLE `{$tabulka}` ADD {$klic};";
+    }
 
     fwrite($out, "\n--\n-- Tabulka {$tabulka}\n--\n\n");
     fwrite($out, "DROP TABLE IF EXISTS `{$tabulka}`;\n");
@@ -107,11 +113,58 @@ foreach ($tabulky as $tabulka) {
     echo str_pad($tabulka, 28), $radku, " řádků\n";
 }
 
+// Cizí klíče až nakonec, kdy jsou všechna data na místě
+if ($cizíKlice) {
+    fwrite($out, "\n--\n-- Cizí klíče\n--\n\n");
+    fwrite($out, implode("\n", $cizíKlice) . "\n");
+}
+
 fwrite($out, "\nSET FOREIGN_KEY_CHECKS = 1;\n");
 fclose($out);
 
 echo "\nHotovo: {$cil}\n";
 echo 'Velikost: ' . round(filesize($cil) / 1024, 1) . " kB, řádků celkem: {$radkuCelkem}\n";
+
+/**
+ * Vyjme z CREATE TABLE definice cizích klíčů a vrátí je zvlášť.
+ *
+ * Cizí klíče se pak přidají až úplně na konec dumpu, po nahrání všech dat.
+ * Import tím přestane záviset na tom, jestli má importér zapnuté kontroly
+ * cizích klíčů — phpMyAdmin si `SET FOREIGN_KEY_CHECKS = 0` přebíjí, takže
+ * jinak spadne na vkládání potomka dřív existujícího rodiče (chyba 1452)
+ * i na odkazu tabulky samy na sebe (fak_doklady.duplicita_id).
+ */
+function oddelCiziKlice(string $create): array
+{
+    $radky = explode("\n", $create);
+    $zbyle = [];
+    $klice = [];
+
+    foreach ($radky as $radek) {
+        if (preg_match('/^\s*CONSTRAINT\s+.*FOREIGN KEY/i', $radek)) {
+            $klice[] = rtrim(trim($radek), ',');
+            continue;
+        }
+
+        $zbyle[] = $radek;
+    }
+
+    if (!$klice) {
+        return [$create, []];
+    }
+
+    // Po odebrání klíčů může poslední řádek definice končit čárkou
+    for ($i = count($zbyle) - 1; $i >= 0; $i--) {
+        if (str_starts_with(ltrim($zbyle[$i]), ')')) {
+            continue;
+        }
+
+        $zbyle[$i] = rtrim(rtrim($zbyle[$i]), ',');
+        break;
+    }
+
+    return [implode("\n", $zbyle), $klice];
+}
 
 /**
  * Seřadí tabulky tak, aby odkazovaná tabulka vznikla dřív než ta, která na ni
