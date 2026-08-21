@@ -44,6 +44,12 @@ class PhpMailTransport extends AbstractTransport
 
         $odesilatel = $message->getEnvelope()->getSender()->getAddress();
 
+        // PHP jinak přidá hlavičku X-PHP-Originating-Script s uid a cestou ke
+        // skriptu. Spamové filtry ji berou jako signál strojově generované pošty
+        // a zbytečně tím zvyšují skóre. Direktiva bývá PHP_INI_PERDIR, takže se
+        // to nemusí povést — pak je potřeba ji vypnout v nastavení hostingu.
+        @ini_set('mail.add_x_header', '0');
+
         // Pátý parametr nastavuje obálkového odesílatele kvůli SPF. Některé
         // hostingy ho zakazují, proto se při neúspěchu zkusí i bez něj.
         $odeslano = @mail($komu, $rozdelene['subject'], $telo, $rozdelene['zbytek'], '-f' . $odesilatel);
