@@ -13,7 +13,7 @@ name: Cron (email + Google Drive)
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 env:
@@ -29,18 +29,22 @@ concurrency:
 jobs:
   cron:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
     if: ${{ vars.CRON_ENABLED == '1' }}
 
     steps:
-    - name: Zpracování emailových dokladů (5× po minutě)
+    # Běh pokrývá celou hodinu, plánuje se po 15 minutách a nový běh ten starý
+    # ukončí. Schránka je tak kontrolovaná souvisle, i když GitHub většinu
+    # naplánovaných spuštění odloží nebo přeskočí — stačí, aby se za hodinu
+    # spustil aspoň jeden.
+    - name: Zpracování emailových dokladů (každou minutu)
       run: |
-        for i in $(seq 1 5); do
-          echo "--- kontrola schránky $i/5 ($(date '+%H:%M:%S')) ---"
+        for i in $(seq 1 55); do
+          echo "--- kontrola schránky $i/55 ($(date '+%H:%M:%S')) ---"
           curl -sS --max-time 240 "$APP_URL/cron/$CRON_TOKEN" || echo "cron/email selhal"
           # Ne `[ … ] && sleep` — při poslední iteraci vrátí nepravdu a protože
           # je to poslední příkaz kroku, celý krok by skončil chybou.
-          if [ "$i" -lt 5 ]; then sleep 60; fi
+          if [ "$i" -lt 55 ]; then sleep 60; fi
         done
 
     # Drive sync nahrává po 50 dokladech, nemá smysl ho volat každou minutu.
