@@ -56,10 +56,18 @@ fwrite($out, "SET FOREIGN_KEY_CHECKS = 0;\n");
 fwrite($out, "SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n");
 
 $tabulky = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+
+$definice = [];
+
+foreach ($tabulky as $tabulka) {
+    $definice[$tabulka] = $pdo->query("SHOW CREATE TABLE `{$tabulka}`")->fetch(PDO::FETCH_NUM)[1];
+}
+
+$tabulky = seradPodleZavislosti($definice);
 $radkuCelkem = 0;
 
 foreach ($tabulky as $tabulka) {
-    $create = $pdo->query("SHOW CREATE TABLE `{$tabulka}`")->fetch(PDO::FETCH_NUM)[1];
+    $create = $definice[$tabulka];
 
     fwrite($out, "\n--\n-- Tabulka {$tabulka}\n--\n\n");
     fwrite($out, "DROP TABLE IF EXISTS `{$tabulka}`;\n");
@@ -104,6 +112,51 @@ fclose($out);
 
 echo "\nHotovo: {$cil}\n";
 echo 'Velikost: ' . round(filesize($cil) / 1024, 1) . " kB, řádků celkem: {$radkuCelkem}\n";
+
+/**
+ * Seřadí tabulky tak, aby odkazovaná tabulka vznikla dřív než ta, která na ni
+ * ukazuje cizím klíčem. Bez toho import spadne na "Foreign key constraint is
+ * incorrectly formed" všude, kde nejde vypnout kontrolu cizích klíčů
+ * (typicky import přes phpMyAdmin, který si nastavení přebíjí).
+ */
+function seradPodleZavislosti(array $definice): array
+{
+    $zavislosti = [];
+
+    foreach ($definice as $tabulka => $create) {
+        preg_match_all('/REFERENCES\s+`([^`]+)`/i', $create, $shody);
+
+        // Odkaz sám na sebe pořadí neovlivňuje
+        $zavislosti[$tabulka] = array_values(array_unique(array_filter(
+            $shody[1],
+            fn ($cil) => $cil !== $tabulka && isset($definice[$cil])
+        )));
+    }
+
+    $serazene = [];
+    $zpracovavane = [];
+
+    $vloz = function (string $tabulka) use (&$vloz, &$serazene, &$zpracovavane, $zavislosti): void {
+        if (isset($serazene[$tabulka]) || isset($zpracovavane[$tabulka])) {
+            return; // hotovo, nebo cyklus — ten vyřeší vypnuté kontroly
+        }
+
+        $zpracovavane[$tabulka] = true;
+
+        foreach ($zavislosti[$tabulka] as $rodic) {
+            $vloz($rodic);
+        }
+
+        unset($zpracovavane[$tabulka]);
+        $serazene[$tabulka] = true;
+    };
+
+    foreach (array_keys($definice) as $tabulka) {
+        $vloz($tabulka);
+    }
+
+    return array_keys($serazene);
+}
 
 function zapsatDavku($out, string $tabulka, array $sloupce, array $davka): void
 {
