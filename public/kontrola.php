@@ -231,6 +231,10 @@ if (isset($_GET['app']) && $basePath) {
 
 echo "\n=== Možnosti odesílání pošty ===\n";
 echo 'sendmail_path: ' . (ini_get('sendmail_path') ?: '(nenastaveno)') . "\n";
+// Když hosting vynucuje vlastní parametry, náš -f (obálkový odesílatel) se
+// zahodí a zpráva odejde z adresy serveru → DMARC nesedí a filtry to řeší spamem.
+echo 'mail.force_extra_parameters: ' . (ini_get('mail.force_extra_parameters') ?: '(nenastaveno)') . "\n";
+echo 'mail.add_x_header: ' . (ini_get('mail.add_x_header') ? 'ano' : 'ne') . "\n";
 echo 'disable_functions: ' . (ini_get('disable_functions') ?: '(žádné)') . "\n";
 
 foreach (['mail', 'proc_open', 'popen', 'exec'] as $fn) {
