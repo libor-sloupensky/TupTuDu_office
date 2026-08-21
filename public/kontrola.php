@@ -182,6 +182,42 @@ foreach ($cile as [$hostitel, $port]) {
     }
 }
 
+// Volitelný režim: nastartuje Laravel a ověří, že aplikace umí přečíst data
+// a sáhnout na doklad v S3. Jen čtení, nic to nemění ani neodesílá.
+if (isset($_GET['app']) && $basePath) {
+    echo "\n=== Aplikace ===\n";
+
+    try {
+        require $basePath . '/vendor/autoload.php';
+        $app = require $basePath . '/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+        echo 'Laravel: ' . $app->version() . "\n";
+        echo 'APP_URL: ' . config('app.url') . "\n";
+        echo 'Mailer: ' . config('mail.default') . ' / doklady: '
+            . config('mail.mailers.doklady.transport') . "\n";
+        echo 'Doména dokladů: ' . config('mail.doklady_domain') . "\n";
+
+        $firem = App\Models\Firma::count();
+        $dokladu = App\Models\Doklad::count();
+        echo "Přes Eloquent — firem: {$firem}, dokladů: {$dokladu}\n";
+
+        $doklad = App\Models\Doklad::whereNotNull('cesta_souboru')->latest('id')->first();
+
+        if ($doklad) {
+            $disk = Illuminate\Support\Facades\Storage::disk('s3');
+            $existuje = $disk->exists($doklad->cesta_souboru);
+            echo "S3 — soubor dokladu #{$doklad->id}: "
+                . ($existuje ? 'nalezen (' . $disk->size($doklad->cesta_souboru) . ' B)' : 'CHYBÍ') . "\n";
+        } else {
+            echo "S3 — není doklad se souborem k ověření\n";
+        }
+    } catch (Throwable $e) {
+        echo 'CHYBA: ' . $e->getMessage() . "\n";
+        echo '  ' . $e->getFile() . ':' . $e->getLine() . "\n";
+    }
+}
+
 echo "\n=== Možnosti odesílání pošty ===\n";
 echo 'sendmail_path: ' . (ini_get('sendmail_path') ?: '(nenastaveno)') . "\n";
 echo 'disable_functions: ' . (ini_get('disable_functions') ?: '(žádné)') . "\n";
