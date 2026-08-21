@@ -89,7 +89,13 @@ foreach ($tabulky as $tabulka) {
     $radku = 0;
     $davka = [];
 
+    // Názvy sloupců si držíme z prvního řádku — po dočtení je $radek false,
+    // takže z něj poslední (neúplnou) dávku odvodit nelze.
+    $sloupce = [];
+
     while ($radek = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $sloupce = $sloupce ?: array_keys($radek);
+
         $hodnoty = array_map(
             fn ($h) => $h === null ? 'NULL' : $pdo->quote((string) $h),
             array_values($radek)
@@ -100,13 +106,13 @@ foreach ($tabulky as $tabulka) {
 
         // Po 200 řádcích zapsat, ať dump nedrží celou tabulku v paměti
         if (count($davka) >= 200) {
-            zapsatDavku($out, $tabulka, array_keys($radek), $davka);
+            zapsatDavku($out, $tabulka, $sloupce, $davka);
             $davka = [];
         }
     }
 
     if ($davka) {
-        zapsatDavku($out, $tabulka, array_keys($radek ?: []), $davka);
+        zapsatDavku($out, $tabulka, $sloupce, $davka);
     }
 
     $radkuCelkem += $radku;
