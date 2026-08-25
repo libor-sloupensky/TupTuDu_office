@@ -7,13 +7,17 @@ use Carbon\Carbon;
 
 class DrivePathBuilder
 {
-    /** Default šablona pokud firma nemá vlastní */
-    public const DEFAULT_TEMPLATE = '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}';
+    /**
+     * Default šablona pokud firma nemá vlastní.
+     * Začíná složkou {IČO}_{název firmy}, aby se doklady víc firem daly zálohovat
+     * na jeden Disk a přitom zůstaly oddělené a na první pohled rozeznatelné.
+     */
+    public const DEFAULT_TEMPLATE = '{ico}_{firma}/{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}';
 
     /** Povolené tokeny (whitelist) */
     private const ALLOWED_TOKENS = [
         'id', 'nahrano', 'duzp', 'vystaveni', 'splatnost',
-        'dodavatel', 'dodavatel_ico', 'ico', 'castka', 'vs',
+        'dodavatel', 'dodavatel_ico', 'ico', 'firma', 'castka', 'vs',
         'typ', 'kategorie', 'cislo',
     ];
 
@@ -126,6 +130,10 @@ class DrivePathBuilder
         ]);
         // Force id (not mass-assignable)
         $fakeDoklad->id = 12345;
+        // Název firmy v náhledu — ukázkový doklad není v DB, relace by nic nevrátila
+        $fakeDoklad->setAttribute('firma_nazev', 'WormUP s.r.o.');
+        // created_at není mass-assignable, bez tohohle náhled u {nahrano} psal „nezname“
+        $fakeDoklad->setAttribute('created_at', Carbon::parse('2026-02-25'));
 
         $result = $this->build($template, $fakeDoklad);
 
@@ -167,6 +175,8 @@ class DrivePathBuilder
             'dodavatel'     => $doklad->dodavatel_nazev,
             'dodavatel_ico' => $doklad->dodavatel_ico,
             'ico'           => $doklad->firma_ico,
+            // Náhled si název podstrčí atributem, u skutečného dokladu se bere z relace
+            'firma'         => $doklad->getAttribute('firma_nazev') ?? $doklad->firma?->nazev,
             'castka'        => $doklad->castka_celkem !== null ? number_format((float) $doklad->castka_celkem, 2, '.', '') : null,
             'vs'            => $doklad->variabilni_symbol,
             'typ'           => $doklad->typ_dokladu,

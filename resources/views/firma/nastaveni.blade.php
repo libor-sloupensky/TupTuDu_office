@@ -446,6 +446,7 @@
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} → 12.01.2026</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → dodavatel s.r.o.</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{firma}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Název vaší firmy</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">WormUP s.r.o.</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{castka}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Celková částka</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">1250.00</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vs}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Variabilní symbol</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">2024001</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{typ}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Typ dokladu</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">faktura</td></tr>
@@ -1218,7 +1219,7 @@
         .catch(() => showVlastniStatus('Chyba připojení.', '#e74c3c'));
     };
     // ===== Google Drive šablona preview =====
-    var gdriveDefaultTemplate = '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}';
+    var gdriveDefaultTemplate = @json(App\Services\DrivePathBuilder::DEFAULT_TEMPLATE);
     var gdrivePreviewData = {
         id: '12345',
         nahrano: new Date(2026, 1, 25),
@@ -1228,6 +1229,7 @@
         dodavatel: 'dodavatel s.r.o.',
         dodavatel_ico: '12345678',
         ico: '{{ $firma ? $firma->ico : "87700484" }}',
+        firma: @json($firma ? $firma->nazev : 'WormUP s.r.o.'),
         castka: '1250.00',
         vs: '2024001',
         typ: 'faktura',

@@ -15,9 +15,20 @@ class SyncGoogleDrive extends Command
 
     public function handle(): int
     {
+        // Vybírají se jen doklady, které má kam nahrát — tedy firmy s aktivním
+        // Drivem a klienti účetních s aktivním Drivem. Doklady ostatních firem
+        // se nechávají nedotčené, ať se dají zálohovat, až si Drive připojí.
+        $sDrivem = Firma::where('google_drive_aktivni', true)->pluck('ico');
+
+        $klientiUcetnich = UcetniVazba::where('stav', 'schvaleno')
+            ->whereIn('ucetni_ico', $sDrivem)
+            ->pluck('klient_ico');
+
         $doklady = Doklad::where('stav', 'dokonceno')
             ->whereNull('google_drive_nahrano_at')
             ->whereNotNull('cesta_souboru')
+            ->where(fn ($q) => $q->whereIn('firma_ico', $sDrivem)
+                ->orWhereIn('firma_ico', $klientiUcetnich))
             ->orderBy('id')
             ->limit(50)
             ->get();
@@ -66,12 +77,11 @@ class SyncGoogleDrive extends Command
                 }
             }
 
-            // Mark as uploaded if at least one Drive upload succeeded,
-            // or if neither firma nor ucetni has Drive active (nothing to do)
-            $firmaActive = $firma->google_drive_aktivni;
-            $ucetniActive = isset($ucetniFirma) && $ucetniFirma->google_drive_aktivni;
-
-            if ($anyUpload || (!$firmaActive && !$ucetniActive)) {
+            // Razítko jen když se doklad opravdu někam nahrál. Dřív se stavěl
+            // i ve chvíli, kdy žádný Drive nebyl aktivní — a protože se aplikace
+            // po vypršení tokenu sama odpojí, odrazítkovala takhle celou frontu
+            // jako hotovou, aniž by se cokoli nahrálo, a už se k tomu nevrátila.
+            if ($anyUpload) {
                 $doklad->update([
                     'google_drive_file_id' => $firmaFileId,
                     'google_drive_ucetni_file_id' => $ucetniFileId,
