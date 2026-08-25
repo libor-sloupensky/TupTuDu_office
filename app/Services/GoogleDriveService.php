@@ -32,8 +32,12 @@ class GoogleDriveService
             $template = $firma->google_drive_sablona ?? DrivePathBuilder::DEFAULT_TEMPLATE;
             $path = $builder->build($template, $doklad);
 
-            // Ensure folder structure: root → {ICO} → template folders
-            $icoFolderId = $this->ensureFolderWithClient($driveService, $rootFolderId, $firma->ico);
+            // Ensure folder structure: root → {IČO}_{název firmy} → template folders
+            $icoFolderId = $this->ensureFolderWithClient(
+                $driveService,
+                $rootFolderId,
+                $this->nazevSlozkyFirmy($firma)
+            );
             $parentFolderId = $icoFolderId;
             foreach ($path['folders'] as $folderName) {
                 if ($folderName !== '') {
@@ -80,6 +84,28 @@ class GoogleDriveService
             $this->handleAuthError($e, $firma);
             return null;
         }
+    }
+
+    /**
+     * Název složky firmy na Disku: IČO a název, ať se dá při více firmách
+     * na jednom Disku poznat, čí doklady to jsou. Samotné IČO se špatně čte.
+     *
+     * Pozor: přejmenováním vznikne nová složka a doklady nahrané pod starým
+     * názvem zůstanou tam, kde jsou.
+     */
+    public function nazevSlozkyFirmy(Firma $firma): string
+    {
+        $nazev = trim((string) $firma->nazev);
+
+        if ($nazev === '') {
+            return $firma->ico;
+        }
+
+        // Znaky, které dělají potíže v cestách, a koncové tečky pryč
+        $nazev = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '', $nazev);
+        $nazev = trim($nazev, " \t.");
+
+        return $nazev !== '' ? $firma->ico . '_' . $nazev : $firma->ico;
     }
 
     public function ensureFolderWithClient($driveService, string $parentId, string $name): string

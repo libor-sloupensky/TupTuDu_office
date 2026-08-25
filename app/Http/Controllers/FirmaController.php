@@ -76,7 +76,12 @@ class FirmaController extends Controller
         $uzivatele = $firma ? $firma->users()->withPivot('role', 'interni_role')->get() : collect();
         $pozvani = $firma ? Pozvani::where('firma_ico', $firma->ico)->whereNull('accepted_at')->where('expires_at', '>', now())->get() : collect();
 
-        return view('firma.nastaveni', compact('firma', 'vazby', 'jeUcetni', 'toggleDisabledReason', 'klientVazby', 'cekajiciVazby', 'expandUcetni', 'kategorie', 'jeSuperadmin', 'uzivatele', 'pozvani'));
+        // Název složky firmy na Disku — náhled cesty ho ukazuje jako první úroveň
+        $gdriveSlozkaFirmy = $firma
+            ? (new \App\Services\GoogleDriveService())->nazevSlozkyFirmy($firma)
+            : '';
+
+        return view('firma.nastaveni', compact('firma', 'vazby', 'jeUcetni', 'toggleDisabledReason', 'klientVazby', 'cekajiciVazby', 'expandUcetni', 'kategorie', 'jeSuperadmin', 'uzivatele', 'pozvani', 'gdriveSlozkaFirmy'));
     }
 
     public function ulozit(Request $request)

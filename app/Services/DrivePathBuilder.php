@@ -9,10 +9,12 @@ class DrivePathBuilder
 {
     /**
      * Default šablona pokud firma nemá vlastní.
-     * Začíná složkou {IČO}_{název firmy}, aby se doklady víc firem daly zálohovat
-     * na jeden Disk a přitom zůstaly oddělené a na první pohled rozeznatelné.
+     *
+     * Šablona popisuje cestu *uvnitř* složky firmy — tu zakládá GoogleDriveService
+     * a jmenuje se {IČO}_{název firmy}. Dávat sem znovu {ico} nebo {firma} tedy
+     * znamená mít stejnou informaci v cestě dvakrát.
      */
-    public const DEFAULT_TEMPLATE = '{ico}_{firma}/{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}';
+    public const DEFAULT_TEMPLATE = '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}';
 
     /** Povolené tokeny (whitelist) */
     private const ALLOWED_TOKENS = [

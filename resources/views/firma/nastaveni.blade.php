@@ -461,13 +461,22 @@
                     <div>
                         <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.3rem;">Šablona:</label>
                         <input type="text" id="gdriveSablona"
-                            value="{{ $firma->google_drive_sablona ?? '{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}' }}"
+                            value="{{ $firma->google_drive_sablona ?? App\Services\DrivePathBuilder::DEFAULT_TEMPLATE }}"
                             style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 0.9rem;"
                             oninput="updateGdrivePreview()"
-                            placeholder="{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}">
+                            placeholder="{{ App\Services\DrivePathBuilder::DEFAULT_TEMPLATE }}">
+
+                        <div style="font-size: 0.78rem; color: #777; margin-top: 0.3rem;">
+                            @if ($firma->google_drive_sablona)
+                                Máte vlastní šablonu. Výchozí je
+                                <code>{{ App\Services\DrivePathBuilder::DEFAULT_TEMPLATE }}</code>.
+                            @else
+                                Používá se výchozí šablona.
+                            @endif
+                        </div>
 
                         <div style="font-size: 0.82rem; color: #666; margin-top: 0.4rem;">
-                            Náhled: <strong>office.tuptudu.cz/{{ $firma->ico }}/<span id="gdrivePreview"></span></strong>
+                            Náhled: <strong>office.tuptudu.cz/{{ $gdriveSlozkaFirmy }}/<span id="gdrivePreview"></span></strong>
                         </div>
 
                         <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.6rem;">
