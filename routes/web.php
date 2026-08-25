@@ -130,6 +130,34 @@ Route::get('/test-mail/{token}', function (string $token, Illuminate\Http\Reques
     }
 })->middleware('throttle:6,1');
 
+// --- Znovu nahrát doklady firmy na Google Drive: /drive-znovu/{token}/{ico} ---
+// Když se složka na Disku smaže nebo se firmě připojí Drive dodatečně, doklady
+// zůstanou orazítkované jako nahrané a synchronizace se k nim už nevrátí.
+// Tohle razítka smaže, takže je cron nahraje znovu (po 50 za běh).
+Route::get('/drive-znovu/{token}/{ico}', function (string $token, string $ico) {
+    if (!servisniTokenPlati($token)) {
+        abort(404);
+    }
+
+    $firma = App\Models\Firma::find($ico);
+
+    if (!$firma) {
+        return response("Firma {$ico} neexistuje.", 404)->header('Content-Type', 'text/plain');
+    }
+
+    $pocet = App\Models\Doklad::where('firma_ico', $ico)->update([
+        'google_drive_nahrano_at' => null,
+        'google_drive_file_id' => null,
+        'google_drive_ucetni_file_id' => null,
+    ]);
+
+    return response(
+        "Firma {$ico} ({$firma->nazev}): vráceno do fronty {$pocet} dokladů.\n"
+        . "Cron je nahraje po 50 za běh.",
+        200
+    )->header('Content-Type', 'text/plain');
+})->middleware('throttle:6,1');
+
 // --- Log aplikace: /log/{token}?bytes=N ---
 // Chyby při zpracování dokladů z emailu se jinak dají dohledat jen přes FTP.
 Route::get('/log/{token}', function (string $token, Illuminate\Http\Request $request) {
