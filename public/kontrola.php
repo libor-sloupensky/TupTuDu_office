@@ -225,6 +225,29 @@ if (isset($_GET['imap']) && $basePath) {
                 $nove = $folder->query()->setFetchBody(false)->unseen()->get()->count();
                 printf("  %-28s %4d zpráv, %d nepřečtených\n", $folder->path, $vse, $nove);
 
+                // Hlavičky poslední zprávy — jediný způsob, jak ověřit, že
+                // odchozí pošta opravdu nese podpis DKIM. Panel může hlásit
+                // aktivní podepisování, a přesto se na zprávy z PHP nevztahovat.
+                if (isset($_GET['hlavicky'])) {
+                    $posledni = $folder->query()->setFetchBody(false)->all()->limit(1)->get()->last();
+
+                    if ($posledni) {
+                        echo "\n  --- hlavičky poslední zprávy ---\n";
+                        $raw = (string) $posledni->getHeader()->raw;
+
+                        foreach (['Return-Path', 'From', 'To', 'Subject', 'DKIM-Signature',
+                                  'Authentication-Results', 'Received-SPF', 'X-PHP-Originating-Script'] as $h) {
+                            if (preg_match('/^' . preg_quote($h, '/') . ':\s*(.*(?:\r?\n[ \t].*)*)/mi', $raw, $m)) {
+                                echo '      ' . $h . ': '
+                                    . mb_substr(preg_replace('/\s+/', ' ', $m[1]), 0, 160) . "\n";
+                            } else {
+                                echo '      ' . $h . ": —\n";
+                            }
+                        }
+                        echo "\n";
+                    }
+                }
+
                 foreach ($folder->query()->setFetchBody(false)->all()->limit(15)->get() as $zprava) {
                     $vypis = function (callable $co) {
                         try { return trim((string) $co()); } catch (Throwable $e) { return '?'; }
@@ -276,6 +299,23 @@ if (isset($_GET['app']) && $basePath) {
         $firem = App\Models\Firma::count();
         $dokladu = App\Models\Doklad::count();
         echo "Přes Eloquent — firem: {$firem}, dokladů: {$dokladu}\n";
+
+        echo "\nGoogle Drive podle firem:\n";
+        foreach (App\Models\Firma::all() as $f) {
+            $celkem = App\Models\Doklad::where('firma_ico', $f->ico)->count();
+            $nahrano = App\Models\Doklad::where('firma_ico', $f->ico)
+                ->whereNotNull('google_drive_file_id')->count();
+
+            printf(
+                "  %-10s %-28s Drive: %-8s dokladů: %d, nahráno na Drive: %d, čeká: %d\n",
+                $f->ico,
+                mb_substr((string) $f->nazev, 0, 26),
+                $f->google_drive_aktivni ? 'aktivní' : 'vypnutý',
+                $celkem,
+                $nahrano,
+                $celkem - $nahrano
+            );
+        }
 
         $doklad = App\Models\Doklad::whereNotNull('cesta_souboru')->latest('id')->first();
 
