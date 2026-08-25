@@ -199,6 +199,10 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::get('/doklady', [InvoiceController::class, 'index'])->name('doklady.index');
     Route::post('/doklady/ai-search', [InvoiceController::class, 'aiSearch'])->name('doklady.aiSearch');
     Route::get('/doklady/mesic/{mesic}/zip', [InvoiceController::class, 'downloadMonth'])->name('doklady.downloadMonth');
+    // Ověření po přerušeném nahrávání — mobilní skener se ptá, jestli doklad přesto vznikl
+    Route::get('/doklady/hash/{hash}', [InvoiceController::class, 'podleHashe'])
+        ->where('hash', '[a-f0-9]{64}')
+        ->name('doklady.podleHashe');
     Route::post('/doklady/stahnout-vybrane', [InvoiceController::class, 'downloadSelected'])->name('doklady.downloadSelected');
     Route::get('/doklady/{doklad}', [InvoiceController::class, 'show'])->name('doklady.show');
     Route::get('/doklady/{doklad}/stahnout', [InvoiceController::class, 'download'])->name('doklady.download');

@@ -522,6 +522,31 @@ class InvoiceController extends Controller
         return response()->download($tempZip, $zipName)->deleteFileAfterSend(true);
     }
 
+    /**
+     * Existuje pro aktivní firmu doklad s tímhle otiskem souboru?
+     *
+     * Mobilní skener se ptá poté, co se mu přeruší spojení při nahrávání.
+     * Zpracování dokladu trvá desítky sekund a server v něm pokračuje i když
+     * klient odpadne — bez tohohle dotazu appka hlásí chybu u dokladu, který
+     * se ve skutečnosti v pořádku uložil.
+     */
+    public function podleHashe(string $hash)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json(['existuje' => false], 400);
+        }
+
+        $doklad = (new \App\Services\DokladProcessor())->isDuplicate($hash, $firma->ico);
+
+        return response()->json([
+            'existuje' => $doklad !== null,
+            'id' => $doklad?->id,
+            'nazev' => $doklad?->nazev_souboru,
+        ]);
+    }
+
     public function downloadMonth(Request $request, string $mesic)
     {
         if (!preg_match('/^\d{4}-\d{2}$/', $mesic)) {

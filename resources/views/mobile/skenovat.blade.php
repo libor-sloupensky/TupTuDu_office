@@ -274,9 +274,68 @@ async function nahratNaPozadi(blob, fileName) {
             items.slice(1).forEach(it => addResult(it));
         }
     } catch (err) {
+        // Zpracování dokladu trvá desítky sekund a server v něm pokračuje, i když
+        // klientovi mezitím spadne spojení (přepnutí sítě, uspání appky). Než to
+        // ohlásíme jako chybu, ověříme podle otisku souboru, jestli doklad nevznikl.
+        const doklad = await overitPodleHashe(blob);
+
+        if (doklad) {
+            polozka.dokoncit({
+                status: 'ok',
+                message: 'Nahráno (spojení se přerušilo, doklad se ale uložil)',
+            });
+            return;
+        }
+
         const msg = (err && err.message) ? err.message : String(err);
         polozka.dokoncit({ status: 'error', message: 'Nahrání selhalo: ' + msg });
     }
+}
+
+/** Otisk souboru — stejný sha256, podle kterého server pozná duplicitu. */
+async function spocitatHash(blob) {
+    const buffer = await blob.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+
+    return Array.from(new Uint8Array(digest))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+/**
+ * Počká, jestli doklad na serveru dorazí. Zkouší se opakovaně — zpracování
+ * mohlo v okamžiku přerušení ještě běžet.
+ */
+async function overitPodleHashe(blob) {
+    let hash;
+
+    try {
+        hash = await spocitatHash(blob);
+    } catch (e) {
+        return null;
+    }
+
+    const url = '{{ url("/doklady/hash") }}/' + hash;
+
+    for (let pokus = 0; pokus < 6; pokus++) {
+        await new Promise(r => setTimeout(r, 5000));
+
+        try {
+            const resp = await fetch(url, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'include',
+            });
+
+            if (!resp.ok) continue;
+
+            const data = await resp.json();
+            if (data.existuje) return data;
+        } catch (e) {
+            // Síť je pořád mimo, zkusíme to za chvíli znovu
+        }
+    }
+
+    return null;
 }
 </script>
 
