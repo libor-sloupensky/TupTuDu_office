@@ -28,6 +28,9 @@ class OdpovedNaDoklad extends Mailable
     {
         return new Content(
             view: 'emails.odpoved-doklad',
+            // Textová alternativa — zpráva jen v HTML je pro spamové filtry
+            // podezřelá (pravidlo MIME_HTML_ONLY) a část klientů ji nezobrazí.
+            text: 'emails.odpoved-doklad-text',
         );
     }
 }

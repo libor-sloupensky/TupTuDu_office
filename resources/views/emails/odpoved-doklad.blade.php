@@ -6,7 +6,9 @@
         {{-- Header --}}
         <div style="background: #2c3e50; color: white; padding: 1rem 1.5rem; border-radius: 8px 8px 0 0; text-align: center;">
             <strong style="font-size: 1.1rem; letter-spacing: 0.5px;">TupTuDu</strong>
-            <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 2px;">automatická schránka pro příjem dokladů</div>
+            {{-- Bez opacity a se čitelnou barvou: filtry hodnotí málo kontrastní
+                 a průhledný text jako pokus něco schovat (pravidlo FONT_INVIS). --}}
+            <div style="font-size: 12px; color: #cfd8e3; margin-top: 2px;">automatická schránka pro příjem dokladů</div>
         </div>
 
         {{-- Body --}}
@@ -18,7 +20,7 @@
 
         {{-- Footer --}}
         <div style="background: #f8f9fa; padding: 1rem 1.5rem; border-radius: 0 0 8px 8px; border: 1px solid #e0e0e0; border-top: none;">
-            <p style="color: #999; font-size: 0.75rem; margin: 0; text-align: center;">
+            <p style="color: #5a6570; font-size: 12px; margin: 0; text-align: center;">
                 Toto je automatická odpověď &mdash; na tento email neodpovídejte.
             </p>
         </div>
