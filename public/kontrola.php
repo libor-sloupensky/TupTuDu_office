@@ -225,14 +225,16 @@ if (isset($_GET['imap']) && $basePath) {
                 $nove = $folder->query()->setFetchBody(false)->unseen()->get()->count();
                 printf("  %-28s %4d zpráv, %d nepřečtených\n", $folder->path, $vse, $nove);
 
-                if ($nove > 0) {
-                    foreach ($folder->query()->setFetchBody(false)->unseen()->limit(10)->get() as $zprava) {
-                        $komu = '';
-                        try { $komu = (string) $zprava->getTo(); } catch (Throwable $e) {}
-                        $predmet = '';
-                        try { $predmet = (string) $zprava->getSubject(); } catch (Throwable $e) {}
-                        echo '      → komu: ' . mb_substr($komu, 0, 70) . ' | ' . mb_substr($predmet, 0, 50) . "\n";
-                    }
+                foreach ($folder->query()->setFetchBody(false)->all()->limit(15)->get() as $zprava) {
+                    $vypis = function (callable $co) {
+                        try { return trim((string) $co()); } catch (Throwable $e) { return '?'; }
+                    };
+
+                    echo '      '
+                        . str_pad($vypis(fn () => $zprava->getDate()), 22)
+                        . ($zprava->getFlags()->has('seen') ? 'přečteno   ' : 'NEPŘEČTENO ')
+                        . 'komu: ' . mb_substr($vypis(fn () => $zprava->getTo()), 0, 40)
+                        . ' | ' . mb_substr($vypis(fn () => $zprava->getSubject()), 0, 40) . "\n";
                 }
             } catch (Throwable $e) {
                 printf("  %-28s chyba: %s\n", $folder->path, $e->getMessage());
