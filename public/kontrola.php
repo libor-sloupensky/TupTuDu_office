@@ -193,15 +193,69 @@ foreach ($cile as [$hostitel, $port]) {
     }
 }
 
+// Volitelný režim: projde složky sběrné schránky a vypíše, kde leží nepřečtené
+// zprávy. Cron čte jen INBOX, takže když poštovní server doručí doklad jinam
+// (typicky do složky se spamem), aplikace ho nikdy neuvidí a nikde to nehlásí.
+// Jen čtení — zprávy se neoznačují ani nemažou.
+if (isset($_GET['imap']) && $basePath) {
+    echo "\n=== Složky sběrné schránky ===\n";
+
+    try {
+        require_once $basePath . '/vendor/autoload.php';
+        $app = require $basePath . '/bootstrap/app.php';
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+        $cm = new Webklex\PHPIMAP\ClientManager();
+        $client = $cm->make([
+            'host' => config('services.imap_system.host'),
+            'port' => config('services.imap_system.port', 993),
+            'encryption' => config('services.imap_system.encryption', 'ssl'),
+            'validate_cert' => true,
+            'username' => config('services.imap_system.username'),
+            'password' => config('services.imap_system.password'),
+            'protocol' => 'imap',
+        ]);
+
+        $client->connect();
+        echo 'Schránka: ' . config('services.imap_system.username') . "\n\n";
+
+        foreach ($client->getFolders(false) as $folder) {
+            try {
+                $vse = $folder->query()->setFetchBody(false)->all()->get()->count();
+                $nove = $folder->query()->setFetchBody(false)->unseen()->get()->count();
+                printf("  %-28s %4d zpráv, %d nepřečtených\n", $folder->path, $vse, $nove);
+
+                if ($nove > 0) {
+                    foreach ($folder->query()->setFetchBody(false)->unseen()->limit(10)->get() as $zprava) {
+                        $komu = '';
+                        try { $komu = (string) $zprava->getTo(); } catch (Throwable $e) {}
+                        $predmet = '';
+                        try { $predmet = (string) $zprava->getSubject(); } catch (Throwable $e) {}
+                        echo '      → komu: ' . mb_substr($komu, 0, 70) . ' | ' . mb_substr($predmet, 0, 50) . "\n";
+                    }
+                }
+            } catch (Throwable $e) {
+                printf("  %-28s chyba: %s\n", $folder->path, $e->getMessage());
+            }
+        }
+
+        $client->disconnect();
+    } catch (Throwable $e) {
+        echo 'CHYBA: ' . $e->getMessage() . "\n";
+    }
+}
+
 // Volitelný režim: nastartuje Laravel a ověří, že aplikace umí přečíst data
 // a sáhnout na doklad v S3. Jen čtení, nic to nemění ani neodesílá.
 if (isset($_GET['app']) && $basePath) {
     echo "\n=== Aplikace ===\n";
 
     try {
-        require $basePath . '/vendor/autoload.php';
-        $app = require $basePath . '/bootstrap/app.php';
-        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        if (!function_exists('config')) {
+            require_once $basePath . '/vendor/autoload.php';
+            $app = require $basePath . '/bootstrap/app.php';
+            $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        }
 
         echo 'Laravel: ' . $app->version() . "\n";
         echo 'APP_URL: ' . config('app.url') . "\n";
