@@ -21,6 +21,15 @@ class ProcessEmailDoklady extends Command
 
     private const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
 
+    /** Záchrana pro přílohy bez názvu nebo bez přípony — typ z hlavičky. */
+    private const PRIPONY_PODLE_TYPU = [
+        'application/pdf' => 'pdf',
+        'application/x-pdf' => 'pdf',
+        'image/jpeg' => 'jpg',
+        'image/jpg' => 'jpg',
+        'image/png' => 'png',
+    ];
+
     public function handle(): int
     {
         $processor = new DokladProcessor();
@@ -234,16 +243,55 @@ class ProcessEmailDoklady extends Command
                 continue;
             }
 
-            if (in_array($ext, self::ALLOWED_EXTENSIONS)) {
-                // Regular attachment with valid extension
+            // Přeposlaná zpráva jako příloha — doklad je schovaný uvnitř ní.
+            // Poštovní klienti takhle přeposílají běžně, bez rozbalení bychom
+            // viděli jedinou přílohu typu .eml a doklad by se ztratil.
+            if ($contentType === 'message/rfc822' || $ext === 'eml') {
+                $vnorene = $this->prilohyVnorenehoDopisu($attachment);
+                $valid = array_merge($valid, $vnorene['valid']);
+                $invalid = array_merge($invalid, $vnorene['invalid']);
+                continue;
+            }
+
+            // Když příloha nemá název nebo je bez přípony, odvodíme typ z hlavičky.
+            // Bez toho takové přílohy propadly úplně — ani se nezpracovaly,
+            // ani se neobjevily v odpovědi mezi nepodporovanými soubory.
+            if (!in_array($ext, self::ALLOWED_EXTENSIONS, true)
+                && isset(self::PRIPONY_PODLE_TYPU[$contentType])) {
+                $ext = self::PRIPONY_PODLE_TYPU[$contentType];
+                // Příponu doplnit i do názvu — podle ní se soubor dál zpracovává
+                $name = ($name !== '' ? $name : 'priloha') . '.' . $ext;
+            }
+
+            if (in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
                 $valid[] = ['attachment' => $attachment, 'name' => $name];
-            } elseif (!empty($name) && $ext !== '') {
-                // File with unsupported extension
-                $invalid[] = $name;
+            } else {
+                $invalid[] = $name !== '' ? $name : ($contentType ?: 'příloha bez názvu');
             }
         }
 
         return compact('valid', 'inlineImages', 'invalid');
+    }
+
+    /**
+     * Rozbalí přeposlaný dopis a vrátí jeho přílohy roztříděné stejně jako
+     * u běžné zprávy. Zanořuje se jen o úroveň níž — přeposlání přeposlání
+     * je vzácné a hlubší rekurze by při poškozené zprávě mohla zacyklit.
+     */
+    private function prilohyVnorenehoDopisu($attachment): array
+    {
+        try {
+            $vnitrni = \Webklex\PHPIMAP\Message::fromString($attachment->getContent());
+            $casti = $this->collectMessageParts($vnitrni);
+
+            return ['valid' => $casti['valid'], 'invalid' => $casti['invalid']];
+        } catch (\Throwable $e) {
+            Log::warning('ProcessEmailDoklady: přeposlanou zprávu nelze rozbalit', [
+                'chyba' => $e->getMessage(),
+            ]);
+
+            return ['valid' => [], 'invalid' => [$attachment->getName() ?: 'přeposlaná zpráva']];
+        }
     }
 
     /**
