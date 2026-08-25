@@ -547,6 +547,37 @@ class InvoiceController extends Controller
         ]);
     }
 
+    /**
+     * Posledních pár dokladů firmy pro mobilní skener.
+     *
+     * Seznam výsledků na skenovací stránce žije jen v paměti — po uspání
+     * aplikace nebo přenačtení je pryč. Tenhle výpis ukazuje, co se opravdu
+     * uložilo, takže se uživatel může podívat kdykoli později.
+     */
+    public function posledni()
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json([]);
+        }
+
+        $doklady = Doklad::where('firma_ico', $firma->ico)
+            ->latest('id')
+            ->limit(5)
+            ->get()
+            ->map(fn (Doklad $d) => [
+                'id' => $d->id,
+                'nazev' => $d->dodavatel_nazev ?: $d->nazev_souboru,
+                'castka' => $d->castka_celkem !== null
+                    ? number_format((float) $d->castka_celkem, 2, ',', ' ') . ' ' . ($d->mena ?: 'CZK')
+                    : null,
+                'nahrano' => $d->created_at?->timezone('Europe/Prague')->format('j.n. H:i'),
+            ]);
+
+        return response()->json($doklady);
+    }
+
     public function downloadMonth(Request $request, string $mesic)
     {
         if (!preg_match('/^\d{4}-\d{2}$/', $mesic)) {

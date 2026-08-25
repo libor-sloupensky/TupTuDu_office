@@ -203,6 +203,8 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     Route::get('/doklady/hash/{hash}', [InvoiceController::class, 'podleHashe'])
         ->where('hash', '[a-f0-9]{64}')
         ->name('doklady.podleHashe');
+    // Posledních pár dokladů — mobilní skener je ukazuje i po uspání aplikace
+    Route::get('/doklady/posledni', [InvoiceController::class, 'posledni'])->name('doklady.posledni');
     Route::post('/doklady/stahnout-vybrane', [InvoiceController::class, 'downloadSelected'])->name('doklady.downloadSelected');
     Route::get('/doklady/{doklad}', [InvoiceController::class, 'show'])->name('doklady.show');
     Route::get('/doklady/{doklad}/stahnout', [InvoiceController::class, 'download'])->name('doklady.download');

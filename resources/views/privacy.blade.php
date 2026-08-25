@@ -26,7 +26,7 @@
     <p class="subtitle">Platné od 25. 2. 2026 &middot; TupTuDu Office (office.tuptudu.cz)</p>
 
     <h2>1. Provozovatel</h2>
-    <p>Službu TupTuDu Office provozuje Libor Sloupenský, IČO 87700484, se sídlem v České republice (dále jen „provozovatel"). Kontakt: <a href="mailto:libor@sloupensky.net">libor@sloupensky.net</a>.</p>
+    <p>Službu TupTuDu Office provozuje Libor Sloupenský, IČO 87700484, se sídlem v České republice (dále jen „provozovatel"). Kontakt: <a href="mailto:info@tuptudu.cz">info@tuptudu.cz</a>.</p>
 
     <h2>2. Jaké údaje zpracováváme</h2>
     <ul>
@@ -58,7 +58,7 @@
     <p>Údaje uchováváme po dobu trvání účtu. Po smazání účtu nebo firmy jsou veškeré související doklady a data smazány.</p>
 
     <h2>8. Vaše práva</h2>
-    <p>Máte právo na přístup ke svým údajům, jejich opravu, výmaz, omezení zpracování a přenositelnost. Pro uplatnění těchto práv nás kontaktujte na <a href="mailto:libor@sloupensky.net">libor@sloupensky.net</a>.</p>
+    <p>Máte právo na přístup ke svým údajům, jejich opravu, výmaz, omezení zpracování a přenositelnost. Pro uplatnění těchto práv nás kontaktujte na <a href="mailto:info@tuptudu.cz">info@tuptudu.cz</a>.</p>
 
     <h2>9. Google Drive – omezený přístup</h2>
     <p>Aplikace TupTuDu Office využívá Google Drive API s rozsahem oprávnění <code>drive.file</code>. To znamená, že aplikace může přistupovat <strong>pouze k souborům, které sama vytvořila</strong>. Nemá přístup k žádným jiným souborům na vašem Google Disku. Propojení můžete kdykoliv zrušit v nastavení firmy.</p>

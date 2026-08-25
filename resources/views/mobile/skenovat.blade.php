@@ -94,6 +94,14 @@
     <p class="info">Vyfoťte doklad — aplikace ho automaticky ořízne, narovná a uloží jako PDF.</p>
 
     <div id="results" class="results"></div>
+
+    {{-- Co se opravdu uložilo. Seznam výše žije jen v paměti stránky, tenhle
+         se načítá ze serveru, takže přežije uspání appky i její restart. --}}
+    <div id="posledniBlok" style="display:none; margin-top: 1.5rem;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: #7a8798; text-transform: uppercase;
+                    letter-spacing: 0.5px; margin-bottom: 0.5rem;">Naposledy nahrané</div>
+        <div id="posledni" class="results"></div>
+    </div>
 </div>
 
 <script>
@@ -273,6 +281,8 @@ async function nahratNaPozadi(blob, fileName) {
             polozka.dokoncit(items[0]);
             items.slice(1).forEach(it => addResult(it));
         }
+
+        nacistPosledni();
     } catch (err) {
         // Zpracování dokladu trvá desítky sekund a server v něm pokračuje, i když
         // klientovi mezitím spadne spojení (přepnutí sítě, uspání appky). Než to
@@ -284,6 +294,7 @@ async function nahratNaPozadi(blob, fileName) {
                 status: 'ok',
                 message: 'Nahráno (spojení se přerušilo, doklad se ale uložil)',
             });
+            nacistPosledni();
             return;
         }
 
@@ -291,6 +302,50 @@ async function nahratNaPozadi(blob, fileName) {
         polozka.dokoncit({ status: 'error', message: 'Nahrání selhalo: ' + msg });
     }
 }
+
+/** Načte ze serveru posledních pár uložených dokladů. */
+async function nacistPosledni() {
+    try {
+        const resp = await fetch('{{ route("doklady.posledni") }}', {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'include',
+        });
+
+        if (!resp.ok) return;
+
+        const doklady = await resp.json();
+        const wrap = document.getElementById('posledni');
+        const blok = document.getElementById('posledniBlok');
+
+        if (!Array.isArray(doklady) || doklady.length === 0) {
+            blok.style.display = 'none';
+            return;
+        }
+
+        wrap.innerHTML = doklady.map(d =>
+            '<div class="result-item">' +
+                '<div class="result-icon result-ok">✓</div>' +
+                '<div class="result-body">' +
+                    '<div class="result-name">' + escapeHtml(d.nazev || 'Doklad') + '</div>' +
+                    '<div class="result-msg">' + escapeHtml(d.nahrano || '') +
+                        (d.castka ? ' · ' + escapeHtml(d.castka) : '') + '</div>' +
+                '</div>' +
+            '</div>'
+        ).join('');
+
+        blok.style.display = '';
+    } catch (e) {
+        // Bez sítě se seznam prostě nepřekreslí
+    }
+}
+
+// Po návratu do aplikace (odemknutí telefonu, přepnutí z jiné appky) se
+// seznam obnoví — právě tehdy chce uživatel vidět, jak dopadlo skenování.
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) nacistPosledni();
+});
+
+nacistPosledni();
 
 /** Otisk souboru — stejný sha256, podle kterého server pozná duplicitu. */
 async function spocitatHash(blob) {
