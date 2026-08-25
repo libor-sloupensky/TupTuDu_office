@@ -312,13 +312,15 @@ if (isset($_GET['app']) && $basePath) {
                 ->whereNotNull('google_drive_file_id')->count();
 
             printf(
-                "  %-10s %-28s Drive: %-8s dokladů: %d, nahráno na Drive: %d, čeká: %d\n",
+                "  %-10s %-26s Drive: %-8s dokladů: %3d, nahráno: %3d, čeká: %3d | token: %-3s kořen: %s\n",
                 $f->ico,
-                mb_substr((string) $f->nazev, 0, 26),
+                mb_substr((string) $f->nazev, 0, 24),
                 $f->google_drive_aktivni ? 'aktivní' : 'vypnutý',
                 $celkem,
                 $nahrano,
-                $celkem - $nahrano
+                $celkem - $nahrano,
+                $f->google_refresh_token ? 'ano' : 'ne',
+                $f->google_folder_id ?: '—'
             );
         }
 
