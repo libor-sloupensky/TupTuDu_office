@@ -324,6 +324,64 @@ if (isset($_GET['app']) && $basePath) {
             );
         }
 
+        echo "\nÚčetní vazby:\n";
+        $vazby = App\Models\UcetniVazba::all();
+        if ($vazby->isEmpty()) {
+            echo "  žádné\n";
+        }
+        foreach ($vazby as $v) {
+            $ucetni = App\Models\Firma::find($v->ucetni_ico);
+            printf(
+                "  účetní %s (%s, Drive %s) → klient %s | stav: %s\n",
+                $v->ucetni_ico,
+                mb_substr((string) $ucetni?->nazev, 0, 22),
+                $ucetni?->google_drive_aktivni ? 'aktivní' : 'vypnutý',
+                $v->klient_ico,
+                $v->stav
+            );
+        }
+
+        // Obsah kořenové složky očima každé firmy — ukáže, jestli tam vedle sebe
+        // opravdu leží složky obou firem, nebo jestli jedna chybí.
+        if (isset($_GET['drive'])) {
+            echo "\nObsah Disku:\n";
+
+            foreach (App\Models\Firma::where('google_drive_aktivni', true)->get() as $f) {
+                echo "  — očima firmy {$f->ico} ({$f->nazev}):\n";
+
+                try {
+                    $klient = new Google\Client();
+                    $klient->setClientId(config('services.google.client_id'));
+                    $klient->setClientSecret(config('services.google.client_secret'));
+                    $klient->addScope(Google\Service\Drive::DRIVE_FILE);
+                    $klient->fetchAccessTokenWithRefreshToken(decrypt($f->google_refresh_token));
+
+                    $drive = new Google\Service\Drive($klient);
+                    $vysledek = $drive->files->listFiles([
+                        'q' => "'{$f->google_folder_id}' in parents and trashed=false",
+                        'fields' => 'files(id,name,mimeType)',
+                        'pageSize' => 25,
+                    ]);
+
+                    if (count($vysledek->getFiles()) === 0) {
+                        echo "      (kořenová složka je prázdná)\n";
+                    }
+
+                    foreach ($vysledek->getFiles() as $polozka) {
+                        $pocet = $drive->files->listFiles([
+                            'q' => "'{$polozka->getId()}' in parents and trashed=false",
+                            'fields' => 'files(id)',
+                            'pageSize' => 100,
+                        ]);
+                        echo '      ' . str_pad($polozka->getName(), 34)
+                            . ' (' . count($pocet->getFiles()) . " položek uvnitř)\n";
+                    }
+                } catch (Throwable $e) {
+                    echo '      CHYBA: ' . mb_substr($e->getMessage(), 0, 120) . "\n";
+                }
+            }
+        }
+
         $doklad = App\Models\Doklad::whereNotNull('cesta_souboru')->latest('id')->first();
 
         if ($doklad) {
