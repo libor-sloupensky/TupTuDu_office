@@ -37,18 +37,22 @@ jobs:
     # ukončí. Schránka je tak kontrolovaná souvisle, i když GitHub většinu
     # naplánovaných spuštění odloží nebo přeskočí — stačí, aby se za hodinu
     # spustil aspoň jeden.
-    - name: Zpracování emailových dokladů (každou minutu)
+    # Drive sync se volá uvnitř smyčky, ne až za ní: nový naplánovaný běh ten
+    # předchozí ukončí (cancel-in-progress), takže na krok za smyčkou by řada
+    # skoro nikdy nedošla a zálohování by stálo.
+    - name: Zpracování dokladů (schránka po minutě, Drive po deseti)
       run: |
         for i in $(seq 1 55); do
           echo "--- kontrola schránky $i/55 ($(date '+%H:%M:%S')) ---"
           curl -sS --max-time 240 "$APP_URL/cron/$CRON_TOKEN" || echo "cron/email selhal"
+
+          # Drive nahrává po 50 dokladech, každou minutu by to bylo zbytečné
+          if [ $((i % 10)) -eq 0 ]; then
+            echo "--- synchronizace na Google Drive ---"
+            curl -sS --max-time 300 "$APP_URL/cron-drive/$CRON_TOKEN" || echo "cron/drive selhal"
+          fi
+
           # Ne `[ … ] && sleep` — při poslední iteraci vrátí nepravdu a protože
           # je to poslední příkaz kroku, celý krok by skončil chybou.
           if [ "$i" -lt 55 ]; then sleep 60; fi
         done
-
-    # Drive sync nahrává po 50 dokladech, nemá smysl ho volat každou minutu.
-    - name: Synchronizace na Google Drive
-      if: always()
-      run: |
-        curl -sS --max-time 600 "$APP_URL/cron-drive/$CRON_TOKEN" || echo "cron/drive selhal"
