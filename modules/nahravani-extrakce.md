@@ -36,16 +36,37 @@ Upload / Email → DokladProcessor
 `nahrano` → `zpracovava_se` → `dokonceno` / `nekvalitni` / `chyba`
 
 ## Email zpracování
-- **Systémová schránka**: `doklady@tuptudu.cz` (catch-all `*@tuptudu.cz`), IČO z To/Cc (`{8číslic}@tuptudu.cz`)
+- **Systémová schránka**: `doklady@tuptudu.cz` (mailový koš `{IČO}@tuptudu.cz`), IČO z To/Cc
 - **Custom IMAP**: vlastní schránka per firma (bez auto-reply)
-- **Filtrování**: pouze přílohy (PDF, JPG, PNG), inline obrázky se přeskakují
-- **Auto-reply**: deterministické šablony (5 variant dle stavu zpracování)
+- **Filtrování**: přílohy PDF, JPG, PNG; inline obrázky se přeskakují
+- **Auto-reply**: deterministické šablony (5 variant dle stavu zpracování), HTML + textová část
+
+### Rozpoznání příloh
+Typ se určuje z přípony **i z hlavičky `Content-Type`** — příloha bez názvu nebo
+bez přípony dřív propadla úplně (nezpracovala se ani se neobjevila v odpovědi
+mezi nepodporovanými soubory) a odesílatel dostal „zpráva neobsahovala žádné doklady".
+
+**Přeposlané zprávy** (`message/rfc822`) se rozbalují o jednu úroveň — klienti tak
+doklady přeposílají běžně a příloha uvnitř by jinak zůstala neviditelná.
+
+### Diagnostika
+Cron čte **jen INBOX a jen nepřečtené zprávy**. Když se na schránku někdo podívá
+přes webmail, zpráva se označí jako přečtená a doklad se nikdy nenačte.
+
+Důvod přeskočení se zapisuje do logu (`LOG_LEVEL=warning`) i s výpisem hlaviček
+To a Cc — bez toho se zpětně nedalo zjistit, proč doklad nevznikl. Nejčastější
+případ: adresa `{IČO}@tuptudu.cz` byla jen ve skryté kopii.
 
 ## Důležitá rozhodnutí
 - Soubory na AWS S3, ne lokální storage
 - OCR: AWS Textract (bounding boxy pro zvýrazňování v UI)
 - AI extrakce: Claude Haiku (claude-haiku-4-5-20251001), retry 2× při prázdné odpovědi
 - Upload na Google Drive asynchronně přes cron, ne při uploadu
+- Složka firmy na Disku se jmenuje `{IČO}_{název firmy}` a zakládá ji
+  `GoogleDriveService`, ne šablona cesty — šablona popisuje cestu *uvnitř* ní
+- Razítko `google_drive_nahrano_at` se staví **jen když se doklad opravdu nahrál**.
+  Dřív se stavělo i bez aktivního Drivu, takže se fronta označila za hotovou,
+  aniž by se cokoli nahrálo, a už se k ní nikdo nevrátil
 - PDF split: každá stránka = samostatný doklad
 - Deduplikace: hash souboru + obsahová (číslo dokladu + dodavatel IČO)
 - JSON repair pro truncated AI responses
@@ -59,4 +80,4 @@ firma_ico, dodavatel_ico, nazev_souboru, cesta_souboru, cislo_dokladu, datum_vys
 doklad_id, poradi, text, mnozstvi, jednotka, cena_za_jednotku, zaklad_dane, sazba_dph, castka_dph, castka_celkem
 
 ---
-*Aktualizováno: 2026-04-09*
+*Aktualizováno: 2026-08-25*

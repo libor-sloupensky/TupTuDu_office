@@ -5,13 +5,13 @@
 
 ## Stack
 - Framework: Laravel 12, PHP 8.2+
-- Databáze: MySQL (Webglobe shared hosting)
+- Databáze: MariaDB (Český hosting, dostupná jen z 127.0.0.1)
 - Storage: AWS S3
 - AI: Anthropic Claude API (Haiku)
 - OCR: AWS Textract
 - Cloud sync: Google Drive API
 - Frontend: Vanilla JS + inline CSS v Blade (žádný framework, žádný build step)
-- Deploy: GitHub Actions → SFTP (lftp) na Webglobe
+- Deploy: GitHub Actions → SFTP (lftp) na Český hosting (`irene.thinline.cz`)
 
 ## Workflow
 - Před úpravou kódu vždy přečíst aktuální stav souboru

@@ -130,6 +130,27 @@ Google Document Scanner je součást Play Services a na některých zařízeníc
 až na vyžádání. Před skenem se volá `isGoogleDocumentScannerModuleAvailable()`; pokud
 chybí, spustí se `installGoogleDocumentScannerModule()` a uživatel to zkusí za chvíli znovu.
 
+## Odolnost nahrávání
+
+Nahrávání je synchronní — telefon čeká, než server soubor uloží na S3, projede
+přes OCR a pošle do AI. To trvá desítky sekund, takže **uspání aplikace nebo
+přepnutí sítě spojení přeruší**, zatímco server v práci pokračuje a doklad dokončí.
+`fetch()` skončí s „Failed to fetch" u dokladu, který se ve skutečnosti uložil.
+
+Řeší se dvěma věcmi:
+
+**Ověření podle otisku** — po síťové chybě si appka spočítá `sha256` souboru
+(stejný otisk, podle kterého server pozná duplicitu) a šestkrát po pěti sekundách
+se ptá `GET /doklady/hash/{hash}`, jestli doklad vznikl.
+
+**Seznam naposledy nahraných** — `GET /doklady/posledni` vrací pět posledních
+dokladů firmy. Seznam výsledků na stránce žije jen v paměti, tenhle se načítá ze
+serveru při otevření, po každém nahrání a při návratu do aplikace
+(`visibilitychange`). Pokrývá scénář „naskenuji v obchodě, telefon zhasnu,
+výsledek si přečtu až příště".
+
+Obojí je v Blade views, které WebView natahuje ze serveru — **nová APK není potřeba**.
+
 ## Plánovaný rozvoj
 - **Fáze 1:** Android APK + Google login + scanner + upload (✅ hotovo)
 - **Fáze 2:** Distribuce — link na APK z webu
@@ -137,4 +158,4 @@ chybí, spustí se `installGoogleDocumentScannerModule()` a uživatel to zkusí 
 - **Fáze 4:** iOS verze (vyžaduje Mac + Apple Developer účet $99/rok; ML Kit scanner je jen Android, na iOS by se použil VisionKit plugin)
 
 ---
-*Vytvořeno: 2026-04-16 · Aktualizováno: 2026-08-11*
+*Vytvořeno: 2026-04-16 · Aktualizováno: 2026-08-25*

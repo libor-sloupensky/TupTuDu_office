@@ -70,10 +70,25 @@ Workflow:
 - OAuth2 flow (drive.file scope), refresh token šifrovaný v DB
 - Upload přes cron (ne real-time), batch 50 dokladů
 - Folder cache pro hierarchii složek
-- Šablona cesty: default `{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}`
-- 13 tokenů: id, nahrano, duzp, vystaveni, splatnost, dodavatel, dodavatel_ico, ico, castka, vs, typ, kategorie, cislo
 - Metadata embedding: PDF (FPDI title/keywords), JPEG (IPTC)
 - Auto-deactivation při `invalid_grant` / `Token revoked`
+
+### Struktura na Disku
+```
+{kořenová složka}/{IČO}_{název firmy}/{cesta ze šablony}
+```
+Složku firmy zakládá `GoogleDriveService::nazevSlozkyFirmy()`, **ne šablona** —
+dávat `{ico}` nebo `{firma}` do šablony proto znamená mít údaj v cestě dvakrát.
+
+Šablona cesty: default `{nahrano:YYYY}/{duzp:YY-MM-DD}_{dodavatel:15}_{id}`,
+14 tokenů: id, nahrano, duzp, vystaveni, splatnost, dodavatel, dodavatel_ico,
+ico, **firma**, castka, vs, typ, kategorie, cislo.
+
+Nastavení ukazuje, jestli firma jede na výchozí šabloně, nebo má vlastní.
+
+**Pozor na režim synchronizace:** soubory jsou v cloudu; jestli je uživatel má
+i fyzicky na disku, určuje aplikace Disk Google pro počítač (Streamování vs.
+Zrcadlení). Ze serveru to ovlivnit nejde.
 
 ## Nastavení firmy (UI)
 - Rozbalovací sekce s ikonkami (emoji + arrow toggle)
@@ -160,6 +175,27 @@ Má výjimku z vynucení HTTPS, aby šla spustit i před vydáním certifikátu.
 | `sys_ucetni_vazby` | id | Účetní vazby: ucetni_ico, klient_ico, stav, perm_* |
 | `fak_kategorie` | id | Kategorie: firma_ico, nazev, poradi (15 výchozích) |
 
+## Pošta — ověření odesílatele
+
+Kompletní řetěz, ověřený v hlavičkách skutečné odchozí zprávy:
+
+| | |
+|---|---|
+| SPF | `v=spf1 ip4:91.239.200.81 ip6:2001:67c:e94:0:1:5bef:c851:1 include:spf.cesky-hosting.cz -all` |
+| DKIM | selektory `irene-202608` (webserver), `rampa2-202608`, `webmails-202608` |
+| DMARC | `_dmarc` → `v=DMARC1; p=none;` |
+| DNSSEC | aktivní |
+
+**Pozor na SPF:** `spf.cesky-hosting.cz` povoluje jen jejich *odesílací* servery.
+Pošta z PHP `mail()` odchází přímo z webového serveru, jehož IP tam není — proto
+musí být `ip4:` a `ip6:` naší adresy uvedené zvlášť. Server odesílá **přes IPv6**,
+takže bez `ip6:` by SPF padalo i s IPv4 mechanismem.
+
+`public/.user.ini` vypíná `mail.add_x_header` — PHP jinak přidává hlavičku
+`X-PHP-Originating-Script`, kterou spamové filtry bodují. Direktiva je
+`PHP_INI_PERDIR`, `ini_set()` ji za běhu nezmění a panel hostingu ji nenabízí;
+`.user.ini` funguje, protože server běží jako FastCGI.
+
 ## Odesílání pošty
 Hosting blokuje odchozí SMTP na všech portech (25/465/587) a zakazuje `proc_open`,
 takže nefunguje ani `sendmail` transport Symfony. Jediná cesta ven je PHP `mail()`
@@ -178,4 +214,4 @@ hlavičky a tělo, takže přílohy i kódování zůstanou nedotčené.
   přes mailer `doklady` (SMTP autentizace účtem `info@tuptudu.cz`).
 
 ---
-*Aktualizováno: 2026-08-20*
+*Aktualizováno: 2026-08-25*
