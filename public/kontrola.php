@@ -229,7 +229,12 @@ if (isset($_GET['imap']) && $basePath) {
                 // odchozí pošta opravdu nese podpis DKIM. Panel může hlásit
                 // aktivní podepisování, a přesto se na zprávy z PHP nevztahovat.
                 if (isset($_GET['hlavicky'])) {
-                    $posledni = $folder->query()->setFetchBody(false)->all()->limit(1)->get()->last();
+                    // limit(1) vrátí nejstarší zprávu, proto se bere víc a řadí se podle data
+                    $posledni = $folder->query()->setFetchBody(false)->all()->limit(30)->get()
+                        ->sortBy(function ($z) {
+                            try { return (string) $z->getDate(); } catch (Throwable $e) { return ''; }
+                        })
+                        ->last();
 
                     if ($posledni) {
                         echo "\n  --- hlavičky poslední zprávy ---\n";
