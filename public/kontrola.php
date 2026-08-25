@@ -264,6 +264,14 @@ if (isset($_GET['app']) && $basePath) {
         echo 'Mailer: ' . config('mail.default') . ' / doklady: '
             . config('mail.mailers.doklady.transport') . "\n";
         echo 'Doména dokladů: ' . config('mail.doklady_domain') . "\n";
+        echo 'mail.add_x_header: ' . (ini_get('mail.add_x_header') ? 'ANO (zvyšuje spam skóre)' : 'ne') . "\n";
+
+        // Přesná hodnota, kterou aplikace posílá Googlu — musí sedět na znak
+        // s tím, co je povolené v Google Cloud Console, jinak redirect_uri_mismatch.
+        echo "\nGoogle OAuth:\n";
+        echo '  redirect_uri (Drive):  ' . config('services.google.redirect_uri') . "\n";
+        echo '  redirect (přihlášení): ' . config('services.google.redirect') . "\n";
+        echo '  client_id: ' . substr((string) config('services.google.client_id'), 0, 24) . "…\n";
 
         $firem = App\Models\Firma::count();
         $dokladu = App\Models\Doklad::count();
