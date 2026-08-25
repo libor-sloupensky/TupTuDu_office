@@ -125,6 +125,13 @@ class ProcessEmailDoklady extends Command
 
         if (!$ico) {
             $this->line("  Přeskakuji — nelze určit IČO z příjemce.");
+            // Zpráva se označí jako přečtená a zmizí z dohledu, takže bez záznamu
+            // v logu není jak dohledat, proč se doklad nenačetl.
+            Log::warning('ProcessEmailDoklady: nelze určit IČO z příjemce', [
+                'od' => $senderEmail,
+                'predmet' => $originalSubject,
+                'prijemci' => $this->popisPrijemcu($message),
+            ]);
             if ($senderEmail) {
                 $analysis = $this->buildAnalysis(icoFound: false);
                 $this->tryAutoReply($analysis, $senderEmail, 'faktury', $originalSubject);
@@ -144,6 +151,11 @@ class ProcessEmailDoklady extends Command
 
         if (!$firma) {
             $this->line("  Přeskakuji IČO {$ico} — firma nemá aktivní systémový email.");
+            Log::warning('ProcessEmailDoklady: firma nenalezena nebo nemá aktivní systémový email', [
+                'ico' => $ico,
+                'od' => $senderEmail,
+                'predmet' => $originalSubject,
+            ]);
             if ($senderEmail) {
                 $analysis = $this->buildAnalysis(icoFound: true, firmaFound: false, ico: $ico);
                 $this->tryAutoReply($analysis, $senderEmail, $ico, $originalSubject);
@@ -634,6 +646,27 @@ class ProcessEmailDoklady extends Command
         }
 
         return $totalProcessed;
+    }
+
+    /**
+     * Vypíše příjemce zprávy pro log — ať je vidět, proč se IČO nenašlo.
+     * Typicky když adresa {IČO}@tuptudu.cz byla ve skryté kopii a v hlavičkách
+     * To ani Cc se vůbec neobjeví.
+     */
+    private function popisPrijemcu($message): string
+    {
+        $casti = [];
+
+        foreach (['getTo' => 'To', 'getCc' => 'Cc'] as $metoda => $nazev) {
+            try {
+                $hodnota = trim((string) $message->$metoda());
+                $casti[] = $nazev . ': ' . ($hodnota !== '' ? $hodnota : '(prázdné)');
+            } catch (\Throwable $e) {
+                $casti[] = $nazev . ': (nelze přečíst)';
+            }
+        }
+
+        return implode(' | ', $casti);
     }
 
     private function extractIcoFromRecipients($message): ?string
