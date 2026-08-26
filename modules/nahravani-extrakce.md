@@ -57,6 +57,14 @@ Důvod přeskočení se zapisuje do logu (`LOG_LEVEL=warning`) i s výpisem hlav
 To a Cc — bez toho se zpětně nedalo zjistit, proč doklad nevznikl. Nejčastější
 případ: adresa `{IČO}@tuptudu.cz` byla jen ve skryté kopii.
 
+## Známé nedodělky
+- **Zamčená PDF**: do dokladů chráněných proti zápisu se nevkládají metadata.
+  `embedPdfMetadata()` staví nové PDF přes FPDI, jenže FPDI zašifrovaný zdroj
+  vůbec neotevře (`setSourceFile()` skončí výjimkou). Odemčení by chtělo placené
+  rozšíření FPDI nebo `qpdf` přes shell — hosting ale `exec` i `proc_open` zakazuje.
+  Soubor se nahraje v pořádku, jen bez metadat; loguje se jako warning.
+  **K vyřešení někdy později.**
+
 ## Důležitá rozhodnutí
 - Soubory na AWS S3, ne lokální storage
 - OCR: AWS Textract (bounding boxy pro zvýrazňování v UI)

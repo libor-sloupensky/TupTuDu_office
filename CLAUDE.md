@@ -19,6 +19,17 @@
 - Na začátku práce na modulu přečíst příslušný `modules/*.md`
 - Na konci sezení nebo na výzvu „aktualizuj kontext": aktualizovat příslušný `modules/*.md`
 
+## Ikony
+- **Vždy Lucide** — `<x-ikona name="check" />`, volitelně `:size="16"`
+- **Nikdy emoji ani ručně psané SVG** v UI. Emoji vypadají jinak na každém
+  systému a ručně kreslené cesty se rozcházejí s designem sady
+- Barvu ikona dědí z textu (`currentColor`), velikost výchozí 20 px
+- Dostupné ikony: `App\Support\Lucide::seznam()`, přehled na lucide.dev/icons
+- **Novou ikonu nekresli ručně** — stáhni z oficiálního balíčku a vlož do
+  `app/Support/Lucide.php`:
+  `curl -sSL https://unpkg.com/lucide-static@1.34.0/icons/NAZEV.svg`
+- Výjimka: cizí značky (logo Google) zůstávají jako originální SVG
+
 ## Konvence
 - Tabulky s prefixem `sys_` (systémové)
 - PK firmy = IČO (string, 8 číslic), ne auto-increment
