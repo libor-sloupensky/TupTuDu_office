@@ -128,19 +128,15 @@ Secrets: `FTP_PASSWORD`, `DB_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_
 `ANTHROPIC_API_KEY`, `MAIL_PASSWORD_INFO` (info@tuptudu.cz), `MAIL_PASSWORD_DOKLADY` (doklady@tuptudu.cz),
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SERVISNI_TOKEN`.
 
-**`SERVISNI_TOKEN`** chrání servisní routy (`/cron`, `/cron-drive`, `/deploy-migrace`,
-`/test-mail`, `/log`) i skripty `kontrola.php` a `diagnose.php`. Repozitář je veřejný,
-proto token nesmí být v kódu — routy ho čtou přes `config('services.servisni_token')`,
-skripty přímo z `.env`.
+**`SERVISNI_TOKEN`** chrání servisní routy `/cron`, `/cron-drive` a `/deploy-migrace`.
+Repozitář je veřejný, proto token nesmí být v kódu — routy ho čtou přes
+`config('services.servisni_token')`.
 
 ### Workflows
 | Soubor | Spouštění | Účel |
 |--------|-----------|------|
 | `.github/workflows/deploy.yml` | push na main + ručně | Deploy |
 | `.github/workflows/cron.yml` | každých 15 min (jen při `CRON_ENABLED=1`) | Náhrada cronu hostingu |
-| `.github/workflows/remote-ls.yml` | ručně | Výpis struktury adresářů na serveru |
-| `.github/workflows/fix-perms.yml` | ručně | Oprava práv souborů |
-| `.github/workflows/remote-rm.yml` | ručně | Smazání adresáře na serveru (vyžaduje potvrzení) |
 
 ### Rozložení na serveru
 ```
@@ -152,9 +148,9 @@ ležet uvnitř něj — mimo něj (např. v `/data/`) by ho PHP nepřečetlo. `i
 proto bere kořen o úroveň výš a hledání `laravel-office/` zůstává jen jako
 záloha pro jiné hostingy.
 
-Prostředí serveru ověří `public/kontrola.php?key={token}` — vypíše verzi PHP,
-rozšíření, `open_basedir`, cesty, práva k zápisu a spojení na DB, SMTP, IMAP a S3.
-Má výjimku z vynucení HTTPS, aby šla spustit i před vydáním certifikátu.
+Diagnostické nástroje ze stěhování (`kontrola.php`, `diagnose.php`, routy `/log`,
+`/test-mail`, `/drive-znovu`, workflow `remote-ls`, `remote-rm`, `fix-perms`) byly
+po dokončení přesunu odstraněny. V historii gitu zůstávají, kdyby se hodily znovu.
 
 ## Cron routy (tajný token)
 - `GET /cron/{token}` — email processing
