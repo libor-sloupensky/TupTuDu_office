@@ -81,13 +81,7 @@
     </div>
 
     <button id="scanBtn" class="scan-btn" onclick="startScan()">
-        <svg class="scan-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-            <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-            <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-            <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-        </svg>
+        <x-ikona name="scan-line" :size="28" class="scan-icon" />
         <span id="scanBtnLabel">Skenovat doklad</span>
     </button>
 
@@ -105,6 +99,15 @@
 </div>
 
 <script>
+// Stavové ikony vkládá JavaScript, kde nejde použít <x-ikona> — Blade je sem
+// vloží jako hotové SVG. Zdroj je stejný, tedy App\Support\Lucide.
+const IKONY = {
+    ok: @json(\App\Support\Lucide::svg('circle-check', 18)),
+    duplicita: @json(\App\Support\Lucide::svg('copy', 18)),
+    varovani: @json(\App\Support\Lucide::svg('triangle-alert', 18)),
+    chyba: @json(\App\Support\Lucide::svg('circle-x', 18)),
+};
+
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 const uploadUrl = '{{ route("invoices.store") }}';
 
@@ -170,13 +173,13 @@ function pridatPolozku(nazev) {
 
     return {
         dokoncit(item) {
-            let cls = 'result-ok', icon = '✓';
-            if (item.status === 'duplicate') { cls = 'result-dup'; icon = '⊝'; }
-            else if (item.status === 'warning') { cls = 'result-warn'; icon = '⚠'; }
-            else if (item.status === 'error') { cls = 'result-err'; icon = '✕'; }
+            let cls = 'result-ok', icon = IKONY.ok;
+            if (item.status === 'duplicate') { cls = 'result-dup'; icon = IKONY.duplicita; }
+            else if (item.status === 'warning') { cls = 'result-warn'; icon = IKONY.varovani; }
+            else if (item.status === 'error') { cls = 'result-err'; icon = IKONY.chyba; }
 
             div.querySelector('.result-icon').className = 'result-icon ' + cls;
-            div.querySelector('.result-icon').textContent = icon;
+            div.querySelector('.result-icon').innerHTML = icon;
             if (item.name) {
                 div.querySelector('.result-name').textContent = item.name;
             }
@@ -324,7 +327,7 @@ async function nacistPosledni() {
 
         wrap.innerHTML = doklady.map(d =>
             '<div class="result-item">' +
-                '<div class="result-icon result-ok">✓</div>' +
+                '<div class="result-icon result-ok">' + IKONY.ok + '</div>' +
                 '<div class="result-body">' +
                     '<div class="result-name">' + escapeHtml(d.nazev || 'Doklad') + '</div>' +
                     '<div class="result-msg">' + escapeHtml(d.nahrano || '') +

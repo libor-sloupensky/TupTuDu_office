@@ -41,6 +41,7 @@ class Lucide
         'circle-x' => '<circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" />',
         'clock' => '<circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />',
         'cloud-upload' => '<path d="M12 13v8" /><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="m8 17 4-4 4 4" />',
+        'copy' => '<rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />',
         'credit-card' => '<rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" />',
         'database' => '<ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" />',
         'download' => '<path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" />',
@@ -94,6 +95,31 @@ class Lucide
     public static function obsah(string $nazev): ?string
     {
         return self::IKONY[$nazev] ?? null;
+    }
+
+    /**
+     * Cely element <svg>. Pouziva ho Blade komponenta `<x-ikona>` a hodi se
+     * i tam, kde komponenta nejde pouzit — treba kdyz ikonu vklada JavaScript.
+     * Neznama ikona vrati prazdny retezec, at se rozlozeni nerozbije.
+     */
+    public static function svg(string $nazev, int $velikost = 20, float $tloustka = 2): string
+    {
+        $obsah = self::obsah($nazev);
+
+        if ($obsah === null) {
+            return '';
+        }
+
+        return sprintf(
+            '<svg class="ikona" width="%d" height="%d" viewBox="0 0 24 24" fill="none" '
+            . 'stroke="currentColor" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round" '
+            . 'aria-hidden="true" focusable="false" '
+            . 'style="display:inline-block;vertical-align:-0.15em;flex-shrink:0">%s</svg>',
+            $velikost,
+            $velikost,
+            $tloustka,
+            $obsah
+        );
     }
 
     /** Nazvy vsech dostupnych ikon. */

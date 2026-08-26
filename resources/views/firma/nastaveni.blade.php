@@ -114,7 +114,7 @@
     <div class="section" style="margin-top: 0; padding-top: 0; border-top: none;">
         <div class="kat-section-header" onclick="toggleSection('firmaInfo')">
             <span class="kat-arrow" id="firmaInfoArrow">&#9654;</span>
-            <h3>🏢 Údaje firmy</h3>
+            <h3><x-ikona name="building-2" /> Údaje firmy</h3>
         </div>
         <p class="kat-desc">Základní údaje firmy, kontaktní informace</p>
 
@@ -157,7 +157,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleUcetniNapojeni()">
             <span class="kat-arrow {{ $expandUcetni ? 'open' : '' }}" id="ucetniArrow">&#9654;</span>
-            <h3>📊 Účetní napojení</h3>
+            <h3><x-ikona name="chart-column" /> Účetní napojení</h3>
             @if ($cekajiciVazby > 0)
                 <span class="badge-pending">{{ $cekajiciVazby }}</span>
             @endif
@@ -329,7 +329,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleSection('emailDoklady')">
             <span class="kat-arrow" id="emailDokladyArrow">&#9654;</span>
-            <h3>📧 Email pro zasílání dokladů</h3>
+            <h3><x-ikona name="mail" /> Email pro zasílání dokladů</h3>
         </div>
         <p class="kat-desc">Příjem dokladů emailem — systémová adresa nebo vlastní IMAP schránka</p>
 
@@ -416,14 +416,14 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleSection('gdrive')">
             <span class="kat-arrow" id="gdriveArrow">&#9654;</span>
-            <h3>📁 Google Drive</h3>
+            <h3><x-ikona name="folder" /> Google Drive</h3>
         </div>
         <p class="kat-desc">Automatické ukládání kopií dokladů na Google Drive</p>
 
         <div class="kat-body" id="gdriveBody">
             @if ($firma->google_drive_aktivni)
                 <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                    <div style="font-weight: 600; color: #155724; margin-bottom: 0.3rem;">✅ Google Drive je připojen</div>
+                    <div style="font-weight: 600; color: #155724; margin-bottom: 0.3rem;"><x-ikona name="shield-check" :size="18" /> Google Drive je připojen</div>
                     <div style="font-size: 0.85rem; color: #155724;">
                         Kořenová složka: <strong>office.tuptudu.cz/</strong>
                     </div>
@@ -441,10 +441,10 @@
                         <summary style="cursor: pointer; font-size: 0.85rem; color: #3498db; font-weight: 600;">Dostupné tokeny</summary>
                         <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-top: 0.5rem;">
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{id}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">ID dokladu <strong>(povinné)</strong></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{nahrano:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum nahrání</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{nahrano:YYYY} → 2026</td></tr>
-                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DUZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} → 26-01-12</td></tr>
-                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} → 12.01.2026</td></tr>
-                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} → dodavatel s.r.o.</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{nahrano:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum nahrání</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{nahrano:YYYY} <x-ikona name="arrow-right" :size="14" /> 2026</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{duzp:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">DUZP</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{duzp:YY-MM-DD} <x-ikona name="arrow-right" :size="14" /> 26-01-12</td></tr>
+                            <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{vystaveni:FORMAT}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Datum vystavení</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{vystaveni:DD.MM.YYYY} <x-ikona name="arrow-right" :size="14" /> 12.01.2026</td></tr>
+                            <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel:N}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Dodavatel (max N znaků)</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">{dodavatel:15} <x-ikona name="arrow-right" :size="14" /> dodavatel s.r.o.</td></tr>
                             <tr><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{dodavatel_ico}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">IČO dodavatele</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">12345678</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{firma}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Název vaší firmy</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">WormUP s.r.o.</td></tr>
                             <tr style="background: #f8f8f8;"><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;"><code>{castka}</code></td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">Celková částka</td><td style="padding: 0.3rem 0.5rem; border: 1px solid #eee;">1250.00</td></tr>
@@ -523,7 +523,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleKategorie()">
             <span class="kat-arrow" id="katArrow">&#9654;</span>
-            <h3>🏷️ Kategorie nákladů</h3>
+            <h3><x-ikona name="tag" /> Kategorie nákladů</h3>
             <span class="kat-save-status" id="katSaveStatus"></span>
         </div>
         <p class="kat-desc">
@@ -563,7 +563,7 @@
     <div class="section">
         <div class="kat-section-header" onclick="toggleSection('uzivatele')">
             <span class="kat-arrow" id="uzivateleArrow">&#9654;</span>
-            <h3>👥 Uživatelé firmy</h3>
+            <h3><x-ikona name="users" /> Uživatelé firmy</h3>
         </div>
         <p class="kat-desc">Správa uživatelů a jejich oprávnění k firmě</p>
 

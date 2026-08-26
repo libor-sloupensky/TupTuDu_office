@@ -138,7 +138,7 @@
     .detail-meta th { text-align: left; color: #999; font-weight: 600; width: 140px; }
     .detail-editable { cursor: text; transition: background 0.15s; border-radius: 3px; }
     .detail-editable:hover { background: #f0f4f8; }
-    .detail-editable:hover .cell-val::after { content: ' ✏️'; display: inline-block; width: 0; overflow: visible; font-size: 0.65rem; opacity: 1; color: #3498db; white-space: nowrap; }
+    .detail-editable:hover .cell-val::after { content: ''; background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%236c7a89%22%20stroke-width=%222%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M21.174%206.812a1%201%200%200%200-3.986-3.987L3.842%2016.174a2%202%200%200%200-.5.83l-1.321%204.352a.5.5%200%200%200%20.623.622l4.353-1.32a2%202%200%200%200%20.83-.497z%22%20/%3E%3Cpath%20d=%22m15%205%204%204%22%20/%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; width: 0.75rem; height: 0.75rem; display: inline-block; overflow: visible; vertical-align: middle; font-size: 0.65rem; opacity: 1; color: #3498db; white-space: nowrap; }
     .edit-input { width: 100%; padding: 0.2rem 0.3rem; border: 1px solid #3498db; border-radius: 3px; font-size: inherit; outline: none; box-sizing: border-box; }
     .detail-bottom { border-top: 1px solid #e0e0e0; padding-top: 0.75rem; margin-top: 0.75rem; }
     .polozky-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.3rem; }
