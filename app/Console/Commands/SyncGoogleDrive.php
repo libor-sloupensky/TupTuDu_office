@@ -30,7 +30,7 @@ class SyncGoogleDrive extends Command
             ->where(fn ($q) => $q->whereIn('firma_ico', $sDrivem)
                 ->orWhereIn('firma_ico', $klientiUcetnich))
             ->orderBy('id')
-            ->limit(50)
+            ->limit(40)
             ->get();
 
         if ($doklady->isEmpty()) {
