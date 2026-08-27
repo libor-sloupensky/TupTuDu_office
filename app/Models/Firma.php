@@ -59,6 +59,21 @@ class Firma extends Model
         return $this->hasMany(Kategorie::class, 'firma_ico', 'ico');
     }
 
+    /**
+     * Partner, přes kterého firma do systému přišla — nebo null, když přišla
+     * sama. Napojení je vždy nejvýš jedno, hlídá to unique index v databázi.
+     */
+    public function partner(): ?Partner
+    {
+        return Partner::whereHas('firmy', fn ($q) => $q->where('sys_firmy.ico', $this->ico))->first();
+    }
+
+    /** Historie napojení na partnery, od nejnovějšího. */
+    public function napojeni(): HasMany
+    {
+        return $this->hasMany(FirmaPartner::class, 'firma_ico', 'ico')->orderByDesc('napojeno_at');
+    }
+
     public static function seedDefaultKategorie(string $ico): void
     {
         $defaults = [
