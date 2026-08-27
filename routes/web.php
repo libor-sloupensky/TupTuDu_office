@@ -12,21 +12,8 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KlientiController;
 use App\Http\Controllers\MobileController;
 use App\Http\Controllers\VazbyController;
+use App\Support\ServisniToken;
 use Illuminate\Support\Facades\Route;
-
-/**
- * Ověří token servisních rout (cron a spuštění migrací z deploye).
- *
- * Hodnota je v .env (SERVISNI_TOKEN), ne v kódu — repozitář je veřejný.
- * Když token není nastavený, servisní routy se tváří jako neexistující,
- * ať se nedají volat prázdným parametrem.
- */
-function servisniTokenPlati(string $token): bool
-{
-    $ocekavany = (string) config('services.servisni_token');
-
-    return $ocekavany !== '' && hash_equals($ocekavany, $token);
-}
 
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
@@ -83,7 +70,7 @@ Route::get('/api/ares/{ico}', [AresController::class, 'lookup'])->middleware('th
 // MariaDB hostingu poslouchá jen na 127.0.0.1, takže migrace nejde spustit
 // z GitHub Actions přes síť — deploy si je vyvolá touhle routou.
 Route::get('/deploy-migrace/{token}', function (string $token) {
-    if (!servisniTokenPlati($token)) {
+    if (!ServisniToken::plati($token)) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
@@ -93,7 +80,7 @@ Route::get('/deploy-migrace/{token}', function (string $token) {
 
 // --- Cron endpoint (tajný token) ---
 Route::get('/cron/{token}', function (string $token) {
-    if (!servisniTokenPlati($token)) {
+    if (!ServisniToken::plati($token)) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('doklady:process-email');
@@ -130,7 +117,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 // --- Cron endpoint: Google Drive sync ---
 Route::get('/cron-drive/{token}', function (string $token) {
-    if (!servisniTokenPlati($token)) {
+    if (!ServisniToken::plati($token)) {
         abort(404);
     }
     Illuminate\Support\Facades\Artisan::call('doklady:sync-drive');

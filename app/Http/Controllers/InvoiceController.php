@@ -76,14 +76,26 @@ class InvoiceController extends Controller
         }
     }
 
-    private function overOpravaUcetni(string $akce): void
+    /**
+     * Ověří, že uživatel smí u dané firmy provést akci s doklady.
+     *
+     * Oprávnění se odvozují od firmy, které se akce týká — ne od té, kterou má
+     * uživatel zrovna přepnutou. Dřív se koukalo jen na přepnutou firmu, takže
+     * účetní, která zůstala na své vlastní, prošla bez jakékoli kontroly:
+     * `prohlizimKlienta()` vrátilo false a metoda skončila jako „vlastní firma,
+     * bez omezení". Stačilo znát ID dokladu a šel upravit i smazat.
+     */
+    private function overOpravaUcetni(string $akce, ?string $firmaIco = null): void
     {
         $user = auth()->user();
-        if (!$user->prohlizimKlienta()) {
-            return; // vlastní firma — bez omezení
+        $ico = $firmaIco ?: session('aktivni_firma_ico');
+
+        // Firma, ve které je uživatel přímo — tam omezení účetní vazby neplatí.
+        if ($ico && $user->firmy()->where('ico', $ico)->exists()) {
+            return;
         }
 
-        $vazba = $user->ucetniVazbaProKlienta();
+        $vazba = $user->ucetniVazbaProKlienta($ico);
         if (!$vazba) {
             abort(403, 'Nemáte oprávnění k dokladům této firmy.');
         }
@@ -430,7 +442,7 @@ class InvoiceController extends Controller
     public function update(Request $request, Doklad $doklad)
     {
         $this->autorizujDoklad($doklad);
-        $this->overOpravaUcetni('upravovat');
+        $this->overOpravaUcetni('upravovat', $doklad->firma_ico);
 
         $editableFields = [
             'datum_prijeti', 'duzp', 'datum_vystaveni', 'datum_splatnosti',
@@ -870,7 +882,7 @@ PROMPT;
     public function destroy(Doklad $doklad)
     {
         $this->autorizujDoklad($doklad);
-        $this->overOpravaUcetni('mazat');
+        $this->overOpravaUcetni('mazat', $doklad->firma_ico);
 
         if ($doklad->cesta_souboru) {
             Storage::disk('s3')->delete($doklad->cesta_souboru);
