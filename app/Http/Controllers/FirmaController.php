@@ -426,6 +426,25 @@ class FirmaController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Uloží úroveň zpracování dokladů. Platí pro celou firmu, ne pro jednotlivý
+     * doklad — u nahrávání se dá jednorázově zvolit, že se soubor jen uloží.
+     */
+    public function ulozitUroven(Request $request)
+    {
+        $firma = auth()->user()->aktivniFirma();
+
+        if (!$firma) {
+            return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
+        }
+
+        $request->validate(['uroven' => 'required|in:ulozeni,vycteni']);
+
+        $firma->update(['uroven_zpracovani' => $request->uroven]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function toggleSystemEmail(Request $request)
     {
         $firma = auth()->user()->aktivniFirma();

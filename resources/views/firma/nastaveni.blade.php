@@ -324,6 +324,50 @@
     </div>
     @endif
 
+    {{-- Zpracování dokladů --}}
+    @if ($firma)
+    <div class="section">
+        <div class="kat-section-header" onclick="toggleSection('zpracovani')">
+            <span class="kat-arrow" id="zpracovaniArrow">&#9654;</span>
+            <h3><x-ikona name="scan-line" /> Zpracování dokladů</h3>
+        </div>
+        <p class="kat-desc">Co se má s nahraným dokladem stát</p>
+
+        <div class="kat-body" id="zpracovaniBody">
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem;">
+                <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.9rem; cursor: pointer;">
+                    <input type="radio" name="uroven" value="vycteni" style="margin-top: 0.25rem;"
+                           {{ $firma->uroven_zpracovani !== 'ulozeni' ? 'checked' : '' }}>
+                    <span>
+                        <strong>Vyčtení</strong><br>
+                        <span style="font-size: 0.82rem; color: #888;">Doklad se přečte a pole se vyplní sama.</span>
+                    </span>
+                </label>
+                <label style="display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer;">
+                    <input type="radio" name="uroven" value="ulozeni" style="margin-top: 0.25rem;"
+                           {{ $firma->uroven_zpracovani === 'ulozeni' ? 'checked' : '' }}>
+                    <span>
+                        <strong>Uložení</strong><br>
+                        <span style="font-size: 0.82rem; color: #888;">Doklad se jen uloží. Vyčíst ho jde kdykoli později tlačítkem na detailu.</span>
+                    </span>
+                </label>
+
+                <p style="font-size: 0.82rem; color: #888; margin: 0.9rem 0 0;">
+                    Zůstatek kreditů:
+                    @if ($firma->kredity === null)
+                        <strong>bez omezení</strong>
+                    @elseif ($firma->kredity > 0)
+                        <strong>{{ $firma->kredity }}</strong> (1 kredit = 1 stránka vyčtení)
+                    @else
+                        <strong style="color: #c0392b;">vyčerpáno</strong> — doklady se zatím jen ukládají
+                    @endif
+                </p>
+                <p id="urovenStav" style="font-size: 0.82rem; margin: 0.4rem 0 0;"></p>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Email pro doklady --}}
     @if ($firma)
     <div class="section">
@@ -1129,6 +1173,24 @@
             .catch(() => { alert('Chyba připojení.'); toggleSys.checked = !toggleSys.checked; });
         });
     }
+
+    // Úroveň zpracování — ukládá se hned po přepnutí
+    document.querySelectorAll('input[name="uroven"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            const stav = document.getElementById('urovenStav');
+            fetch('{{ route("firma.ulozitUroven") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
+                body: JSON.stringify({ uroven: this.value })
+            })
+            .then(r => r.json())
+            .then(data => {
+                stav.textContent = data.ok ? 'Uloženo.' : (data.error || 'Uložení se nepodařilo.');
+                stav.style.color = data.ok ? '#27ae60' : '#c0392b';
+            })
+            .catch(() => { stav.textContent = 'Chyba připojení.'; stav.style.color = '#c0392b'; });
+        });
+    });
 
     // Vlastní email toggle → show/hide form
     const toggleVlastni = document.getElementById('toggleVlastniEmail');

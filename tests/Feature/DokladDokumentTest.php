@@ -130,6 +130,28 @@ class DokladDokumentTest extends TestCase
         $this->assertSame('ulozeno', $doklad->fresh()->stav);
     }
 
+    public function test_pri_vycerpanych_kreditech_se_doklad_ulozi_a_nevyteziuje(): void
+    {
+        $this->firma->update(['kredity' => 0]);
+
+        $this->prihlasen()
+            ->postJson('/upload', [
+                'documents' => [UploadedFile::fake()->create('faktura.pdf', 20, 'application/pdf')],
+            ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk();
+
+        $zaznam = Doklad::firstOrFail();
+
+        // Doklad se neztratil — jen čeká na vytěžení.
+        $this->assertSame('ulozeno', $zaznam->stav);
+        $this->assertSame('doklad', $zaznam->druh);
+        $this->assertTrue($zaznam->lzeVytezit());
+        Storage::disk('s3')->assertExists($zaznam->cesta_souboru);
+
+        // A hlavně: nezavolalo se nic placeného.
+        $this->assertSame(0, \App\Models\AiVolani::count());
+    }
+
     public function test_bez_prepinace_se_nahrava_jako_dosud(): void
     {
         // Nahrávání bez `druh` musí zůstat dokladem — jinak by se změnilo

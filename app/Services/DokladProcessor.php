@@ -16,6 +16,55 @@ class DokladProcessor
     /** Indikátor, zda byla na některé stránce detekována více než 1 doklad. */
     public bool $hadMultiDocPage = false;
 
+    /**
+     * Náklady se během zpracování jen sbírají a zapíšou se až nakonec — dřív
+     * totiž není známé ID dokladu, ke kterému patří.
+     *
+     * @var array<int, array{0: string, 1: array}>
+     */
+    private array $naklady = [];
+
+    private ?Firma $firmaMereni = null;
+
+    private function zahajMereni(Firma $firma): void
+    {
+        $this->naklady = [];
+        $this->firmaMereni = $firma;
+    }
+
+    /** Odloží zápis nákladu do konce zpracování. */
+    private function zmerNaklad(string $druh, array $argumenty): void
+    {
+        if ($this->firmaMereni === null) {
+            return; // měření neběží (např. samostatné volání mimo process())
+        }
+
+        $this->naklady[] = [$druh, $argumenty];
+    }
+
+    private function zapisNaklady(?int $dokladId): void
+    {
+        if ($this->naklady === []) {
+            $this->firmaMereni = null;
+
+            return;
+        }
+
+        $ico = $this->firmaMereni?->ico;
+        $sluzba = new NakladyAi();
+
+        foreach ($this->naklady as [$druh, $a]) {
+            if ($druh === 'claude') {
+                $sluzba->zalogujClaude($a['model'], $a['usage'], $ico, $dokladId, $a['uspesne'], $a['status'], $a['trvani'], $a['poznamka'] ?? null);
+            } else {
+                $sluzba->zalogujTextract($a['stranky'], $ico, $dokladId, $a['uspesne'], $a['trvani'], $a['poznamka'] ?? null);
+            }
+        }
+
+        $this->naklady = [];
+        $this->firmaMereni = null;
+    }
+
 
     /**
      * Zpracuje soubor dokladu - rozdělí PDF na stránky, Claude Vision AI + upload na S3 + uložení do DB.
@@ -64,13 +113,43 @@ class DokladProcessor
             $pages = null; // obrázky se nerozdělují
         }
 
-        // Multi-page PDF: zpracuj každou stránku zvlášť
-        if ($pages !== null && count($pages) > 1) {
-            return $this->processMultiPagePdf($pages, $originalName, $firma, $fileHash, $zdroj, $fileBytes, $existujici);
+        $pocetStranek = $pages !== null ? count($pages) : 1;
+
+        // Úroveň služby a kredity. Když se vytěžovat nemá, soubor se přesto
+        // uloží — jen se nezavolá AI. Vytěžit jde kdykoli později tlačítkem.
+        $kredity = new Kredity();
+        if (!$kredity->lzeVytezit($firma, $pocetStranek)) {
+            if ($existujici) {
+                $existujici->update(['stav' => 'ulozeno']);
+
+                return [$existujici->fresh()];
+            }
+
+            return [$this->ulozBezVytezeni($filePath, $originalName, $firma, $fileHash, $zdroj, 'doklad')];
         }
 
-        // Jednoduchý soubor (1 stránka PDF nebo obrázek)
-        return $this->processSingleFile($fileBytes, $ext, $originalName, $firma, $fileHash, $zdroj, $existujici);
+        $this->zahajMereni($firma);
+        $vysledek = null;
+
+        try {
+            // Multi-page PDF: zpracuj každou stránku zvlášť
+            if ($pages !== null && count($pages) > 1) {
+                $vysledek = $this->processMultiPagePdf($pages, $originalName, $firma, $fileHash, $zdroj, $fileBytes, $existujici);
+            } else {
+                // Jednoduchý soubor (1 stránka PDF nebo obrázek)
+                $vysledek = $this->processSingleFile($fileBytes, $ext, $originalName, $firma, $fileHash, $zdroj, $existujici);
+            }
+        } finally {
+            $this->zapisNaklady($vysledek[0]->id ?? null);
+        }
+
+        // Kredity se strhávají až po zpracování — když vytěžení selže, firma
+        // o ně nepřijde.
+        if (($vysledek[0]->stav ?? null) !== 'chyba') {
+            $kredity->odecti($firma, $pocetStranek, $vysledek[0]->id ?? null);
+        }
+
+        return $vysledek;
     }
 
     /**
@@ -670,6 +749,8 @@ class DokladProcessor
      */
     private function callTextract(string $fileBytes): ?array
     {
+        $start = microtime(true);
+
         try {
             $client = new TextractClient([
                 'version' => 'latest',
@@ -684,9 +765,24 @@ class DokladProcessor
                 'Document' => ['Bytes' => $fileBytes],
             ]);
 
+            // detectDocumentText zpracuje vždy jednu stránku — a tak se i účtuje.
+            $this->zmerNaklad('textract', [
+                'stranky' => 1,
+                'uspesne' => true,
+                'trvani' => (int) round((microtime(true) - $start) * 1000),
+            ]);
+
             return $result['Blocks'] ?? null;
         } catch (\Exception $e) {
             Log::warning("Textract call failed: {$e->getMessage()}");
+
+            $this->zmerNaklad('textract', [
+                'stranky' => 1,
+                'uspesne' => false,
+                'trvani' => (int) round((microtime(true) - $start) * 1000),
+                'poznamka' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }
@@ -1204,12 +1300,15 @@ class DokladProcessor
             $userText .= "\n\nPŘESNÝ OCR PŘEPIS (z AWS Textract, řádek po řádku):\n---\n{$textractOcr}\n---\nTento OCR přepis je znaková přesností NADŘAZENÝ tvému vlastnímu čtení z obrázku. VŽDY preferuj text z tohoto přepisu pro VŠECHNY hodnoty — názvy firem, IČO, DIČ, čísla dokladů, částky, data, adresy. Obrázek používej pouze pro pochopení struktury dokumentu (co je dodavatel, co odběratel, jaký typ dokladu atd.).";
         }
 
+        $model = 'claude-haiku-4-5-20251001';
+        $start = microtime(true);
+
         $response = Http::timeout(90)->withHeaders([
             'x-api-key' => $apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
         ])->post('https://api.anthropic.com/v1/messages', [
-            'model' => 'claude-haiku-4-5-20251001',
+            'model' => $model,
             'max_tokens' => 16384,
             'messages' => [
                 [
@@ -1226,11 +1325,30 @@ class DokladProcessor
             'system' => $systemPrompt,
         ]);
 
+        $trvani = (int) round((microtime(true) - $start) * 1000);
+
         if ($response->failed()) {
+            $this->zmerNaklad('claude', [
+                'model' => $model,
+                'usage' => [],
+                'uspesne' => false,
+                'status' => $response->status(),
+                'trvani' => $trvani,
+                'poznamka' => substr($response->body(), 0, 240),
+            ]);
+
             throw new \RuntimeException('Claude Vision API chyba (HTTP ' . $response->status() . '): ' . substr($response->body(), 0, 500));
         }
 
         $body = $response->json();
+
+        $this->zmerNaklad('claude', [
+            'model' => $body['model'] ?? $model,
+            'usage' => $body['usage'] ?? [],
+            'uspesne' => true,
+            'status' => $response->status(),
+            'trvani' => $trvani,
+        ]);
         $content = $body['content'][0]['text'] ?? '';
         $stopReason = $body['stop_reason'] ?? 'end_turn';
 
