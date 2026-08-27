@@ -15,6 +15,11 @@
     .upload-zone.compact .formats { display: none; }
     .upload-zone p { color: #7f8c8d; margin: 0; font-size: 0.9rem; }
     .upload-zone .formats { font-size: 0.8rem; color: #95a5a6; margin-top: 0.3rem; }
+    /* Volba, co se s nahraným souborem stane */
+    .druh-volba { display: flex; justify-content: center; gap: 1.2rem; margin: -1rem 0 1.5rem; font-size: 0.85rem; color: #7f8c8d; }
+    .druh-volba label { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+    .druh-volba input { cursor: pointer; }
+    .druh-volba .napoveda { color: #95a5a6; font-size: 0.78rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Notification panel */
@@ -95,6 +100,7 @@
     .stav-chyba { color: #e74c3c; font-weight: 600; cursor: help; }
     .stav-zpracovava { color: #f39c12; font-weight: 600; }
     .stav-nekvalitni { color: #d4a017; font-weight: 600; cursor: help; }
+    .stav-ulozeno { color: #7f8c8d; cursor: help; }
     .badge-kvalita { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.65rem; font-weight: 600; margin-left: 0.2rem; vertical-align: middle; }
     .kvalita-nizka { background: #fff3cd; color: #856404; }
     .kvalita-necitelna { background: #f8d7da; color: #721c24; }
@@ -211,6 +217,16 @@
             <p class="formats">PDF, JPG, PNG (max 10 MB)</p>
         </div>
         <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple style="display: none;">
+        <div class="druh-volba">
+            <label>
+                <input type="radio" name="druh" value="doklad" checked> Doklad
+                <span class="napoveda">— přečte se a vyplní</span>
+            </label>
+            <label>
+                <input type="radio" name="druh" value="dokument"> Dokument
+                <span class="napoveda">— jen se uloží</span>
+            </label>
+        </div>
         @endif
         <div class="notif-history-toggle" id="notifHistoryToggle" onclick="toggleNotifHistory()">
             <span id="notifHistoryArrow">&#9654;</span> Zobrazit historii (<span id="notifHistoryCount">0</span>)
@@ -574,6 +590,10 @@ function cellValue(d, colId) {
                 return '<span class="'+(nkSerious ? 'stav-chyba' : 'stav-nekvalitni')+'" title="'+nkTip+'">&#9888;</span>';
             }
             if (d.stav === 'chyba') return '<span class="stav-chyba" title="'+(d.chybova_zprava||'Chyba zpracování').replace(/"/g,'&quot;')+'">Chyba</span>';
+            if (d.stav === 'ulozeno') {
+                var ulTip = d.druh === 'dokument' ? 'Dokument — jen uložený, nevytěžený' : 'Uložený doklad, zatím nevytěžený';
+                return '<span class="stav-ulozeno" title="'+ulTip+'">Uloženo</span>';
+            }
             return '<span class="stav-zpracovava">'+d.stav+'</span>';
         case 'typ':
             const typLabels = {faktura:'Faktura', uctenka:'Účtenka', pokladni_doklad:'Pokl. dokl.', dobropis:'Dobropis', zalohova_faktura:'Zál. faktura', pokuta:'Pokuta', jine:'Jiné'};
@@ -1168,6 +1188,10 @@ function uploadSingleFile(file) {
     const formData = new FormData();
     formData.append('_token', csrfToken);
     formData.append('documents[]', file);
+    // Když přepínač na stránce není (účetní bez práva vkládat), pošle se doklad
+    // — tedy to, co dělalo nahrávání odjakživa.
+    const zvolenyDruh = document.querySelector('input[name="druh"]:checked');
+    formData.append('druh', zvolenyDruh ? zvolenyDruh.value : 'doklad');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);

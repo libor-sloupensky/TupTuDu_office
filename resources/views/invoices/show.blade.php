@@ -11,6 +11,9 @@
     .back-link:hover { text-decoration: underline; }
     .btn-download { background: #3498db; color: white; text-decoration: none; padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; }
     .btn-download:hover { background: #2980b9; }
+    .btn-vytezit { background: #16a085; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; }
+    .btn-vytezit:hover { background: #138d75; }
+    .btn-vytezit[disabled] { background: #95a5a6; cursor: default; }
     .btn-delete { background: #e74c3c; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
     .btn-delete:hover { background: #c0392b; }
     .duplicate-warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
@@ -26,6 +29,7 @@
     .stav-chyba { color: #e74c3c; font-weight: 600; }
     .stav-nekvalitni { color: #d4a017; font-weight: 600; }
     .stav-zpracovava { color: #f39c12; font-weight: 600; }
+    .stav-ulozeno { color: #7f8c8d; font-weight: 600; }
     .error-box { background: #ffeaea; color: #c0392b; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
 
     .metadata-section { margin-top: 1.5rem; }
@@ -52,6 +56,12 @@
             @if ($doklad->cesta_souboru)
                 <a href="{{ route('doklady.preview', $doklad) }}" class="btn-preview-show" target="_blank">Náhled</a>
                 <a href="{{ route('doklady.download', $doklad) }}" class="btn-download">Stáhnout</a>
+            @endif
+            @if ($doklad->lzeVytezit())
+                <button type="button" class="btn-vytezit" id="btnVytezit"
+                        data-url="{{ route('doklady.vytezit', $doklad) }}">
+                    <x-ikona name="scan-line" :size="16" /> Vytěžit
+                </button>
             @endif
             <form action="{{ route('doklady.destroy', $doklad) }}" method="POST" style="display: inline;" onsubmit="return confirm('Opravdu smazat tento doklad? Soubor bude odstraněn i z cloudu.')">
                 @csrf
@@ -125,10 +135,16 @@
                     @endif
                 @elseif ($doklad->stav === 'chyba')
                     <span class="stav-chyba">Chyba</span>
+                @elseif ($doklad->stav === 'ulozeno')
+                    <span class="stav-ulozeno">Uloženo, nevytěženo</span>
                 @else
                     <span class="stav-zpracovava">{{ ucfirst($doklad->stav) }}</span>
                 @endif
             </td>
+        </tr>
+        <tr>
+            <th>Druh</th>
+            <td>{{ $doklad->druh === 'dokument' ? 'Dokument' : 'Doklad' }}</td>
         </tr>
         <tr>
             <th>Typ dokladu</th>
@@ -263,4 +279,41 @@
     </div>
     @endif
 </div>
+
+@if ($doklad->lzeVytezit())
+<script>
+// Dodatečné vytěžení. Trvá desítky sekund, proto se tlačítko zamkne a po
+// úspěchu se stránka načte znovu — přepsaná pole jsou po celém detailu.
+document.getElementById('btnVytezit').addEventListener('click', function () {
+    var btn = this;
+    var puvodni = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Vytěžuji…';
+
+    fetch(btn.dataset.url, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        },
+    })
+    .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'Server vrátil neočekávanou odpověď.' }; }); })
+    .then(function (data) {
+        if (data.ok) {
+            window.location.reload();
+            return;
+        }
+        alert(data.error || 'Vytěžení se nepodařilo.');
+        btn.disabled = false;
+        btn.innerHTML = puvodni;
+    })
+    .catch(function () {
+        alert('Vytěžení se nepodařilo — zkuste to prosím znovu.');
+        btn.disabled = false;
+        btn.innerHTML = puvodni;
+    });
+});
+</script>
+@endif
 @endsection

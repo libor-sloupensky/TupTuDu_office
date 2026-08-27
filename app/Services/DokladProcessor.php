@@ -40,12 +40,18 @@ class DokladProcessor
         @file_put_contents("{$dir}/" . date('Y-m-d') . '_errors.log', $entry, FILE_APPEND);
     }
 
+    /**
+     * @param  ?Doklad  $existujici  Když je vyplněný, výsledek se zapíše do něj
+     *                               místo zakládání nového záznamu. Používá se
+     *                               při dodatečném vytěžení už uloženého souboru.
+     */
     public function process(
         string $filePath,
         string $originalName,
         Firma $firma,
         string $fileHash,
-        string $zdroj = 'upload'
+        string $zdroj = 'upload',
+        ?Doklad $existujici = null
     ): array {
         $fileBytes = file_get_contents($filePath);
         $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION)) ?: 'pdf';
@@ -60,11 +66,121 @@ class DokladProcessor
 
         // Multi-page PDF: zpracuj každou stránku zvlášť
         if ($pages !== null && count($pages) > 1) {
-            return $this->processMultiPagePdf($pages, $originalName, $firma, $fileHash, $zdroj, $fileBytes);
+            return $this->processMultiPagePdf($pages, $originalName, $firma, $fileHash, $zdroj, $fileBytes, $existujici);
         }
 
         // Jednoduchý soubor (1 stránka PDF nebo obrázek)
-        return $this->processSingleFile($fileBytes, $ext, $originalName, $firma, $fileHash, $zdroj);
+        return $this->processSingleFile($fileBytes, $ext, $originalName, $firma, $fileHash, $zdroj, $existujici);
+    }
+
+    /**
+     * Uloží soubor, ale nevytěžuje ho.
+     *
+     * Používá se pro dokumenty (smlouva, protokol) a pro doklady, u kterých se
+     * vytěžení zatím spustit nemá. AI ani Textract se nevolá, takže to nic
+     * nestojí. Vytěžit se dá kdykoli později přes `vytezit()`.
+     */
+    public function ulozBezVytezeni(
+        string $filePath,
+        string $originalName,
+        Firma $firma,
+        string $fileHash,
+        string $zdroj = 'upload',
+        string $druh = 'dokument'
+    ): Doklad {
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION)) ?: 'pdf';
+
+        // Cesta v úložišti se skládá z ID záznamu, které známe až po vložení.
+        // Sloupec ale prázdný být nesmí, takže tam nejdřív jde dočasná hodnota
+        // a hned po nahrání ji přepíše ta správná. Soubor se nahrává jednou —
+        // na dočasnou cestu se nic neukládá, takže po sobě nic nezůstává.
+        $doklad = Doklad::create([
+            'firma_ico' => $firma->ico,
+            'nazev_souboru' => $originalName,
+            'cesta_souboru' => "doklady/{$firma->ico}/_tmp/{$fileHash}.{$ext}",
+            'hash_souboru' => $fileHash,
+            'stav' => 'ulozeno',
+            'druh' => $druh,
+            'zdroj' => $zdroj,
+            'datum_prijeti' => now()->toDateString(),
+        ]);
+
+        $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $originalName, null);
+        Storage::disk('s3')->put($s3Path, file_get_contents($filePath));
+        $doklad->update(['cesta_souboru' => $s3Path]);
+
+        return $doklad->fresh();
+    }
+
+    /**
+     * Dodatečně vytěží už uložený záznam — dokument i doklad, který zůstal
+     * nevytěžený. Soubor se bere z úložiště, takže se nikam nenahrává znovu
+     * a `cesta_souboru` zůstává, jaká byla.
+     */
+    public function vytezit(Doklad $doklad): Doklad
+    {
+        $disk = Storage::disk('s3');
+
+        if (!$doklad->cesta_souboru || !$disk->exists($doklad->cesta_souboru)) {
+            throw new \RuntimeException('Soubor se v úložišti nenašel.');
+        }
+
+        $temp = tempnam(sys_get_temp_dir(), 'vytezeni_');
+        file_put_contents($temp, $disk->get($doklad->cesta_souboru));
+
+        try {
+            $vysledek = $this->process(
+                $temp,
+                $doklad->nazev_souboru,
+                $doklad->firma,
+                $doklad->hash_souboru,
+                $doklad->zdroj ?: 'upload',
+                $doklad,
+            );
+        } finally {
+            @unlink($temp);
+        }
+
+        return $vysledek[0] ?? $doklad->fresh();
+    }
+
+    /**
+     * Zapíše chybu — buď do už existujícího záznamu, nebo do nového.
+     */
+    private function zaznamChyby(
+        ?Doklad $existujici,
+        Firma $firma,
+        string $nazev,
+        string $cesta,
+        string $fileHash,
+        string $zdroj,
+        string $zprava,
+        ?string $rawAiOdpoved = null
+    ): Doklad {
+        $data = [
+            'stav' => 'chyba',
+            'chybova_zprava' => $zprava,
+        ];
+
+        if ($rawAiOdpoved !== null) {
+            $data['raw_ai_odpoved'] = $rawAiOdpoved;
+        }
+
+        if ($existujici) {
+            // Cestu k souboru necháváme být — soubor je na svém místě, jen se
+            // ho nepodařilo přečíst.
+            $existujici->update($data);
+
+            return $existujici->fresh();
+        }
+
+        return Doklad::create($data + [
+            'firma_ico' => $firma->ico,
+            'nazev_souboru' => $nazev,
+            'cesta_souboru' => $cesta,
+            'hash_souboru' => $fileHash,
+            'zdroj' => $zdroj,
+        ]);
     }
 
     /**
@@ -79,7 +195,8 @@ class DokladProcessor
         Firma $firma,
         string $fileHash,
         string $zdroj,
-        string $originalFileBytes
+        string $originalFileBytes,
+        ?Doklad $existujici = null
     ): array {
         $firstDocData = null;
         $firstTextractBlocks = null;
@@ -170,15 +287,9 @@ class DokladProcessor
             if ($lastError) {
                 $this->logFailedFile($originalName, $firma->ico, $lastError->getMessage(), $originalFileBytes);
             }
-            $doklad = Doklad::create([
-                'firma_ico' => $firma->ico,
-                'nazev_souboru' => $originalName,
-                'cesta_souboru' => $tempPath,
-                'hash_souboru' => $fileHash,
-                'stav' => 'chyba',
-                'chybova_zprava' => $errMsg,
-                'zdroj' => $zdroj,
-            ]);
+            $doklad = $this->zaznamChyby(
+                $existujici, $firma, $originalName, $tempPath, $fileHash, $zdroj, $errMsg,
+            );
             return [$doklad];
         }
 
@@ -195,22 +306,16 @@ class DokladProcessor
             $doklad = $this->createDokladFromPage(
                 $firstDocData, $firma, $originalName, $fileHash,
                 $zdroj, $tempPath, $originalFileBytes, 1,
-                false, $firstTextractBlocks, $combinedOcr
+                false, $firstTextractBlocks, $combinedOcr, $existujici
             );
         } catch (\Exception $e) {
             Log::error("DokladProcessor create error: {$e->getMessage()}", [
                 'firma_ico' => $firma->ico,
                 'file' => $originalName,
             ]);
-            $doklad = Doklad::create([
-                'firma_ico' => $firma->ico,
-                'nazev_souboru' => $originalName,
-                'cesta_souboru' => $tempPath,
-                'hash_souboru' => $fileHash,
-                'stav' => 'chyba',
-                'chybova_zprava' => $e->getMessage(),
-                'zdroj' => $zdroj,
-            ]);
+            $doklad = $this->zaznamChyby(
+                $existujici, $firma, $originalName, $tempPath, $fileHash, $zdroj, $e->getMessage(),
+            );
         }
 
         return [$doklad];
@@ -227,7 +332,8 @@ class DokladProcessor
         string $originalName,
         Firma $firma,
         string $fileHash,
-        string $zdroj
+        string $zdroj,
+        ?Doklad $existujici = null
     ): array {
         $tempS3Path = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}.{$ext}";
         Storage::disk('s3')->put($tempS3Path, $fileBytes);
@@ -281,15 +387,10 @@ class DokladProcessor
 
             $this->logFailedFile($originalName, $firma->ico, $lastError->getMessage(), $fileBytes);
 
-            $doklad = Doklad::create([
-                'firma_ico' => $firma->ico,
-                'nazev_souboru' => $originalName,
-                'cesta_souboru' => $tempS3Path,
-                'hash_souboru' => $fileHash,
-                'stav' => 'chyba',
-                'chybova_zprava' => 'Chyba AI zpracování: ' . $lastError->getMessage(),
-                'zdroj' => $zdroj,
-            ]);
+            $doklad = $this->zaznamChyby(
+                $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj,
+                'Chyba AI zpracování: ' . $lastError->getMessage(),
+            );
             return [$doklad];
         }
 
@@ -297,16 +398,11 @@ class DokladProcessor
 
         if (empty($documents)) {
             $ocrInfo = $textractOcr ? ' (OCR text: ' . mb_strlen($textractOcr) . ' znaků)' : '';
-            $doklad = Doklad::create([
-                'firma_ico' => $firma->ico,
-                'nazev_souboru' => $originalName,
-                'cesta_souboru' => $tempS3Path,
-                'hash_souboru' => $fileHash,
-                'stav' => 'chyba',
-                'chybova_zprava' => 'AI nerozpoznalo žádný doklad v souboru.' . $ocrInfo,
-                'raw_ai_odpoved' => json_encode($visionResult, JSON_UNESCAPED_UNICODE),
-                'zdroj' => $zdroj,
-            ]);
+            $doklad = $this->zaznamChyby(
+                $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj,
+                'AI nerozpoznalo žádný doklad v souboru.' . $ocrInfo,
+                json_encode($visionResult, JSON_UNESCAPED_UNICODE),
+            );
             return [$doklad];
         }
 
@@ -326,22 +422,16 @@ class DokladProcessor
             $doklad = $this->createDokladFromPage(
                 $docData, $firma, $originalName, $fileHash,
                 $zdroj, $tempS3Path, $fileBytes, 1,
-                false, $textractBlocks, $textractOcr
+                false, $textractBlocks, $textractOcr, $existujici
             );
         } catch (\Exception $e) {
             Log::error("DokladProcessor create error: {$e->getMessage()}", [
                 'firma_ico' => $firma->ico,
                 'file' => $originalName,
             ]);
-            $doklad = Doklad::create([
-                'firma_ico' => $firma->ico,
-                'nazev_souboru' => $originalName,
-                'cesta_souboru' => $tempS3Path,
-                'hash_souboru' => $fileHash,
-                'stav' => 'chyba',
-                'chybova_zprava' => $e->getMessage(),
-                'zdroj' => $zdroj,
-            ]);
+            $doklad = $this->zaznamChyby(
+                $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj, $e->getMessage(),
+            );
         }
 
         return [$doklad];
@@ -362,7 +452,8 @@ class DokladProcessor
         int $poradi,
         bool $multiDocPage = false,
         ?array $textractBlocks = null,
-        ?string $textractOcr = null
+        ?string $textractOcr = null,
+        ?Doklad $existujici = null
     ): Doklad {
         $kvalita = $docData['kvalita'] ?? 'dobra';
         $typDokladu = $docData['typ_dokladu'] ?? 'faktura';
@@ -385,24 +476,36 @@ class DokladProcessor
         $ext = strtolower(pathinfo($nazev, PATHINFO_EXTENSION)) ?: 'pdf';
         $datum = $docData['datum_vystaveni'] ?? null;
 
-        $doklad = Doklad::create([
-            'firma_ico' => $firma->ico,
-            'nazev_souboru' => $nazev,
-            'cesta_souboru' => $tempS3Path,
-            'hash_souboru' => $fileHash,
+        $zaklad = [
             'stav' => 'zpracovava_se',
-            'zdroj' => $zdroj,
             'typ_dokladu' => $typDokladu,
             'kvalita' => $kvalita,
             'kvalita_poznamka' => $kvalitaPoznamka,
             'poradi_v_souboru' => $poradi,
             'raw_text' => $textractOcr ?: ($docData['raw_text'] ?? null),
             'raw_ai_odpoved' => json_encode($docData, JSON_UNESCAPED_UNICODE),
-        ]);
+        ];
 
-        // S3 finální cesta
-        $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $nazev, $datum);
-        Storage::disk('s3')->put($s3Path, $pageBytes);
+        if ($existujici) {
+            // Dodatečné vytěžení: soubor už na svém místě je, nenahráváme ho
+            // znovu a necháváme mu i cestu. Přejmenovat ho podle data vystavení
+            // by znamenalo mít v úložišti jednu věc dvakrát.
+            $doklad = $existujici;
+            $doklad->update($zaklad);
+            $s3Path = $doklad->cesta_souboru;
+        } else {
+            $doklad = Doklad::create($zaklad + [
+                'firma_ico' => $firma->ico,
+                'nazev_souboru' => $nazev,
+                'cesta_souboru' => $tempS3Path,
+                'hash_souboru' => $fileHash,
+                'zdroj' => $zdroj,
+            ]);
+
+            // S3 finální cesta
+            $s3Path = $this->buildS3Path($firma->ico, $doklad->id, $nazev, $datum);
+            Storage::disk('s3')->put($s3Path, $pageBytes);
+        }
 
         // Detekce obsahové duplicity (stejné číslo dokladu + dodavatel)
         $duplicitaId = null;

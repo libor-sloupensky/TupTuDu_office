@@ -144,6 +144,9 @@ class InvoiceController extends Controller
             'kategorie' => $d->kategorie,
             'poznamka' => $d->poznamka,
             'stav' => $d->stav,
+            'druh' => $d->druh,
+            'lze_vytezit' => $d->lzeVytezit(),
+            'vytezit_url' => route('doklady.vytezit', $d),
             'typ_dokladu' => $d->typ_dokladu,
             'kvalita' => $d->kvalita,
             'kvalita_poznamka' => $d->kvalita_poznamka,
@@ -303,9 +306,13 @@ class InvoiceController extends Controller
             $request->validate([
                 'documents' => 'required|array|min:1',
                 'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+                // Dokument se jen uloží a nevytěžuje. Když se přepínač neposílá,
+                // chová se nahrávání jako dřív — tedy jako doklad.
+                'druh' => 'nullable|in:doklad,dokument',
             ]);
 
             $firma = $this->aktivniFirma();
+            $druh = $request->input('druh', 'doklad');
 
             $processor = new DokladProcessor();
             $results = [];
@@ -331,11 +338,27 @@ class InvoiceController extends Controller
 
                 $t = microtime(true);
                 $processor->hadMultiDocPage = false;
-                $doklady = $processor->process($tempPath, $originalName, $firma, $fileHash, 'upload');
+
+                if ($druh === 'dokument') {
+                    $doklady = [$processor->ulozBezVytezeni($tempPath, $originalName, $firma, $fileHash, 'upload')];
+                } else {
+                    $doklady = $processor->process($tempPath, $originalName, $firma, $fileHash, 'upload');
+                }
+
                 foreach ($doklady as $d) {
                     $d->update(['nahral' => auth()->user()->email]);
                 }
                 $processMs = round((microtime(true) - $t) * 1000);
+
+                if ($druh === 'dokument') {
+                    $results[] = [
+                        'name' => $originalName,
+                        'status' => 'ok',
+                        'message' => 'Dokument uložen (nevytěžuje se)',
+                        'timing' => ['process_ms' => $processMs, 'total_ms' => round((microtime(true) - $fileStart) * 1000)],
+                    ];
+                    continue;
+                }
 
                 // Determine overall status and build human-friendly message
                 $status = 'ok';
@@ -482,6 +505,41 @@ class InvoiceController extends Controller
         $doklad->update([$field => $value]);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Dodatečně vytěží uložený záznam — dokument, který se má přece jen
+     * přečíst, nebo doklad, u kterého vytěžení neproběhlo.
+     */
+    public function vytezit(Doklad $doklad)
+    {
+        $this->autorizujDoklad($doklad);
+        $this->overOpravaUcetni('upravovat', $doklad->firma_ico);
+
+        if (!$doklad->lzeVytezit()) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Tento záznam vytěžit nelze — je už zpracovaný, nebo k němu chybí soubor.',
+            ], 422);
+        }
+
+        try {
+            $doklad = (new DokladProcessor())->vytezit($doklad);
+        } catch (\Throwable $e) {
+            Log::error('InvoiceController::vytezit error', [
+                'doklad_id' => $doklad->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json(['ok' => false, 'error' => $this->friendlyErrorMessage($e)], 500);
+        }
+
+        return response()->json([
+            'ok' => $doklad->stav !== 'chyba',
+            'stav' => $doklad->stav,
+            'error' => $doklad->stav === 'chyba' ? $doklad->chybova_zprava : null,
+            'doklad' => $this->dokladToArray($doklad),
+        ]);
     }
 
     public function downloadSelected(Request $request)

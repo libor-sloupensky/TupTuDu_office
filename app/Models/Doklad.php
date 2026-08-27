@@ -17,7 +17,7 @@ class Doklad extends Model
         'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti',
         'castka_celkem', 'castka_zaklad', 'mena', 'castka_dph', 'kategorie', 'poznamka',
         'adresni', 'overeno_adresat', 'raw_text', 'raw_ai_odpoved',
-        'stav', 'chybova_zprava', 'zdroj', 'nahral', 'duplicita_id',
+        'stav', 'druh', 'chybova_zprava', 'zdroj', 'nahral', 'duplicita_id',
         'typ_dokladu', 'kvalita', 'kvalita_poznamka', 'poradi_v_souboru',
         'google_drive_file_id', 'google_drive_ucetni_file_id', 'google_drive_nahrano_at',
     ];
@@ -34,6 +34,25 @@ class Doklad extends Model
         'overeno_adresat' => 'boolean',
         'reverse_charge' => 'boolean',
     ];
+
+    /** Záznam se uložil, ale nikdy se nevytěžil. */
+    public function jeNevytezeny(): bool
+    {
+        return $this->stav === 'ulozeno';
+    }
+
+    /**
+     * Jde u záznamu spustit vytěžení?
+     *
+     * Platí pro dokument (ten se nevytěžuje automaticky) i pro doklad, který
+     * zůstal nevytěžený — třeba proto, že firmě došly kredity. Chybný záznam
+     * jde zkusit znovu; hotový doklad se přetěžovat nemá.
+     */
+    public function lzeVytezit(): bool
+    {
+        return $this->cesta_souboru !== null
+            && in_array($this->stav, ['ulozeno', 'chyba'], true);
+    }
 
     public function firma(): BelongsTo
     {
