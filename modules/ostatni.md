@@ -68,7 +68,7 @@ Workflow:
 
 ## Google Drive
 - OAuth2 flow (drive.file scope), refresh token šifrovaný v DB
-- Upload přes cron (ne real-time), batch 50 dokladů
+- Upload přes cron (ne real-time), batch 40 dokladů
 - Folder cache pro hierarchii složek
 - Metadata embedding: PDF (FPDI title/keywords), JPEG (IPTC)
 - Auto-deactivation při `invalid_grant` / `Token revoked`
@@ -209,5 +209,46 @@ hlavičky a tělo, takže přílohy i kódování zůstanou nedotčené.
 - Odpovědi odesílá `ProcessEmailDoklady::sendReply()` z `{IČO}@tuptudu.cz`
   přes mailer `doklady` (SMTP autentizace účtem `info@tuptudu.cz`).
 
+## Partnerská platforma (navrženo, zatím nerealizováno)
+
+Cíl: nabídnout nástroj dalším firmám — účetním kancelářím a jiným službám —
+které ho zapojí do svého webu a nabídnou vlastním klientům. Očekávaný rozsah
+v prvním roce desítky až stovky partnerů.
+
+**Určující omezení: partner nesmí vidět doklady svých firem.** Do dokladů smí
+jen účetní firma se schválenou `UcetniVazba`. Partner je obchodní kanál
+a plátce, ne správce dat.
+
+### Rozhodnuto
+- **Kanál k jedné firmě.** Jedno IČO je v systému jednou, přistupuje se k němu
+  z napojeného systému partnera. Zatím jedna firma = jeden partner (v mobilní
+  aplikaci si uživatel partnera nevybírá, takže víc partnerů nedává smysl).
+- **Dvě úrovně služby:** *Uložení* (soubor se jen uloží) a *Vyčtení*
+  (Textract + Claude Haiku vyplní pole).
+- **Textract se nevypíná** — stojí ~3 haléře na stránku a zlepšuje přesnost
+  i zvýrazňování v prohlížeči. Vytěžení dělá Claude; Textract sám vrací jen
+  text bez významu (`detectDocumentText`), žádná pole by nevyplnil.
+- **Třetí úroveň odložena** — až bude, půjde o silnější model (Sonnet) místo
+  Haiku, ne o dvojí čtení téhož dokladu.
+- **Cena se neodvozuje od nákladů.** Náklady se měří kvůli marži, ne kvůli
+  ceníku.
+- **Kredity za stránku.** Při vyčerpání firma spadne na *Uložení* — doklady se
+  dál ukládají, jen se nečtou.
+- **Úroveň se volí v nastavení firmy**, ne u jednotlivého dokladu; u nahrávání
+  může být přepínač „nevytěžovat" pro konkrétní soubor.
+- **Mobilní aplikace zůstává neutrální**, bez značky partnera.
+
+### Otevřené
+Jak se firma k partnerovi napojí a převede jinam (a kdo uvnitř firmy na to má
+právo), jak partner pořizuje kredity, co přesně o firmě vidí, co se s firmou
+stane při ukončení partnera.
+
+### Měření nákladů
+Logování spotřeby tokenů se převezme z projektu Kalkulio
+(`Kalkulio_AI/app/Services/ClaudeApi.php`) — má hotovou tabulku `ai_volani`,
+ceník po modelech, výpočet včetně cache (čtení 10 % vstupu, vytvoření 125 %)
+a batch slevy, a logování v `try/catch`, aby jeho selhání neshodilo hlavní
+volání. Doplnit je potřeba `firma_ico`, `doklad_id` a náklad na Textract.
+
 ---
-*Aktualizováno: 2026-08-25*
+*Aktualizováno: 2026-08-27*

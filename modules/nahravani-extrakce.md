@@ -13,7 +13,7 @@ Modul je plně funkční — upload, OCR, AI extrakce, email polling, Drive sync
 | `app/Services/DokladProcessor.php` | ~1367 | Hlavní procesor — PDF split, Textract OCR, Claude Vision, S3 upload, deduplikace |
 | `app/Http/Controllers/InvoiceController.php` | ~787 | Web API — upload (store), editace, vyhledávání, preview, download |
 | `app/Console/Commands/ProcessEmailDoklady.php` | ~668 | Email daemon — systémová + custom IMAP schránka, auto-reply šablony |
-| `app/Console/Commands/SyncGoogleDrive.php` | ~89 | Cron — batch sync hotových dokladů do Google Drive (max 50/běh) |
+| `app/Console/Commands/SyncGoogleDrive.php` | ~89 | Cron — batch sync hotových dokladů do Google Drive (max 40/běh) |
 | `app/Services/GoogleDriveService.php` | ~319 | Google Drive API — upload, folder cache, metadata embedding (PDF/JPEG) |
 | `app/Services/DrivePathBuilder.php` | — | Šablony cest pro Drive (tokeny: `{nahrano:YYYY}`, `{dodavatel:15}`, atd.) |
 | `app/Models/Doklad.php` | ~62 | Eloquent model — relace na Firma, Dodavatel, Polozka |
@@ -23,9 +23,10 @@ Modul je plně funkční — upload, OCR, AI extrakce, email polling, Drive sync
 
 ```
 Upload / Email → DokladProcessor
-  → PDF split (FPDI, multi-page → stránky)
-  → AWS Textract OCR (text + bounding boxy)
-  → Claude Vision AI (Haiku 4.5) — strukturovaná extrakce 25+ polí
+  → PDF se rozloží na stránky (FPDI) — jen kvůli čtení, ne kvůli dělení dokladu
+  → AWS Textract OCR (text + bounding boxy) — běží PRVNÍ
+  → Claude Vision AI (Haiku 4.5) — dostane obrázek i Textract přepis,
+    z toho dělá strukturovanou extrakci 25+ polí
   → Deduplikace (SHA256 hash + číslo dokladu + IČO dodavatele)
   → S3 upload (doklady/{ICO}/{YYYY-MM}/{datum}_{ID}.{ext})
   → DB zápis (fak_doklady + fak_polozky)
@@ -75,7 +76,10 @@ případ: adresa `{IČO}@tuptudu.cz` byla jen ve skryté kopii.
 - Razítko `google_drive_nahrano_at` se staví **jen když se doklad opravdu nahrál**.
   Dřív se stavělo i bez aktivního Drivu, takže se fronta označila za hotovou,
   aniž by se cokoli nahrálo, a už se k ní nikdo nevrátil
-- PDF split: každá stránka = samostatný doklad
+- **Jedno nahrání = jeden záznam.** Vícestránkové PDF se čte po stránkách, ale
+  vznikne z něj jediný doklad: data se berou z první stránky, OCR se spojí přes
+  všechny. Když AI rozpozná na stránkách víc různých dokladů, záznam se stejně
+  vytvoří jeden a doplní se `kvalita_poznamka` s varováním
 - Deduplikace: hash souboru + obsahová (číslo dokladu + dodavatel IČO)
 - JSON repair pro truncated AI responses
 
@@ -88,4 +92,4 @@ firma_ico, dodavatel_ico, nazev_souboru, cesta_souboru, cislo_dokladu, datum_vys
 doklad_id, poradi, text, mnozstvi, jednotka, cena_za_jednotku, zaklad_dane, sazba_dph, castka_dph, castka_celkem
 
 ---
-*Aktualizováno: 2026-08-25*
+*Aktualizováno: 2026-08-27*
