@@ -170,6 +170,34 @@ po dokončení přesunu odstraněny. V historii gitu zůstávají, kdyby se hodi
 | `sys_pozvani` | id | Pozvánky: firma_ico, email, token, expires_at, accepted_at |
 | `sys_ucetni_vazby` | id | Účetní vazby: ucetni_ico, klient_ico, stav, perm_* |
 | `fak_kategorie` | id | Kategorie: firma_ico, nazev, poradi (15 výchozích) |
+| `sys_partneri` | id | Partneři: nazev, api_klic_hash, aktivni |
+| `sys_firma_partner` | id | Napojení firma↔partner s historií (odpojeno_at) |
+| `sys_kredity_pohyby` | id | Pohyby kreditů: firma_ico, zmena, zustatek_po, duvod |
+| `sys_ai_volani` | id | Náklady na Claude a Textract |
+
+**Databázi lze postavit od nuly** — `php artisan migrate:fresh` projde. Dřív ne:
+`sys_pozvani`, `fak_kategorie` a řada sloupců vznikly ručně a migrace k nim
+nikdo nedopsal. Doplnila to migrace `2026_08_27_100000_srovnat_schema_s_kodem`,
+psaná podmíněně, takže na produkci nic nezměnila.
+
+**Jedna firma = nejvýš jeden partner** hlídá unique index nad generovaným
+sloupcem `aktivni_firma_ico` (IČO jen u aktivního napojení, jinak NULL).
+Obyčejný unique by nestačil — v MySQL se NULL nerovná NULL.
+
+## Testy
+
+`php artisan test`. Jedou proti **MariaDB**, ne SQLite: schéma používá FULLTEXT
+index a enum sloupce, které SQLite neumí, a `pdo_sqlite` stejně není ani na
+hostingu. Je potřeba mít založenou databázi `tuptudu_test`; přihlašovací údaje
+se berou z prostředí, takže lokálně:
+
+```
+DB_HOST=127.0.0.1 DB_USERNAME=root DB_PASSWORD=heslo php artisan test
+```
+
+Co je pokryté: přístup k dokladům a oprávnění účetní, partnerské API (hlavně že
+partner na doklady nedosáhne), doklad vs. dokument a dodatečné vytěžení,
+kredity a výpočet nákladů.
 
 ## Pošta — ověření odesílatele
 
@@ -209,7 +237,7 @@ hlavičky a tělo, takže přílohy i kódování zůstanou nedotčené.
 - Odpovědi odesílá `ProcessEmailDoklady::sendReply()` z `{IČO}@tuptudu.cz`
   přes mailer `doklady` (SMTP autentizace účtem `info@tuptudu.cz`).
 
-## Partnerská platforma (navrženo, zatím nerealizováno)
+## Partnerská platforma
 
 Cíl: nabídnout nástroj dalším firmám — účetním kancelářím a jiným službám —
 které ho zapojí do svého webu a nabídnou vlastním klientům. Očekávaný rozsah
@@ -243,12 +271,55 @@ Jak se firma k partnerovi napojí a převede jinam (a kdo uvnitř firmy na to m�
 právo), jak partner pořizuje kredity, co přesně o firmě vidí, co se s firmou
 stane při ukončení partnera.
 
+### Partnerské API
+Přihlášení API klíčem (`Authorization: Bearer …`), bez session. Vědomě tam
+nevede žádná cesta k dokladům — a webové routy klíč partnera neznají.
+
+| Metoda | Cesta | Co dělá |
+|--------|-------|---------|
+| GET | `/api/partner/firmy` | Seznam napojených firem |
+| POST | `/api/partner/firmy` | Napojí firmu podle IČO (nová se založí z ARES) |
+| GET | `/api/partner/firmy/{ico}` | Základní údaje — nikdy doklady |
+| DELETE | `/api/partner/firmy/{ico}` | Ukončí napojení, firma i doklady zůstávají |
+
+Firmu drženou jiným partnerem nelze převzít (409). Převod je otevřená otázka —
+má o něm rozhodovat firma, ne partner.
+
+Klíč se ukládá jen jako SHA-256 otisk. Založení: `php artisan partner:zalozit
+"Název" --email=…`, nový klíč `--obnovit-klic`. Vypíše se jednou.
+
+**Firma bez uživatelů je „převzatá":** partner ji může založit dopředu a první
+člověk, který se na to IČO zaregistruje, se stane superadminem. Žádný zvláštní
+mechanismus na to není potřeba, plyne to z `RegisterController`.
+
+### Úrovně zpracování a kredity
+`sys_firmy.uroven_zpracovani` — `vycteni` (Textract + Claude vyplní pole) nebo
+`ulozeni` (soubor se jen uloží). Volí se v nastavení firmy.
+
+`sys_firmy.kredity` — **NULL znamená bez omezení** a je to výchozí stav, takže
+firma, které nikdo kredity nepřidělil, funguje jako dřív. 1 kredit = 1 stránka
+vyčtení. Po vyčerpání doklad spadne na *Uložení*: uloží se, nevytěží, a jde
+vytěžit později tlačítkem.
+
+Kredity se strhávají **až po zpracování** — při chybě o ně firma nepřijde.
+Zůstatek se snižuje přímo v SQL (`GREATEST(kredity - N, 0)`), aby se dva
+souběžné uploady nepřepsaly. Pohyby jsou v `sys_kredity_pohyby`.
+
+Přidělení: `php artisan kredity:pripsat {ico} {kolik}`. Pozor — prvním
+přidělením se dosud neomezená firma stává omezenou.
+
 ### Měření nákladů
-Logování spotřeby tokenů se převezme z projektu Kalkulio
-(`Kalkulio_AI/app/Services/ClaudeApi.php`) — má hotovou tabulku `ai_volani`,
-ceník po modelech, výpočet včetně cache (čtení 10 % vstupu, vytvoření 125 %)
-a batch slevy, a logování v `try/catch`, aby jeho selhání neshodilo hlavní
-volání. Doplnit je potřeba `firma_ico`, `doklad_id` a náklad na Textract.
+`sys_ai_volani` zaznamenává každé placené volání (Claude i Textract) s firmou,
+dokladem, tokeny a cenou. Postup i ceník převzatý z Kalkulia
+(`Kalkulio_AI/app/Services/ClaudeApi.php`) včetně toho, že čtení z cache stojí
+10 % ceny vstupu a vytvoření cache 125 %. Zápis je v `try/catch` — když selže,
+zpracování dokladu běží dál.
+
+**Slouží ke znalosti marže, ne k tvorbě ceníku.** Cena pro zákazníka je
+obchodní rozhodnutí a od nákladů se neodvozuje.
+
+Náklady se během zpracování sbírají do paměti a zapíšou se až na konci — dřív
+není známé ID dokladu, ke kterému patří.
 
 ---
 *Aktualizováno: 2026-08-27*

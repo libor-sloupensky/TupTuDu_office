@@ -24,6 +24,7 @@ Modul je plně funkční — upload, OCR, AI extrakce, email polling, Drive sync
 ```
 Upload / Email → DokladProcessor
   → PDF se rozloží na stránky (FPDI) — jen kvůli čtení, ne kvůli dělení dokladu
+  → kontrola úrovně a kreditů — když se vytěžovat nemá, končí se uložením
   → AWS Textract OCR (text + bounding boxy) — běží PRVNÍ
   → Claude Vision AI (Haiku 4.5) — dostane obrázek i Textract přepis,
     z toho dělá strukturovanou extrakci 25+ polí
@@ -76,6 +77,15 @@ případ: adresa `{IČO}@tuptudu.cz` byla jen ve skryté kopii.
 - Razítko `google_drive_nahrano_at` se staví **jen když se doklad opravdu nahrál**.
   Dřív se stavělo i bez aktivního Drivu, takže se fronta označila za hotovou,
   aniž by se cokoli nahrálo, a už se k ní nikdo nevrátil
+- **Doklad vs. dokument** (`fak_doklady.druh`). Doklad se vytěžuje, dokument se
+  jen uloží — u něj se AI ani Textract nezavolá. Volí se přepínačem u nahrávání;
+  když se neposílá, jede se jako doklad, takže mobilní aplikace a e-mailový
+  příjem zůstávají beze změny
+- **Stav `ulozeno`** = uloženo, nevytěženo. Sedí na dokument i na doklad, kterému
+  došly kredity. Tlačítko *Vytěžit* na detailu zpracování spustí dodatečně —
+  soubor se bere z S3, zapisuje se do stávajícího záznamu, takže nevzniká
+  duplikát ani druhá kopie souboru. `DokladProcessor::process()` k tomu bere
+  nepovinný `$existujici`
 - **Jedno nahrání = jeden záznam.** Vícestránkové PDF se čte po stránkách, ale
   vznikne z něj jediný doklad: data se berou z první stránky, OCR se spojí přes
   všechny. Když AI rozpozná na stránkách víc různých dokladů, záznam se stejně
