@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Vrátí do fronty doklady, které se tvářily jako zálohované na Google Drive,
@@ -16,6 +17,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Na čisté databázi sloupce ještě neexistují (doplní je až migrace
+        // 2026_08_27_100000) a opravovat není co — data tam žádná nejsou.
+        if (!Schema::hasColumn('fak_doklady', 'google_drive_nahrano_at')) {
+            return;
+        }
+
         $pocet = DB::table('fak_doklady')
             ->whereNotNull('google_drive_nahrano_at')
             ->whereNull('google_drive_file_id')
