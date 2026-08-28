@@ -99,8 +99,10 @@
 </div>
 
 <script>
-// Stavové ikony vkládá JavaScript, kde nejde použít <x-ikona> — Blade je sem
-// vloží jako hotové SVG. Zdroj je stejný, tedy App\Support\Lucide.
+// Stavové ikony vkládá JavaScript, kde Blade komponentu ikony použít nejde —
+// vloží se sem rovnou jako hotové SVG. Zdroj je stejný, tedy App\Support\Lucide.
+// Pozor: název komponenty se sem nesmí napsat doslova ani v komentáři. Blade ho
+// zkompiluje i tady a rozbije tím celou stránku.
 const IKONY = {
     ok: @json(\App\Support\Lucide::svg('circle-check', 18)),
     duplicita: @json(\App\Support\Lucide::svg('copy', 18)),
