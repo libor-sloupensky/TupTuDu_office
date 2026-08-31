@@ -87,15 +87,10 @@
 
     <p class="info">Vyfoťte doklad — aplikace ho automaticky ořízne, narovná a uloží jako PDF.</p>
 
+    {{-- Jediný seznam dokladů. Skládá se ze dvou zdrojů: co se právě nahrává
+         (žije jen v paměti stránky) a co server opravdu má. Jakmile je známé ID
+         dokladu, oba zdroje splynou do jednoho řádku. --}}
     <div id="results" class="results"></div>
-
-    {{-- Co se opravdu uložilo. Seznam výše žije jen v paměti stránky, tenhle
-         se načítá ze serveru, takže přežije uspání appky i její restart. --}}
-    <div id="posledniBlok" style="display:none; margin-top: 1.5rem;">
-        <div style="font-size: 0.8rem; font-weight: 600; color: #7a8798; text-transform: uppercase;
-                    letter-spacing: 0.5px; margin-bottom: 0.5rem;">Naposledy nahrané</div>
-        <div id="posledni" class="results"></div>
-    </div>
 </div>
 
 <script>
@@ -111,6 +106,7 @@ const IKONY = {
 };
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+const firmaIco = @json($firma?->ico);
 const uploadUrl = '{{ route("invoices.store") }}';
 
 function isNative() {
@@ -122,10 +118,32 @@ if (!isNative()) {
 }
 
 // Přepnutí firmy — POST na server, aby se změnila aktivní firma v session
-function prepnoutFirmu(ico) {
-    const form = document.getElementById('firmaForm');
-    form.action = form.action.replace(/[^/]*$/, encodeURIComponent(ico));
-    form.submit();
+// Přepnutí firmy. Kdyby token přece jen nesouhlasil (server hlásí 419), stránku
+// jen načteme znovu — uživatel dostane čerstvý token místo hlášky "Page expired".
+async function prepnoutFirmu(ico) {
+    const zaklad = document.getElementById('firmaForm').action.replace(/[^/]*$/, '');
+
+    try {
+        const resp = await fetch(zaklad + encodeURIComponent(ico), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'include',
+            // Přesměrování nenásledujeme — stránku stejně hned načteme znovu.
+            redirect: 'manual',
+        });
+
+        if (resp.status === 419) {
+            window.location.reload();
+            return;
+        }
+    } catch (e) {
+        // Bez sítě se nepřepneme; stránka zůstane, jak byla
+        addResult({ status: 'error', name: 'Přepnutí firmy', message: 'Nepodařilo se spojit se serverem.' });
+        return;
+    }
+
+    // Firma je součástí stránky (nadpis, cíl nahrávání), tak ji načteme znovu.
+    window.location.reload();
 }
 
 function setBusy(busy) {
@@ -159,33 +177,66 @@ function novyNazev() {
     return datum + '-' + hex + '.pdf';
 }
 
+// Jediný seznam dokladů. Řádek vzniká hned při skenování, ještě než o dokladu
+// cokoli víme, a postupně se doplňuje — nejdřív z odpovědi na nahrání, pak ze
+// serveru. Spojuje se podle ID dokladu, takže se nic nezdvojuje.
+const polozky = [];
+let posledniKlic = 0;
+
+function radek(p) {
+    let cls = 'result-ok', ikona = IKONY.ok;
+
+    if (p.cekam) { cls = ''; ikona = '<span class="spinner spinner-dark"></span>'; }
+    else if (p.stav === 'duplicate') { cls = 'result-dup'; ikona = IKONY.duplicita; }
+    else if (p.stav === 'warning') { cls = 'result-warn'; ikona = IKONY.varovani; }
+    else if (p.stav === 'error') { cls = 'result-err'; ikona = IKONY.chyba; }
+
+    return '<div class="result-item">' +
+        '<div class="result-icon ' + cls + '">' + ikona + '</div>' +
+        '<div class="result-body">' +
+            '<div class="result-name">' + escapeHtml(p.nazev) + '</div>' +
+            '<div class="result-msg">' + escapeHtml(p.cas) +
+                (p.zprava ? ' · ' + escapeHtml(p.zprava) : '') + '</div>' +
+        '</div>' +
+    '</div>';
+}
+
+function vykreslit() {
+    document.getElementById('results').innerHTML = polozky
+        .slice()
+        .sort((a, b) => b.ts - a.ts)
+        .map(radek)
+        .join('');
+}
+
 // Založí položku ve stavu "nahrávám" a vrátí handle pro pozdější dokončení.
 // Uživatel může mezitím skenovat dál — každý doklad si drží svůj řádek.
 function pridatPolozku(nazev) {
-    const wrap = document.getElementById('results');
-    const div = document.createElement('div');
-    div.className = 'result-item';
-    div.innerHTML =
-        '<div class="result-icon"><span class="spinner spinner-dark"></span></div>' +
-        '<div class="result-body">' +
-            '<div class="result-name">' + escapeHtml(nazev) + '</div>' +
-            '<div class="result-msg">' + cas() + ' · zpracovávám…</div>' +
-        '</div>';
-    wrap.insertBefore(div, wrap.firstChild);
+    const p = {
+        klic: 'l' + (++posledniKlic),
+        id: null,
+        nazev: nazev,
+        zprava: 'zpracovávám…',
+        cas: cas(),
+        ts: Date.now(),
+        cekam: true,
+        stav: 'ok',
+        zeServeru: false,
+    };
+
+    polozky.push(p);
+    vykreslit();
 
     return {
         dokoncit(item) {
-            let cls = 'result-ok', icon = IKONY.ok;
-            if (item.status === 'duplicate') { cls = 'result-dup'; icon = IKONY.duplicita; }
-            else if (item.status === 'warning') { cls = 'result-warn'; icon = IKONY.varovani; }
-            else if (item.status === 'error') { cls = 'result-err'; icon = IKONY.chyba; }
-
-            div.querySelector('.result-icon').className = 'result-icon ' + cls;
-            div.querySelector('.result-icon').innerHTML = icon;
-            if (item.name) {
-                div.querySelector('.result-name').textContent = item.name;
-            }
-            div.querySelector('.result-msg').textContent = cas() + ' · ' + (item.message || 'Nahráno');
+            p.cekam = false;
+            p.stav = item.status || 'ok';
+            p.zprava = item.message || 'Nahráno';
+            p.cas = cas();
+            if (item.name) p.nazev = item.name;
+            if (item.id) p.id = item.id;
+            vykreslit();
+            nacistPosledni();
         },
     };
 }
@@ -262,6 +313,10 @@ async function nahratNaPozadi(blob, fileName) {
     try {
         const formData = new FormData();
         formData.append('documents[]', blob, fileName);
+        // Firma se posílá výslovně — je to ta, kterou má uživatel na obrazovce.
+        // Spoléhat se jen na session se ukázalo jako nebezpečné: dala se rozhodit
+        // a doklad se pak tiše uložil jiné firmě.
+        if (firmaIco) formData.append('firma_ico', firmaIco);
 
         const upResp = await fetch(uploadUrl, {
             method: 'POST',
@@ -308,7 +363,24 @@ async function nahratNaPozadi(blob, fileName) {
     }
 }
 
-/** Načte ze serveru posledních pár uložených dokladů. */
+/** Popis dokladu tak, jak ho zná server. */
+function popisZeServeru(d) {
+    if (d.stav === 'chyba') return 'Nepodařilo se vytěžit';
+    if (d.stav === 'ulozeno') {
+        return d.druh === 'dokument' ? 'Uložený dokument' : 'Uloženo, čeká na vytěžení';
+    }
+
+    return d.castka || 'Nahráno';
+}
+
+/**
+ * Doplní seznam o to, co server opravdu má.
+ *
+ * Řádky se párují podle ID dokladu. Hlášku z nahrávání nepřepisujeme — bývá
+ * podrobnější (třeba varování o jiném odběrateli); měníme ji jen u řádků, které
+ * ze serveru i pocházejí. Díky tomu se stav sám aktualizuje, když se doklad
+ * mezitím vytěží.
+ */
 async function nacistPosledni() {
     try {
         const resp = await fetch('{{ route("doklady.posledni") }}', {
@@ -319,26 +391,26 @@ async function nacistPosledni() {
         if (!resp.ok) return;
 
         const doklady = await resp.json();
-        const wrap = document.getElementById('posledni');
-        const blok = document.getElementById('posledniBlok');
+        if (!Array.isArray(doklady)) return;
 
-        if (!Array.isArray(doklady) || doklady.length === 0) {
-            blok.style.display = 'none';
-            return;
-        }
+        doklady.forEach(d => {
+            let p = polozky.find(x => x.id === d.id);
 
-        wrap.innerHTML = doklady.map(d =>
-            '<div class="result-item">' +
-                '<div class="result-icon result-ok">' + IKONY.ok + '</div>' +
-                '<div class="result-body">' +
-                    '<div class="result-name">' + escapeHtml(d.nazev || 'Doklad') + '</div>' +
-                    '<div class="result-msg">' + escapeHtml(d.nahrano || '') +
-                        (d.castka ? ' · ' + escapeHtml(d.castka) : '') + '</div>' +
-                '</div>' +
-            '</div>'
-        ).join('');
+            if (!p) {
+                p = { klic: 's' + d.id, id: d.id, cekam: false, zeServeru: true, ts: Date.now() };
+                polozky.push(p);
+            }
 
-        blok.style.display = '';
+            if (p.cekam) return; // ještě se nahrává, do rozdělaného řádku nesaháme
+
+            p.nazev = d.nazev || p.nazev || 'Doklad';
+            p.cas = d.nahrano || p.cas || '';
+            if (d.nahrano_iso) p.ts = Date.parse(d.nahrano_iso);
+            if (d.stav === 'chyba') p.stav = 'error';
+            if (p.zeServeru) p.zprava = popisZeServeru(d);
+        });
+
+        vykreslit();
     } catch (e) {
         // Bez sítě se seznam prostě nepřekreslí
     }

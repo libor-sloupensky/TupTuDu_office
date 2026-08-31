@@ -206,6 +206,7 @@
             var csrfToken = '{{ csrf_token() }}';
             var uploadUrl = '{{ route("invoices.store") }}';
             var aiSearchUrl = '{{ route("doklady.aiSearch") }}';
+            var aktivniFirmaIco = '{{ $firma->ico }}';
             var permVkladat = {{ $permVkladat ? 'true' : 'false' }};
             var permUpravovat = {{ $permUpravovat ? 'true' : 'false' }};
             var permMazat = {{ $permMazat ? 'true' : 'false' }};
@@ -1192,6 +1193,9 @@ function uploadSingleFile(file) {
     // — tedy to, co dělalo nahrávání odjakživa.
     const zvolenyDruh = document.querySelector('input[name="druh"]:checked');
     formData.append('druh', zvolenyDruh ? zvolenyDruh.value : 'doklad');
+    // Firma se posílá výslovně, ať se doklad nemůže uložit jinam, než kam ho
+    // uživatel podle obrazovky posílá.
+    formData.append('firma_ico', aktivniFirmaIco);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);

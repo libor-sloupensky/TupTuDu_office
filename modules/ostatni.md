@@ -184,6 +184,23 @@ psaná podmíněně, takže na produkci nic nezměnila.
 sloupcem `aktivni_firma_ico` (IČO jen u aktivního napojení, jinak NULL).
 Obyčejný unique by nestačil — v MySQL se NULL nerovná NULL.
 
+## Session
+
+`SESSION_DRIVER=database`, tabulka `sys_sessions`. **Cookie driver nepoužívat.**
+S ním se celý obsah session veze v cookie a odpověď pomalejšího požadavku
+přepíše novější stav svým starším snímkem. Na mobilu se to projevilo dvakrát:
+po přepnutí firmy se vrátila zpátky ta předchozí (a naskenovaný doklad se uložil
+jiné firmě), a přestal sedět CSRF token — hláška 419 „Page expired".
+
+**Firma se při nahrávání posílá výslovně** (`firma_ico` ve formuláři) a server
+ověří, že na ni uživatel má právo. Session je jen záloha, když se IČO nepošle.
+Nahrání je zápis do cizího účetnictví, takže se firma nehádá — bez oprávnění
+požadavek skončí 403. Hlídá to `InvoiceController::firmaProNahrani()`.
+
+Pozor: `EnsureFirmaSelected` při chybějící aktivní firmě tiše vybere první
+firmu uživatele. Pro nahrávání to už nevadí (viz výše), ale jinde na to spoléhat
+nelze.
+
 ## Testy
 
 `php artisan test`. Jedou proti **MariaDB**, ne SQLite: schéma používá FULLTEXT

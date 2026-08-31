@@ -152,6 +152,37 @@ class DokladDokumentTest extends TestCase
         $this->assertSame(0, \App\Models\AiVolani::count());
     }
 
+    public function test_doklad_se_ulozi_k_poslane_firme_ne_k_te_v_session(): void
+    {
+        $druha = Firma::create(['ico' => '20000002', 'nazev' => 'Druha s.r.o.', 'uroven_zpracovani' => 'ulozeni']);
+        $this->user->firmy()->attach($druha->ico, ['role' => 'firma', 'interni_role' => 'superadmin']);
+        $this->firma->update(['uroven_zpracovani' => 'ulozeni']);
+
+        // Session ukazuje na první firmu, uživatel ale nahrává pod druhou.
+        $this->prihlasen()
+            ->postJson('/upload', [
+                'firma_ico' => $druha->ico,
+                'documents' => [UploadedFile::fake()->create('doklad.pdf', 20, 'application/pdf')],
+            ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk();
+
+        $this->assertSame($druha->ico, Doklad::firstOrFail()->firma_ico);
+    }
+
+    public function test_nahrani_pod_cizi_firmu_se_odmitne(): void
+    {
+        Firma::create(['ico' => '30000003', 'nazev' => 'Cizi s.r.o.']);
+
+        $this->prihlasen()
+            ->postJson('/upload', [
+                'firma_ico' => '30000003',
+                'documents' => [UploadedFile::fake()->create('doklad.pdf', 20, 'application/pdf')],
+            ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertForbidden();
+
+        $this->assertSame(0, Doklad::count());
+    }
+
     public function test_bez_prepinace_se_nahrava_jako_dosud(): void
     {
         // Nahrávání bez `druh` musí zůstat dokladem — jinak by se změnilo

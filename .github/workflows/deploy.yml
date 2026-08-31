@@ -117,7 +117,12 @@ jobs:
         DB_USERNAME=${{ env.PROD_DB_USER }}
         DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
-        SESSION_DRIVER=cookie
+        # Session patří do databáze, ne do cookie. S cookie driverem se celý
+        # obsah session veze v cookie a odpověď na pomalý požadavek přepíše
+        # novější stav svým starším snímkem. Projevilo se to tak, že se po
+        # přepnutí firmy vrátila zpátky ta předchozí (doklad se pak uložil
+        # jiné firmě) a že přestal sedět CSRF token — hláška 419.
+        SESSION_DRIVER=database
         SESSION_LIFETIME=120
         FILESYSTEM_DISK=local
         QUEUE_CONNECTION=sync

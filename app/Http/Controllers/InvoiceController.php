@@ -112,6 +112,37 @@ class InvoiceController extends Controller
         }
     }
 
+    /**
+     * Firma, ke které se nahrávaný doklad uloží.
+     *
+     * Přednost má IČO poslané z formuláře — to je firma, kterou měl uživatel
+     * v tu chvíli na obrazovce. Dřív se spoléhalo jen na session a ta se dala
+     * rozhodit: stačilo, aby dorazila odpověď pomalejšího požadavku se starším
+     * stavem, a doklad se tiše uložil jiné firmě. Nahrání je zápis do cizího
+     * účetnictví, takže se tu nic nehádá — když uživatel na firmu nemá právo,
+     * požadavek se odmítne.
+     */
+    private function firmaProNahrani(Request $request): Firma
+    {
+        $ico = $request->input('firma_ico');
+
+        if (!$ico) {
+            return $this->aktivniFirma();
+        }
+
+        if (!in_array($ico, auth()->user()->dostupneIco(), true)) {
+            abort(403, 'K této firmě nemáte přístup.');
+        }
+
+        $firma = Firma::find($ico);
+
+        if (!$firma) {
+            abort(404, 'Firma nenalezena.');
+        }
+
+        return $firma;
+    }
+
     private function dokladToArray(Doklad $d): array
     {
         return [
@@ -299,8 +330,6 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         try {
-            $this->overOpravaUcetni('vkladat');
-
             $storeStart = microtime(true);
 
             $request->validate([
@@ -309,9 +338,12 @@ class InvoiceController extends Controller
                 // Dokument se jen uloží a nevytěžuje. Když se přepínač neposílá,
                 // chová se nahrávání jako dřív — tedy jako doklad.
                 'druh' => 'nullable|in:doklad,dokument',
+                // Firma, kterou měl uživatel na obrazovce v okamžiku nahrávání.
+                'firma_ico' => 'nullable|string|regex:/^\d{8}$/',
             ]);
 
-            $firma = $this->aktivniFirma();
+            $firma = $this->firmaProNahrani($request);
+            $this->overOpravaUcetni('vkladat', $firma->ico);
             $druh = $request->input('druh', 'doklad');
 
             $processor = new DokladProcessor();
@@ -355,6 +387,8 @@ class InvoiceController extends Controller
                         'name' => $originalName,
                         'status' => 'ok',
                         'message' => 'Dokument uložen (nevytěžuje se)',
+                        'id' => $doklady[0]->id,
+                        'stav' => $doklady[0]->stav,
                         'timing' => ['process_ms' => $processMs, 'total_ms' => round((microtime(true) - $fileStart) * 1000)],
                     ];
                     continue;
@@ -413,6 +447,8 @@ class InvoiceController extends Controller
                     'name' => $originalName,
                     'status' => $status,
                     'message' => $message,
+                    'id' => $prvni->id,
+                    'stav' => $prvni->stav,
                     'timing' => [
                         'process_ms' => $processMs,
                         'total_ms' => round((microtime(true) - $fileStart) * 1000),
@@ -439,6 +475,13 @@ class InvoiceController extends Controller
 
             return redirect()->route('doklady.index')->with('flash', $message);
 
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            // Odmítnutí přístupu ani chybu ověření nechceme překlopit na 500 —
+            // uživatel má vidět, že se doklad neuložil kvůli oprávnění, ne že
+            // se něco rozbilo.
+            throw $e;
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('InvoiceController::store error', [
                 'message' => $e->getMessage(),
@@ -642,7 +685,10 @@ class InvoiceController extends Controller
                 'castka' => $d->castka_celkem !== null
                     ? number_format((float) $d->castka_celkem, 2, ',', ' ') . ' ' . ($d->mena ?: 'CZK')
                     : null,
+                'stav' => $d->stav,
+                'druh' => $d->druh,
                 'nahrano' => $d->created_at?->timezone('Europe/Prague')->format('j.n. H:i'),
+                'nahrano_iso' => $d->created_at?->toIso8601String(),
             ]);
 
         return response()->json($doklady);
