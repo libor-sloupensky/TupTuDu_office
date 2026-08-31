@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,5 +33,30 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Vypršelou session neukazujeme jako holou stránku "419 Page Expired".
+        // Session platí 120 minut a mobilní aplikace bývá otevřená déle, takže
+        // se to trefí běžně — typicky při odhlášení nebo přepnutí firmy po
+        // delší pauze. Uživatel má místo toho skončit na přihlášení a vědět,
+        // co se stalo.
         //
+        // Chytá se podle stavového kódu, ne podle TokenMismatchException:
+        // Laravel ji na HttpException 419 převede dřív, než se dostane ke slovu
+        // tenhle callback, takže na původní typ by se nikdy netrefil.
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null; // ostatní chyby si Laravel vyřídí sám
+            }
+
+            $zprava = 'Platnost přihlášení vypršela. Přihlaste se prosím znovu.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['chyba' => $zprava], 419);
+            }
+
+            // Kdo je pořád přihlášený, toho `guest` middleware z přihlašovací
+            // stránky vrátí zpátky do aplikace — o nic tedy nepřijde.
+            return redirect()
+                ->route($request->is('mobile/*') ? 'mobile.prihlaseni' : 'login')
+                ->withErrors(['session' => $zprava]);
+        });
     })->create();

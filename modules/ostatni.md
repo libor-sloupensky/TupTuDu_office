@@ -197,6 +197,12 @@ ověří, že na ni uživatel má právo. Session je jen záloha, když se IČO 
 Nahrání je zápis do cizího účetnictví, takže se firma nehádá — bez oprávnění
 požadavek skončí 403. Hlídá to `InvoiceController::firmaProNahrani()`.
 
+**Vypršelá session končí na přihlášení, ne na stránce „419 Page Expired".**
+Řeší to renderer v `bootstrap/app.php`. Pozor na chyták: chytá se podle
+stavového kódu 419, ne podle `TokenMismatchException` — Laravel ji na
+`HttpException` převede dřív, než se callback dostane ke slovu, takže na původní
+typ by se nikdy netrefil.
+
 Pozor: `EnsureFirmaSelected` při chybějící aktivní firmě tiše vybere první
 firmu uživatele. Pro nahrávání to už nevadí (viz výše), ale jinde na to spoléhat
 nelze.
