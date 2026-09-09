@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Firma;
+use App\Support\AktivniFirma;
 use App\Services\GoogleDriveService;
 use Google\Client as GoogleClient;
 use Illuminate\Http\Request;
@@ -45,7 +46,7 @@ class GoogleDriveController extends Controller
                     ->with('flash_error', 'Google nevrátil refresh token. Zkuste to znovu.');
             }
 
-            $firma = Firma::find(session('aktivni_firma_ico'));
+            $firma = Firma::find(AktivniFirma::ico());
             if (!$firma) {
                 return redirect()->route('firma.nastaveni')
                     ->with('flash_error', 'Aktivní firma nebyla nalezena.');
@@ -78,7 +79,7 @@ class GoogleDriveController extends Controller
 
     public function disconnect(Request $request)
     {
-        $firma = Firma::find(session('aktivni_firma_ico'));
+        $firma = Firma::find(AktivniFirma::ico());
         if (!$firma) {
             return redirect()->route('firma.nastaveni');
         }

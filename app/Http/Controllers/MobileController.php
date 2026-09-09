@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Firma;
+use App\Support\AktivniFirma;
 use App\Models\Pozvani;
 use App\Models\UcetniVazba;
 use App\Models\User;
@@ -37,8 +38,8 @@ class MobileController extends Controller
         Pozvani::prijmoutCekajiciPro($user);
 
         $prvniFirma = $user->firmy()->first();
-        if ($prvniFirma && !session('aktivni_firma_ico')) {
-            session(['aktivni_firma_ico' => $prvniFirma->ico]);
+        if ($prvniFirma && !AktivniFirma::ico()) {
+            AktivniFirma::nastav($prvniFirma->ico);
         }
 
         return redirect()->route('mobile.skenovat');
@@ -70,7 +71,7 @@ class MobileController extends Controller
             abort(403, 'Nemáte přístup k této firmě.');
         }
 
-        session(['aktivni_firma_ico' => $ico]);
+        AktivniFirma::nastav($ico);
 
         return redirect()->route('mobile.skenovat');
     }
@@ -78,6 +79,7 @@ class MobileController extends Controller
     public function logout(Request $request)
     {
         Auth::logout();
+        AktivniFirma::zapomen();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('mobile.prihlaseni');

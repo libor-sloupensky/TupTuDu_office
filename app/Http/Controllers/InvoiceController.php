@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Doklad;
+use App\Support\AktivniFirma;
 use App\Models\Firma;
 use App\Services\DokladProcessor;
 use Illuminate\Http\Request;
@@ -46,7 +47,7 @@ class InvoiceController extends Controller
         $entry = [
             'time' => now()->toIso8601String(),
             'user_id' => auth()->id(),
-            'firma_ico' => session('aktivni_firma_ico'),
+            'firma_ico' => AktivniFirma::ico(),
             'error' => $e->getMessage(),
             'error_file' => $e->getFile() . ':' . $e->getLine(),
             'files' => [],
@@ -88,7 +89,7 @@ class InvoiceController extends Controller
     private function overOpravaUcetni(string $akce, ?string $firmaIco = null): void
     {
         $user = auth()->user();
-        $ico = $firmaIco ?: session('aktivni_firma_ico');
+        $ico = $firmaIco ?: AktivniFirma::ico();
 
         // Firma, ve které je uživatel přímo — tam omezení účetní vazby neplatí.
         if ($ico && $user->firmy()->where('ico', $ico)->exists()) {
@@ -113,16 +114,15 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Firma, ke které se nahrávaný doklad uloží.
+     * Firma, které se požadavek týká — ta, kterou měl uživatel na obrazovce.
      *
-     * Přednost má IČO poslané z formuláře — to je firma, kterou měl uživatel
-     * v tu chvíli na obrazovce. Dřív se spoléhalo jen na session a ta se dala
-     * rozhodit: stačilo, aby dorazila odpověď pomalejšího požadavku se starším
-     * stavem, a doklad se tiše uložil jiné firmě. Nahrání je zápis do cizího
-     * účetnictví, takže se tu nic nehádá — když uživatel na firmu nemá právo,
-     * požadavek se odmítne.
+     * Přednost má IČO poslané z prohlížeče (`firma_ico`). Session je jen záloha,
+     * když se IČO nepošle: dá se rozhodit, když odpověď pomalejšího požadavku
+     * dorazí se starším stavem — pak by seznam pod hlavičkou jedné firmy ukázal
+     * doklady druhé, nebo by se doklad tiše uložil jinam. Když uživatel na firmu
+     * nemá právo, požadavek se odmítne.
      */
-    private function firmaProNahrani(Request $request): Firma
+    private function firmaZPozadavku(Request $request): Firma
     {
         $ico = $request->input('firma_ico');
 
@@ -217,7 +217,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $firma = $this->aktivniFirma();
+        $firma = $this->firmaZPozadavku($request);
 
         $allowedSort = ['created_at', 'datum_vystaveni', 'datum_prijeti', 'duzp', 'datum_splatnosti'];
         $sort = in_array($request->query('sort'), $allowedSort) ? $request->query('sort') : 'created_at';
@@ -342,7 +342,7 @@ class InvoiceController extends Controller
                 'firma_ico' => 'nullable|string|regex:/^\d{8}$/',
             ]);
 
-            $firma = $this->firmaProNahrani($request);
+            $firma = $this->firmaZPozadavku($request);
             $this->overOpravaUcetni('vkladat', $firma->ico);
             $druh = $request->input('druh', 'doklad');
 
@@ -667,13 +667,9 @@ class InvoiceController extends Controller
      * aplikace nebo přenačtení je pryč. Tenhle výpis ukazuje, co se opravdu
      * uložilo, takže se uživatel může podívat kdykoli později.
      */
-    public function posledni()
+    public function posledni(Request $request)
     {
-        $firma = auth()->user()->aktivniFirma();
-
-        if (!$firma) {
-            return response()->json([]);
-        }
+        $firma = $this->firmaZPozadavku($request);
 
         $doklady = Doklad::where('firma_ico', $firma->ico)
             ->latest('id')
@@ -735,7 +731,7 @@ class InvoiceController extends Controller
     {
         $request->validate(['q' => 'required|string|max:500']);
         $q = trim($request->input('q'));
-        $firma = $this->aktivniFirma();
+        $firma = $this->firmaZPozadavku($request);
 
         try {
             $parsed = $this->parseSearchWithAI($q);

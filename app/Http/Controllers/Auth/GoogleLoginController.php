@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\AktivniFirma;
 use App\Models\Pozvani;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -147,13 +148,13 @@ class GoogleLoginController extends Controller
         // Google e-mail je ověřený, takže tu můžou dojet i čekající pozvánky
         Pozvani::prijmoutCekajiciPro($user);
 
-        if (session('aktivni_firma_ico')) {
+        if (AktivniFirma::ico()) {
             return;
         }
 
         $prvniFirma = $user->firmy()->first();
         if ($prvniFirma) {
-            session(['aktivni_firma_ico' => $prvniFirma->ico]);
+            AktivniFirma::nastav($prvniFirma->ico);
         }
     }
 

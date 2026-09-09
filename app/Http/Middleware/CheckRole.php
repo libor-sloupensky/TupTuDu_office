@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use App\Support\AktivniFirma;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -11,7 +12,7 @@ class CheckRole
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
-        $ico = session('aktivni_firma_ico');
+        $ico = AktivniFirma::ico();
 
         if (!$user || !$ico) {
             abort(403, 'Nemáte oprávnění k této akci.');

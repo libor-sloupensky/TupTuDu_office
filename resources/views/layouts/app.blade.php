@@ -55,7 +55,7 @@
 
                 @php
                     $userFirmy = $__user->firmy;
-                    $aktivniIco = session('aktivni_firma_ico');
+                    $aktivniIco = \App\Support\AktivniFirma::ico();
 
                     // Klientské firmy (pro účetní)
                     $klientFirmy = collect();

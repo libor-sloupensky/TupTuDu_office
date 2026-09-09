@@ -383,7 +383,8 @@ function popisZeServeru(d) {
  */
 async function nacistPosledni() {
     try {
-        const resp = await fetch('{{ route("doklady.posledni") }}', {
+        // Firma výslovně — ať seznam nesklouzne k jiné firmě, když session přepíše pomalejší nahrávání.
+        const resp = await fetch('{{ route("doklady.posledni") }}' + (firmaIco ? '?firma_ico=' + encodeURIComponent(firmaIco) : ''), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'include',
         });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\AktivniFirma;
 use App\Models\Pozvani;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class LoginController extends Controller
 
         $prvniFirma = $user->firmy()->first();
         if ($prvniFirma) {
-            session(['aktivni_firma_ico' => $prvniFirma->ico]);
+            AktivniFirma::nastav($prvniFirma->ico);
         }
 
         return redirect()->intended(route('doklady.index'));
@@ -46,6 +47,7 @@ class LoginController extends Controller
     public function logout(Request $request)
     {
         Auth::logout();
+        AktivniFirma::zapomen();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

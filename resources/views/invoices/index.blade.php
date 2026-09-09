@@ -1171,7 +1171,11 @@ function processNextInQueue() {
 }
 
 function refreshTableData() {
-    fetch(window.location.pathname + (window.location.search || ''), {
+    // Firma se posílá výslovně — seznam má patřit firmě z hlavičky stránky,
+    // ne té, která je zrovna v session (tu může přepsat pomalejší požadavek).
+    const url = new URL(window.location.pathname + (window.location.search || ''), window.location.origin);
+    url.searchParams.set('firma_ico', aktivniFirmaIco);
+    fetch(url.pathname + url.search, {
         headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
     }).then(r => r.json()).then(data => {
         dokladyData = data;
@@ -1340,7 +1344,7 @@ function doAiSearch() {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json'
         },
-        body: JSON.stringify({ q: q })
+        body: JSON.stringify({ q: q, firma_ico: aktivniFirmaIco })
     })
     .then(r => r.json())
     .then(data => {

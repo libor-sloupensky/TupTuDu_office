@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\AktivniFirma;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -50,7 +51,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function aktivniFirma(): ?Firma
     {
-        $ico = session('aktivni_firma_ico');
+        $ico = AktivniFirma::ico();
         if ($ico) {
             if ($this->firmy()->where('ico', $ico)->exists()) {
                 return Firma::find($ico);
@@ -75,7 +76,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function prohlizimKlienta(): bool
     {
-        $ico = session('aktivni_firma_ico');
+        $ico = AktivniFirma::ico();
         if (!$ico) return false;
         if ($this->firmy()->where('ico', $ico)->exists()) {
             return false;
@@ -85,7 +86,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function ucetniVazbaProKlienta(?string $klientIco = null): ?UcetniVazba
     {
-        $klientIco = $klientIco ?? session('aktivni_firma_ico');
+        $klientIco = $klientIco ?? AktivniFirma::ico();
         if (!$klientIco) return null;
         $ucetniIcos = $this->firmy()->wherePivot('role', 'ucetni')->pluck('ico')->toArray();
         if (empty($ucetniIcos)) return null;
@@ -97,13 +98,13 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function maRoli(string $role, ?string $ico = null): bool
     {
-        $ico = $ico ?? session('aktivni_firma_ico');
+        $ico = $ico ?? AktivniFirma::ico();
         return $this->firmy()->where('ico', $ico)->wherePivot('role', $role)->exists();
     }
 
     public function jeSuperadmin(?string $ico = null): bool
     {
-        $ico = $ico ?? session('aktivni_firma_ico');
+        $ico = $ico ?? AktivniFirma::ico();
         return $this->firmy()->where('ico', $ico)->wherePivot('interni_role', 'superadmin')->exists();
     }
 

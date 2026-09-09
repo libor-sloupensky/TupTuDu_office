@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\PozvankaDoFirmy;
+use App\Support\AktivniFirma;
 use App\Models\Firma;
 use App\Services\DrivePathBuilder;
 use App\Models\Kategorie;
@@ -231,7 +232,7 @@ class FirmaController extends Controller
         $firma->users()->attach($user->id, ['interni_role' => 'superadmin']);
 
         // Nastav jako aktivní firmu
-        session(['aktivni_firma_ico' => $ico]);
+        AktivniFirma::nastav($ico);
 
         return redirect()->route('doklady.index')->with('flash', "Firma {$firma->nazev} byla vytvořena a přiřazena.");
     }
@@ -287,7 +288,7 @@ class FirmaController extends Controller
             abort(403, 'Nemáte přístup k této firmě.');
         }
 
-        session(['aktivni_firma_ico' => $ico]);
+        AktivniFirma::nastav($ico);
 
         // Při přepnutí na klienta vždy na doklady (nemá přístup k nastavení)
         if ($jeKlient) {

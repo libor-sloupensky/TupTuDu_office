@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\AresController;
+use App\Support\AktivniFirma;
 use App\Http\Controllers\Controller;
 use App\Mail\OvereniEmailu;
 use App\Models\Firma;
@@ -132,7 +133,7 @@ class RegisterController extends Controller
                     $pozvankaProEmail->update(['accepted_at' => now()]);
 
                     Auth::login($user);
-                    session(['aktivni_firma_ico' => $existujiciFirma->ico]);
+                    AktivniFirma::nastav($existujiciFirma->ico);
                     $user->update(['email_verified_at' => now()]);
 
                     // Na stejný e-mail mohly přijít pozvánky i do dalších firem
@@ -189,7 +190,7 @@ class RegisterController extends Controller
         }
 
         Auth::login($user);
-        session(['aktivni_firma_ico' => $firma->ico]);
+        AktivniFirma::nastav($firma->ico);
 
         if ($pozvani) {
             // Invitation registration — email is pre-verified (came from invitation link)

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use App\Support\AktivniFirma;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,12 +20,26 @@ class EnsureFirmaSelected
             return redirect()->route('firma.zadna');
         }
 
-        $aktivniIco = session('aktivni_firma_ico');
-        if (!$aktivniIco
-            || (!$user->firmy()->where('ico', $aktivniIco)->exists()
-                && !$user->jeKlientFirma($aktivniIco))) {
-            $prvniFirma = $user->firmy()->first();
-            session(['aktivni_firma_ico' => $prvniFirma->ico]);
+        // Firma z cookie má přednost, ale jen když na ni uživatel opravdu má
+        // právo — cookie může zůstat po odebrání přístupu nebo z jiného účtu
+        // ve stejném prohlížeči. Teprve když neprojde ani ona, ani záložní
+        // hodnota v session, vybere se první firma uživatele.
+        $kandidati = array_filter([AktivniFirma::ico(), session('aktivni_firma_ico')]);
+        $aktivniIco = null;
+
+        foreach ($kandidati as $ico) {
+            if ($user->firmy()->where('ico', $ico)->exists() || $user->jeKlientFirma($ico)) {
+                $aktivniIco = $ico;
+                break;
+            }
+        }
+
+        if ($aktivniIco === null) {
+            $aktivniIco = $user->firmy()->first()->ico;
+        }
+
+        if ($aktivniIco !== AktivniFirma::ico()) {
+            AktivniFirma::nastav($aktivniIco);
         }
 
         return $next($request);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\AktivniFirma;
 use App\Mail\OvereniEmailu;
 use App\Models\Pozvani;
 use App\Models\User;
@@ -43,7 +44,7 @@ class VerificationController extends Controller
             Auth::login($user);
             $prvniFirma = $user->firmy()->first();
             if ($prvniFirma) {
-                session(['aktivni_firma_ico' => $prvniFirma->ico]);
+                AktivniFirma::nastav($prvniFirma->ico);
             }
         }
 

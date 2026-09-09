@@ -192,10 +192,25 @@ přepíše novější stav svým starším snímkem. Na mobilu se to projevilo d
 po přepnutí firmy se vrátila zpátky ta předchozí (a naskenovaný doklad se uložil
 jiné firmě), a přestal sedět CSRF token — hláška 419 „Page expired".
 
-**Firma se při nahrávání posílá výslovně** (`firma_ico` ve formuláři) a server
-ověří, že na ni uživatel má právo. Session je jen záloha, když se IČO nepošle.
-Nahrání je zápis do cizího účetnictví, takže se firma nehádá — bez oprávnění
-požadavek skončí 403. Hlídá to `InvoiceController::firmaProNahrani()`.
+**Přepnutá firma žije ve vlastní cookie, ne v session** (`App\Support\AktivniFirma`,
+cookie `aktivni_firma_ico`, šifrovaná Laravelem). Ani databázový driver nezamyká
+session: každý požadavek si ji na začátku načte a na konci celou zapíše zpátky.
+Když uživatel přepnul firmu během pomalého nahrávání (vytěžení trvá desítky
+sekund), odpověď nahrávání session přepsala starším snímkem a firma se tiše
+vrátila — na webu to vypadalo tak, že se v seznamu jedné firmy objevil doklad
+druhé (JSON refresh seznamu po nahrání četl firmu ze session, hlavička stránky
+už ukazovala jinou). Cookie nastavuje jen přepnutí a přihlášení, jiný požadavek
+ji přepsat nemůže. Session se plní dál jako záloha, ale přednost má cookie.
+**Všude číst přes `AktivniFirma::ico()` a zapisovat přes `AktivniFirma::nastav()`**,
+ne přímo `session('aktivni_firma_ico')`. Oprávnění k firmě se ověřuje na místě
+použití (`User::aktivniFirma()`, `EnsureFirmaSelected`), cookie s cizím IČO se
+ignoruje a nahradí první firmou uživatele. Odhlášení cookie maže.
+
+**Firma se posílá výslovně** (`firma_ico`) nejen při nahrávání, ale i v JSON
+dotazech seznamu: refresh tabulky po nahrání, AI hledání a `doklady/posledni`
+v mobilním skeneru. Server ověří, že na ni uživatel má právo, jinak 403.
+Session/cookie je jen záloha, když se IČO nepošle. Hlídá to
+`InvoiceController::firmaZPozadavku()`. Testy: `tests/Feature/AktivniFirmaTest.php`.
 
 **Vypršelá session končí na přihlášení, ne na stránce „419 Page Expired".**
 Řeší to renderer v `bootstrap/app.php`. Pozor na chyták: chytá se podle
