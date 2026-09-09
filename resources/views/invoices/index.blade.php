@@ -128,6 +128,10 @@
     .detail-preview canvas { width: 100%; height: auto; display: block; }
     .detail-preview img { width: 100%; height: auto; display: block; }
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
+    /* Nález hledaného výrazu. Vlastní třída schválně: clearBboxHighlight()
+       maže .bbox-highlight při odhoveru z pole a nálezy mají zůstat. */
+    .bbox-nalez { position: absolute; background: rgba(241, 196, 15, 0.38); border-radius: 2px; pointer-events: none; z-index: 4; }
+    .nalezy-info { font-size: 0.8rem; color: #7f8c8d; margin-top: 0.4rem; }
     .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.18); border: none; border-radius: 3px; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
     .detail-preview:hover::after { content: 'Zvětšit'; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
     .detail-download { margin-top: 0.5rem; text-align: center; }
@@ -840,6 +844,9 @@ function toggleDetail(id, btn) {
         }
         leftHtml += '</div></div>';
     }
+    if (searchQ) {
+        leftHtml += '<div class="nalezy-info" style="display:none"></div>';
+    }
     if (d.download_url) {
         leftHtml += '<div class="detail-download"><a href="'+d.download_url+'">Stáhnout dokument</a></div>';
     }
@@ -878,6 +885,11 @@ function toggleDetail(id, btn) {
 
     // Bbox highlight on hover
     const bboxLayer = detailTr.querySelector('.preview-bbox-layer');
+
+    if (bboxLayer && searchQ) {
+        zvyrazniNalezy(d, bboxLayer, detailTr);
+    }
+
     if (bboxLayer && d.souradnice) {
         detailTr.querySelectorAll('[data-field]').forEach(td => {
             td.addEventListener('mouseenter', () => showBboxHighlight(td.dataset.field, d, bboxLayer));
@@ -1494,6 +1506,55 @@ async function renderPdfToCanvas(url, canvas) {
         // Fallback: replace canvas with a simple message
         canvas.parentElement.innerHTML = '<div style="padding:2rem;text-align:center;color:#999;font-size:0.8rem;">Náhled PDF nelze zobrazit.<br>Klikněte pro otevření.</div>';
     }
+}
+
+// ===== Zvýraznění hledaného výrazu v náhledu =====
+// Souřadnice slov se načítají ze serveru až teď — u dokladu jich jsou stovky
+// a v seznamu by byly k ničemu.
+async function zvyrazniNalezy(d, vrstva, radek) {
+    const info = radek.querySelector('.nalezy-info');
+
+    try {
+        const resp = await fetch(d.slova_url + '?q=' + encodeURIComponent(searchQ), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!resp.ok) return;
+
+        const data = await resp.json();
+        const slova = data.slova || [];
+
+        // Náhled ukazuje první stránku, takže se kreslí jen nálezy na ní.
+        const naPrvni = slova.filter(s => !s.s || s.s === 1);
+        naPrvni.forEach(s => nakresliNalez(s.b, vrstva));
+
+        if (!info) return;
+
+        if (data.bez_souradnic) {
+            info.textContent = 'Zvýraznit nejde — doklad je z doby před ukládáním pozic slov.';
+        } else if (data.pocet === 0) {
+            info.textContent = 'Výraz „' + searchQ + '" přímo na dokladu není — shoda je v jeho údajích.';
+        } else {
+            info.textContent = 'Výraz „' + searchQ + '" na dokladu ' + data.pocet + '×'
+                + (naPrvni.length < data.pocet ? ' (zvýrazněno na první stránce)' : '') + '.';
+        }
+
+        info.style.display = '';
+    } catch (e) {
+        // Zvýraznění je příjemnost navíc, bez něj doklad funguje dál
+    }
+}
+
+function nakresliNalez(b, vrstva) {
+    if (!Array.isArray(b) || b.length !== 4) return;
+
+    const [left, top, right, bottom] = b;
+    const el = document.createElement('div');
+    el.className = 'bbox-nalez';
+    el.style.left = (left * 100) + '%';
+    el.style.top = (top * 100) + '%';
+    el.style.width = ((right - left) * 100) + '%';
+    el.style.height = ((bottom - top) * 100) + '%';
+    vrstva.appendChild(el);
 }
 
 // ===== Bbox highlight =====

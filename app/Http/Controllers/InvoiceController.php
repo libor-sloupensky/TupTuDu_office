@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use ZipArchive;
 
 class InvoiceController extends Controller
@@ -178,6 +179,7 @@ class InvoiceController extends Controller
             'druh' => $d->druh,
             'lze_vytezit' => $d->lzeVytezit(),
             'vytezit_url' => route('doklady.vytezit', $d),
+            'slova_url' => route('doklady.slova', $d),
             'typ_dokladu' => $d->typ_dokladu,
             'kvalita' => $d->kvalita,
             'kvalita_poznamka' => $d->kvalita_poznamka,
@@ -577,6 +579,64 @@ class InvoiceController extends Controller
         ]);
     }
 
+    /**
+     * Kde na dokladu leží hledaný výraz.
+     *
+     * Souřadnice slov se ukládají vedle souboru v úložišti při přepisu — do
+     * databáze by se rozumně nevešly. Načítají se proto až teď, když je co
+     * zvýrazňovat.
+     */
+    public function slova(Request $request, Doklad $doklad)
+    {
+        $this->autorizujDoklad($doklad);
+
+        $vyraz = trim((string) $request->query('q', ''));
+
+        if ($vyraz === '' || !$doklad->cesta_souboru) {
+            return response()->json(['pocet' => 0, 'slova' => []]);
+        }
+
+        $cesta = DokladProcessor::cestaSlov($doklad->cesta_souboru);
+        $disk = Storage::disk('s3');
+
+        if (!$disk->exists($cesta)) {
+            // Doklad prošel jen uložením, nebo je z doby před zaváděním přepisu.
+            return response()->json(['pocet' => 0, 'slova' => [], 'bez_souradnic' => true]);
+        }
+
+        $vsechna = json_decode((string) $disk->get($cesta), true);
+
+        if (!is_array($vsechna)) {
+            return response()->json(['pocet' => 0, 'slova' => []]);
+        }
+
+        $hledane = self::proHledani($vyraz);
+
+        $nalezy = array_values(array_filter(
+            $vsechna,
+            fn ($slovo) => is_array($slovo)
+                && isset($slovo['t'])
+                && str_contains(self::proHledani((string) $slovo['t']), $hledane)
+        ));
+
+        return response()->json([
+            'pocet' => count($nalezy),
+            'slova' => $nalezy,
+        ]);
+    }
+
+    /**
+     * Podoba textu pro porovnávání — bez diakritiky a malými písmeny.
+     *
+     * Kdo hledá „doprava", má najít i „Doprava" a „DOPRAVA"; a kdo píše bez
+     * háčků, má najít i s háčky.
+     */
+    private static function proHledani(string $text): string
+    {
+        // Str::ascii() má vlastní převodní tabulku. iconv s //TRANSLIT se chová
+        // podle knihoven systému a na Windows diakritiku místo převodu zahazuje.
+        return mb_strtolower(Str::ascii($text));
+    }
     public function downloadSelected(Request $request)
     {
         $request->validate([

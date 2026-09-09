@@ -70,3 +70,51 @@ Modul je plně funkční — dynamická tabulka, inline editace, AI search, prev
 
 ---
 *Aktualizováno: 2026-04-09*
+
+## Úrovně zpracování
+
+| Úroveň | Co proběhne | Náklad |
+|--------|-------------|--------|
+| `ulozeni` | Soubor se uloží, nic se nečte | jen úložiště |
+| `prepis` | Textract — přesný přepis textu, pole zůstanou prázdná | ~3 haléře/stránku |
+| `vycteni` | Textract + Claude — vyplní se pole | ~0,22 Kč/stránku |
+
+**Textract účtuje za stránku**, ne za plochu ani množství textu: malý paragon
+stojí tolik co hustá A4. Vícestránkové PDF se násobí, protože se každá stránka
+posílá zvlášť.
+
+Přepis je proto ta úroveň, kterou jde nabídnout zdarma — doklad je plnotextově
+dohledatelný podle libovolného slova, které na něm stojí, jen systém neví, co
+které číslo znamená. Kredity za něj zatím neúčtuje (`Kredity::CENIK`); až se
+bude dělat ceník, je to tam jediné místo, kde se to rozhodne.
+
+Vytěžený stav: přepsaný doklad zůstává ve stavu `ulozeno`, takže se dá kdykoli
+dotáhnout tlačítkem *Vytěžit*.
+
+## Hledání v dokladech
+
+`Doklad::scopeHledej()`. Krátká strukturovaná pole (číslo dokladu, dodavatel…)
+jdou přes `LIKE '%…%'`, aby se hledalo i uprostřed slova. Přepis (`raw_text`)
+jde přes **fulltextový index** podmínkou `MATCH … AGAINST` v poddotazu.
+
+Proč poddotaz: kdyby MATCH stálo přímo v `OR` vedle LIKE, optimalizátor by
+index zahodil. Ověřeno přes EXPLAIN — `type=fulltext` místo `type=ALL`.
+
+Dvě omezení, která z toho plynou: MATCH hledá od začátku slova, ne uprostřed
+(„servis" nenajde „pneuservis"), a slova kratší než tři znaky se do indexu
+nedostanou — u nich se proto i na přepis sáhne po LIKE.
+
+**Testy hledání nejedou přes RefreshDatabase.** InnoDB doplňuje fulltextový
+index až při commitu, takže by MATCH nezacommitované řádky neviděl.
+
+## Zvýraznění nalezeného výrazu
+
+Při přepisu se vedle souboru v S3 ukládá `<cesta>.slova.json` — slova i s jejich
+pozicí na stránce. Do databáze by se to rozumně nevešlo (hustá A4 má kolem pěti
+set slov). Načítá se až při rozbalení dokladu, přes
+`GET /doklady/{doklad}/slova?q=výraz`.
+
+V náhledu se nálezy podbarví žlutě (`.bbox-nalez`) a pod náhledem se vypíše,
+kolikrát je výraz na dokladu. Vlastní třída je schválně: `clearBboxHighlight()`
+maže `.bbox-highlight` při odhoveru z pole a nálezy mají zůstat. Kreslí se jen
+nálezy z první stránky, protože náhled ukazuje ji.
