@@ -115,10 +115,12 @@ class DokladProcessor
 
         $pocetStranek = $pages !== null ? count($pages) : 1;
 
-        // Úroveň služby a kredity. Když se vytěžovat nemá, soubor se přesto
-        // uloží — jen se nezavolá AI. Vytěžit jde kdykoli později tlačítkem.
+        // Na jaké úrovni se soubor zpracuje. Když kredity nestačí, spadne se
+        // níž — doklad se v každém případě uloží a vytěžit ho jde později.
         $kredity = new Kredity();
-        if (!$kredity->lzeVytezit($firma, $pocetStranek)) {
+        $uroven = $kredity->urovenProZpracovani($firma, $pocetStranek);
+
+        if ($uroven === 'ulozeni') {
             if ($existujici) {
                 $existujici->update(['stav' => 'ulozeno']);
 
@@ -126,6 +128,21 @@ class DokladProcessor
             }
 
             return [$this->ulozBezVytezeni($filePath, $originalName, $firma, $fileHash, $zdroj, 'doklad')];
+        }
+
+        if ($uroven === 'prepis') {
+            $this->zahajMereni($firma);
+            $doklad = null;
+
+            try {
+                $doklad = $this->ulozSPrepisem(
+                    $pages ?? [$fileBytes], $filePath, $originalName, $firma, $fileHash, $zdroj, $existujici
+                );
+            } finally {
+                $this->zapisNaklady($doklad->id ?? null);
+            }
+
+            return [$doklad];
         }
 
         $this->zahajMereni($firma);
@@ -189,6 +206,119 @@ class DokladProcessor
         $doklad->update(['cesta_souboru' => $s3Path]);
 
         return $doklad->fresh();
+    }
+
+    /**
+     * Uloží doklad i s přesným přepisem textu, ale bez porozumění.
+     *
+     * Projde jen Textractem: doklad je díky tomu plnotextově dohledatelný podle
+     * libovolného slova, které na něm stojí, ale pole (dodavatel, částka, data)
+     * zůstanou prázdná — ta umí vyplnit teprve AI. Stojí to zlomek plného
+     * vyčtení, takže se to hodí jako to, co jde nabídnout zdarma.
+     *
+     * Zároveň se odloží souřadnice jednotlivých slov. Díky nim jde v dokladu
+     * zvýraznit, kde přesně hledaný výraz leží.
+     *
+     * @param  array<int, string>  $stranky  Obsah jednotlivých stránek
+     */
+    private function ulozSPrepisem(
+        array $stranky,
+        string $filePath,
+        string $originalName,
+        Firma $firma,
+        string $fileHash,
+        string $zdroj,
+        ?Doklad $existujici = null
+    ): Doklad {
+        $prepisy = [];
+        $slova = [];
+        $cislo = 0;
+
+        foreach ($stranky as $obsah) {
+            $cislo++;
+            $bloky = $this->callTextract($obsah);
+
+            $text = $this->extractTextractText($bloky);
+            if ($text) {
+                $prepisy[] = $text;
+            }
+
+            foreach ($this->slovaZBloku($bloky, $cislo) as $slovo) {
+                $slova[] = $slovo;
+            }
+        }
+
+        $prepis = $prepisy ? implode("\n--- stránka ---\n", $prepisy) : null;
+
+        if ($existujici) {
+            $doklad = $existujici;
+            $doklad->update(['stav' => 'ulozeno', 'raw_text' => $prepis]);
+        } else {
+            $doklad = $this->ulozBezVytezeni($filePath, $originalName, $firma, $fileHash, $zdroj, 'doklad');
+            $doklad->update(['raw_text' => $prepis]);
+        }
+
+        $this->ulozSlova($doklad, $slova);
+
+        return $doklad->fresh();
+    }
+
+    /**
+     * Slova i s pozicí na stránce, ve tvaru, který unese prohlížeč dokladu.
+     *
+     * @return array<int, array{t: string, s: int, b: array<int, float>}>
+     */
+    private function slovaZBloku(?array $bloky, int $stranka): array
+    {
+        if (!$bloky) {
+            return [];
+        }
+
+        $slova = [];
+
+        foreach ($bloky as $blok) {
+            if (($blok['BlockType'] ?? '') !== 'WORD' || empty($blok['Text'])) {
+                continue;
+            }
+
+            $slova[] = [
+                't' => $blok['Text'],
+                's' => $stranka,
+                'b' => $this->textractBbox($blok),
+            ];
+        }
+
+        return $slova;
+    }
+
+    /**
+     * Odloží souřadnice slov vedle samotného souboru v úložišti.
+     *
+     * Do databáze se nevejdou rozumně — hustá A4 má kolem pěti set slov, což je
+     * pár desítek kilobajtů na doklad. V S3 to nic nestojí a prohlížeč si to
+     * načte, teprve když má co zvýrazňovat.
+     */
+    private function ulozSlova(Doklad $doklad, array $slova): void
+    {
+        if (!$slova || !$doklad->cesta_souboru) {
+            return;
+        }
+
+        try {
+            Storage::disk('s3')->put(
+                self::cestaSlov($doklad->cesta_souboru),
+                json_encode($slova, JSON_UNESCAPED_UNICODE),
+            );
+        } catch (\Throwable $e) {
+            // Zvýrazňování je příjemnost navíc; když se neuloží, doklad je pořád
+            // dohledatelný podle textu a nemá smysl kvůli tomu selhat.
+            Log::warning("Souřadnice slov se neuložily: {$e->getMessage()}", ['doklad_id' => $doklad->id]);
+        }
+    }
+
+    public static function cestaSlov(string $cestaSouboru): string
+    {
+        return $cestaSouboru . '.slova.json';
     }
 
     /**

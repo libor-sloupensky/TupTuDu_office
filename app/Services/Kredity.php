@@ -18,6 +18,9 @@ class Kredity
     /** Kolik kreditů stojí jedna stránka na dané úrovni. */
     private const CENIK = [
         'ulozeni' => 0,
+        // Přepis stojí jen Textract, tedy ~3 haléře za stránku. Zatím je zdarma;
+        // až se bude dělat ceník, je tohle místo, kde se to rozhodne.
+        'prepis' => 0,
         'vycteni' => 1,
     ];
 
@@ -27,21 +30,30 @@ class Kredity
     }
 
     /**
-     * Má se u téhle firmy vytěžovat, a vystačí kredity na daný počet stránek?
+     * Na jaké úrovni se tenhle soubor opravdu zpracuje.
+     *
+     * Vychází z nastavení firmy, ale když na zvolenou úroveň nezbývají kredity,
+     * spadne se níž. Vrací vždy platnou úroveň, takže volající se nemusí ptát
+     * dvakrát.
      */
-    public function lzeVytezit(Firma $firma, int $stranky): bool
+    public function urovenProZpracovani(Firma $firma, int $stranky): string
     {
-        if ($firma->uroven_zpracovani === 'ulozeni') {
-            return false;
+        $uroven = $firma->uroven_zpracovani ?: 'vycteni';
+
+        if (!array_key_exists($uroven, self::CENIK)) {
+            $uroven = 'vycteni';
         }
 
-        $cena = $this->cenaZaStranku($firma->uroven_zpracovani ?: 'vycteni') * max($stranky, 1);
+        $cena = $this->cenaZaStranku($uroven) * max($stranky, 1);
 
-        if ($cena === 0) {
-            return true;
+        if ($cena === 0 || $firma->kredity === null || $firma->kredity >= $cena) {
+            return $uroven;
         }
 
-        return $firma->kredity === null || $firma->kredity >= $cena;
+        // Kredity došly. Doklad se nezahodí — jen se uloží a vytěžit ho půjde
+        // později tlačítkem. Že se nespadne rovnou na Přepis, je zatím záměr:
+        // i ten něco stojí a patří to do rozhodnutí o ceníku.
+        return 'ulozeni';
     }
 
     /**

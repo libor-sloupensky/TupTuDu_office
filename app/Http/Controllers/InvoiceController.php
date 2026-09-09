@@ -227,15 +227,7 @@ class InvoiceController extends Controller
         $query = Doklad::where('firma_ico', $firma->ico);
 
         if ($q !== '') {
-            $query->where(function ($sub) use ($q) {
-                $sub->where('cislo_dokladu', 'like', "%{$q}%")
-                    ->orWhere('dodavatel_nazev', 'like', "%{$q}%")
-                    ->orWhere('nazev_souboru', 'like', "%{$q}%")
-                    ->orWhere('dodavatel_ico', 'like', "%{$q}%")
-                    ->orWhere('nahral', 'like', "%{$q}%")
-                    ->orWhere('odberatel_nazev', 'like', "%{$q}%")
-                    ->orWhere('raw_text', 'like', "%{$q}%");
-            });
+            $query->hledej($q);
         }
 
         $doklady = $query->with(['polozky', 'dodavatel'])->orderBy($sort, $dir)->get();
@@ -752,13 +744,7 @@ class InvoiceController extends Controller
 
             // Fallback: simple LIKE search
             $query = Doklad::where('firma_ico', $firma->ico)
-                ->where(function ($sub) use ($q) {
-                    $sub->where('cislo_dokladu', 'like', "%{$q}%")
-                        ->orWhere('dodavatel_nazev', 'like', "%{$q}%")
-                        ->orWhere('nazev_souboru', 'like', "%{$q}%")
-                        ->orWhere('dodavatel_ico', 'like', "%{$q}%")
-                        ->orWhere('raw_text', 'like', "%{$q}%");
-                })
+                ->hledej($q)
                 ->orderBy('created_at', 'desc');
 
             $doklady = $query->get();

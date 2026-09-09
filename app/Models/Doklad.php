@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,6 +35,83 @@ class Doklad extends Model
         'overeno_adresat' => 'boolean',
         'reverse_charge' => 'boolean',
     ];
+
+    /** Krátká pole, kde se hledá i uprostřed slova. */
+    private const SLOUPCE_HLEDANI = [
+        'cislo_dokladu', 'dodavatel_nazev', 'nazev_souboru',
+        'dodavatel_ico', 'nahral', 'odberatel_nazev',
+    ];
+
+    /** Nejkratší slovo, které se dostane do fulltextového indexu (InnoDB výchozí). */
+    private const MIN_DELKA_SLOVA = 3;
+
+    /**
+     * Hledání v dokladu.
+     *
+     * Krátká strukturovaná pole se procházejí přes LIKE — jsou malá a hledá se
+     * v nich i uprostřed slova, což je u čísel dokladů potřeba. Přepis dokladu
+     * (`raw_text`) je naopak dlouhý a `LIKE '%…%'` na něm neumí použít žádný
+     * index, takže by se s rostoucím počtem dokladů četla celá tabulka. Na něj
+     * se proto jde fulltextovým indexem přes MATCH … AGAINST.
+     *
+     * Poddotaz tu není pro parádu: kdyby MATCH stálo přímo v OR vedle LIKE,
+     * optimalizátor by index zahodil a bylo by to k ničemu.
+     *
+     * MATCH hledá od začátku slova, ne uprostřed — „servis" tedy nenajde
+     * „pneuservis". U výrazů kratších než tři znaky, které se do indexu vůbec
+     * nedostanou, se proto i na přepis použije LIKE.
+     */
+    public function scopeHledej(Builder $dotaz, string $vyraz): Builder
+    {
+        $vyraz = trim($vyraz);
+
+        if ($vyraz === '') {
+            return $dotaz;
+        }
+
+        return $dotaz->where(function (Builder $sub) use ($vyraz) {
+            foreach (self::SLOUPCE_HLEDANI as $sloupec) {
+                $sub->orWhere($sloupec, 'like', '%' . $vyraz . '%');
+            }
+
+            $fulltext = self::vyrazProFulltext($vyraz);
+
+            if ($fulltext === null) {
+                $sub->orWhere('raw_text', 'like', '%' . $vyraz . '%');
+
+                return;
+            }
+
+            $sub->orWhereIn('id', function ($poddotaz) use ($fulltext) {
+                $poddotaz->select('id')
+                    ->from('fak_doklady')
+                    ->whereRaw('MATCH(raw_text) AGAINST (? IN BOOLEAN MODE)', [$fulltext]);
+            });
+        });
+    }
+
+    /**
+     * Převede hledaný výraz do zápisu pro MATCH … AGAINST v boolean režimu.
+     *
+     * Všechna slova musí být v dokladu přítomná (`+`) a stačí shoda od začátku
+     * slova (`*`). Vrací null, když ve výrazu nezůstane nic dost dlouhého —
+     * volající pak sáhne po LIKE.
+     */
+    public static function vyrazProFulltext(string $vyraz): ?string
+    {
+        // Znaky, které mají v boolean režimu vlastní význam, by jinak dotaz
+        // rozhodily nebo změnily smysl.
+        $ocisteny = preg_replace('/[+\-><()~*"@]+/u', ' ', $vyraz);
+
+        $slova = [];
+        foreach (preg_split('/\s+/u', (string) $ocisteny, -1, PREG_SPLIT_NO_EMPTY) as $slovo) {
+            if (mb_strlen($slovo) >= self::MIN_DELKA_SLOVA) {
+                $slova[] = '+' . $slovo . '*';
+            }
+        }
+
+        return $slova ? implode(' ', $slova) : null;
+    }
 
     /** Záznam se uložil, ale nikdy se nevytěžil. */
     public function jeNevytezeny(): bool

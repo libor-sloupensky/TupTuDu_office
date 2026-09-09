@@ -1,0 +1,111 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Doklad;
+use App\Models\Firma;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Tests\TestCase;
+
+/**
+ * Hledání v přepisu dokladu.
+ *
+ * Nejede přes RefreshDatabase: ta drží každý test v transakci a InnoDB doplňuje
+ * fulltextový index až při commitu, takže by MATCH nezacommitované řádky
+ * neviděl. Data se proto po sobě uklízejí ručně — kdyby zůstala, rozbila by
+ * ostatní testy, které čekají prázdnou databázi.
+ */
+class HledaniTest extends TestCase
+{
+    use DatabaseTruncation;
+
+    private Firma $firma;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->firma = Firma::create(['ico' => '10000001', 'nazev' => 'Klient s.r.o.']);
+    }
+
+    protected function tearDown(): void
+    {
+        Doklad::query()->delete();
+        Firma::query()->delete();
+
+        parent::tearDown();
+    }
+
+    private function doklad(string $prepis, array $navic = []): Doklad
+    {
+        return Doklad::create(array_merge([
+            'firma_ico' => $this->firma->ico,
+            'nazev_souboru' => 'doklad.pdf',
+            'cesta_souboru' => 'doklady/' . uniqid() . '.pdf',
+            'hash_souboru' => hash('sha256', uniqid('', true)),
+            'stav' => 'ulozeno',
+            'raw_text' => $prepis,
+        ], $navic));
+    }
+
+    private function najdi(string $vyraz): array
+    {
+        return Doklad::where('firma_ico', $this->firma->ico)
+            ->hledej($vyraz)
+            ->pluck('id')
+            ->all();
+    }
+
+    public function test_najde_doklad_podle_slova_z_prepisu(): void
+    {
+        $hledany = $this->doklad('Pneuservis Brno, výměna letních pneumatik, celkem 4200 Kč');
+        $this->doklad('Restaurace U Lípy, obědy pro zaměstnance');
+
+        $this->assertSame([$hledany->id], $this->najdi('pneumatik'));
+    }
+
+    public function test_hleda_i_od_zacatku_slova(): void
+    {
+        $hledany = $this->doklad('Pneuservis Brno, výměna pneumatik');
+
+        $this->assertSame([$hledany->id], $this->najdi('pneu'));
+    }
+
+    public function test_vice_slov_musi_byt_vsechna(): void
+    {
+        $oba = $this->doklad('Pneuservis Brno, výměna pneumatik');
+        $this->doklad('Pneuservis Ostrava, oprava disku');
+
+        $this->assertSame([$oba->id], $this->najdi('pneuservis výměna'));
+    }
+
+    public function test_kratky_vyraz_projde_pres_like(): void
+    {
+        // Dvouznakové slovo se do indexu nedostane, hledání ale nesmí selhat.
+        $hledany = $this->doklad('Nákup PC sestavy');
+
+        $this->assertSame([$hledany->id], $this->najdi('PC'));
+    }
+
+    public function test_cislo_dokladu_se_najde_i_uprostred(): void
+    {
+        $hledany = $this->doklad('nic zajímavého', ['cislo_dokladu' => 'FV-2026-00123']);
+
+        $this->assertSame([$hledany->id], $this->najdi('00123'));
+    }
+
+    public function test_co_tam_neni_se_nenajde(): void
+    {
+        $this->doklad('Pneuservis Brno');
+
+        $this->assertSame([], $this->najdi('kancelářské potřeby'));
+    }
+
+    public function test_operatory_ve_vyrazu_dotaz_nerozbiji(): void
+    {
+        $this->doklad('Pneuservis Brno');
+
+        // Znaky s významem v boolean režimu se musí odfiltrovat, ne způsobit chybu.
+        $this->assertIsArray($this->najdi('+++ pneu*** ~~~'));
+        $this->assertIsArray($this->najdi('"'));
+    }
+}

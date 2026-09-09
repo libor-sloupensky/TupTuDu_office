@@ -152,6 +152,28 @@ class DokladDokumentTest extends TestCase
         $this->assertSame(0, \App\Models\AiVolani::count());
     }
 
+    public function test_uroven_prepis_nevola_claude(): void
+    {
+        $this->firma->update(['uroven_zpracovani' => 'prepis']);
+
+        $this->prihlasen()
+            ->postJson('/upload', [
+                'documents' => [UploadedFile::fake()->create('faktura.pdf', 20, 'application/pdf')],
+            ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk();
+
+        $zaznam = Doklad::firstOrFail();
+
+        $this->assertSame('ulozeno', $zaznam->stav);
+        $this->assertSame('doklad', $zaznam->druh);
+        $this->assertTrue($zaznam->lzeVytezit());
+        Storage::disk('s3')->assertExists($zaznam->cesta_souboru);
+
+        // Textract se zavolat měl, Claude v žádném případě — na tom celá
+        // levná úroveň stojí.
+        $this->assertSame(0, \App\Models\AiVolani::where('sluzba', 'claude')->count());
+    }
+
     public function test_doklad_se_ulozi_k_poslane_firme_ne_k_te_v_session(): void
     {
         $druha = Firma::create(['ico' => '20000002', 'nazev' => 'Druha s.r.o.', 'uroven_zpracovani' => 'ulozeni']);

@@ -42,8 +42,8 @@ class KredityTest extends TestCase
         $firma = $this->firma(kredity: null);
 
         $this->assertNull($firma->kredity);
-        $this->assertTrue($this->kredity->lzeVytezit($firma, 1));
-        $this->assertTrue($this->kredity->lzeVytezit($firma, 500));
+        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 1));
+        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 500));
 
         $this->kredity->odecti($firma, 10);
         $this->assertNull($firma->fresh()->kredity);
@@ -54,7 +54,26 @@ class KredityTest extends TestCase
     {
         $firma = $this->firma(kredity: 1000, uroven: 'ulozeni');
 
-        $this->assertFalse($this->kredity->lzeVytezit($firma, 1));
+        $this->assertSame('ulozeni', $this->kredity->urovenProZpracovani($firma, 1));
+    }
+
+    public function test_prepis_jede_i_bez_kreditu(): void
+    {
+        // Přepis stojí jen Textract, kredity se za něj zatím nestrhávají —
+        // právě proto ho jde nabídnout zdarma.
+        $firma = $this->firma(kredity: 0, uroven: 'prepis');
+
+        $this->assertSame('prepis', $this->kredity->urovenProZpracovani($firma, 1));
+        $this->assertSame('prepis', $this->kredity->urovenProZpracovani($firma, 50));
+        $this->assertSame(0, $this->kredity->cenaZaStranku('prepis'));
+    }
+
+    public function test_neznama_uroven_spadne_na_vycteni(): void
+    {
+        $firma = $this->firma();
+        $firma->setAttribute('uroven_zpracovani', 'nesmysl');
+
+        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 1));
     }
 
     public function test_kredity_se_odecitaji_za_stranku(): void
@@ -75,8 +94,8 @@ class KredityTest extends TestCase
     {
         $firma = $this->firma(kredity: 2);
 
-        $this->assertTrue($this->kredity->lzeVytezit($firma, 2));
-        $this->assertFalse($this->kredity->lzeVytezit($firma, 3));
+        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 2));
+        $this->assertSame('ulozeni', $this->kredity->urovenProZpracovani($firma, 3));
     }
 
     public function test_zustatek_nikdy_neklesne_pod_nulu(): void
@@ -105,7 +124,7 @@ class KredityTest extends TestCase
         $this->kredity->pripis($firma, 100);
 
         $this->assertSame(100, $firma->fresh()->kredity);
-        $this->assertFalse($this->kredity->lzeVytezit($firma->fresh(), 101));
+        $this->assertSame('ulozeni', $this->kredity->urovenProZpracovani($firma->fresh(), 101));
     }
 
     public function test_naklad_na_claude_se_spocita_podle_ceniku(): void

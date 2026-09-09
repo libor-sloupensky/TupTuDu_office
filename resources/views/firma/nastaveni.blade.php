@@ -337,10 +337,18 @@
             <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem;">
                 <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.9rem; cursor: pointer;">
                     <input type="radio" name="uroven" value="vycteni" style="margin-top: 0.25rem;"
-                           {{ $firma->uroven_zpracovani !== 'ulozeni' ? 'checked' : '' }}>
+                           {{ ($firma->uroven_zpracovani ?: 'vycteni') === 'vycteni' ? 'checked' : '' }}>
                     <span>
                         <strong>Vyčtení</strong><br>
                         <span style="font-size: 0.82rem; color: #888;">Doklad se přečte a pole se vyplní sama.</span>
+                    </span>
+                </label>
+                <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.9rem; cursor: pointer;">
+                    <input type="radio" name="uroven" value="prepis" style="margin-top: 0.25rem;"
+                           {{ $firma->uroven_zpracovani === 'prepis' ? 'checked' : '' }}>
+                    <span>
+                        <strong>Přepis</strong><br>
+                        <span style="font-size: 0.82rem; color: #888;">Přečte se text, ale pole se nevyplní. Doklad se dá najít podle libovolného slova, které je na něm napsané.</span>
                     </span>
                 </label>
                 <label style="display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer;">
