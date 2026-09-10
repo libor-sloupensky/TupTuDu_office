@@ -186,6 +186,8 @@ Route::middleware(['auth', 'verified', 'firma'])->group(function () {
     // Dodatečné vytěžení uloženého záznamu (dokument, nebo doklad bez vytěžení)
     // Kde na dokladu leží hledaný výraz (pro zvýraznění v náhledu)
     Route::get('/doklady/{doklad}/slova', [InvoiceController::class, 'slova'])->name('doklady.slova');
+    // Přesun dokladu k jinému účtu téhož člověka
+    Route::post('/doklady/{doklad}/prevest', [InvoiceController::class, 'prevest'])->name('doklady.prevest');
     Route::post('/doklady/{doklad}/vytezit', [InvoiceController::class, 'vytezit'])->name('doklady.vytezit');
     Route::patch('/doklady/{doklad}', [InvoiceController::class, 'update'])->name('doklady.update');
     Route::delete('/doklady/{doklad}', [InvoiceController::class, 'destroy'])->name('doklady.destroy');

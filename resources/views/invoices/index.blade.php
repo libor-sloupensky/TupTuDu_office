@@ -133,6 +133,12 @@
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
     /* Nález hledaného výrazu. Vlastní třída schválně: clearBboxHighlight()
        maže .bbox-highlight při odhoveru z pole a nálezy mají zůstat. */
+    .btn-prevest-sm { background: none; border: none; cursor: pointer; color: #95a5a6; padding: 0 0.2rem; line-height: 1; vertical-align: middle; }
+    .btn-prevest-sm:hover { color: #16a085; }
+    .prevod-nabidka { position: absolute; z-index: 60; background: white; border: 1px solid #d0d8e0; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); padding: 0.3rem; min-width: 170px; }
+    .prevod-nadpis { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px; color: #95a5a6; padding: 0.25rem 0.5rem; }
+    .prevod-nabidka button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.4rem 0.5rem; font-size: 0.85rem; cursor: pointer; border-radius: 4px; color: #2c3e50; }
+    .prevod-nabidka button:hover { background: #eaf6ff; }
     .bbox-nalez { position: absolute; background: rgba(241, 196, 15, 0.38); border-radius: 2px; pointer-events: none; z-index: 4; }
     .nalezy-info { font-size: 0.8rem; color: #7f8c8d; margin-top: 0.4rem; }
     .bbox-highlight { position: absolute; background: rgba(52, 152, 219, 0.18); border: none; border-radius: 3px; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
@@ -214,6 +220,10 @@
             var uploadUrl = '{{ route("invoices.store") }}';
             var aiSearchUrl = '{{ route("doklady.aiSearch") }}';
             var aktivniFirmaIco = '{{ $firma->ico }}';
+            // Účty, na které smí uživatel doklad převést.
+            var CILE_PREVODU = @json($cilePrevodu ?? []);
+            // Ikonu vkládá JavaScript, kde Blade komponentu použít nejde.
+            var IKONA_PREVOD = @json(\App\Support\Lucide::svg('arrow-right', 15));
             var permVkladat = {{ $permVkladat ? 'true' : 'false' }};
             var permUpravovat = {{ $permUpravovat ? 'true' : 'false' }};
             var permMazat = {{ $permMazat ? 'true' : 'false' }};
@@ -501,11 +511,12 @@ const COLUMNS = [
     { id: 'zdroj',     label: 'Zdroj',      tip: 'Způsob vložení (ruční/email)', sortable: false, editable: false, fixed: false, field: null },
     { id: 'nahral',    label: 'Nahrál',     tip: 'Email uživatele, který doklad nahrál', sortable: false, editable: false, fixed: false, field: null },
     { id: 'soubor',    label: 'Soubor',     tip: 'Název nahraného souboru', sortable: false, editable: false, fixed: false, field: null },
+    { id: 'prevest',   label: '',            tip: 'Přesunout doklad k jinému vašemu účtu', sortable: false, editable: false, fixed: true,  field: null },
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
 
-const DEFAULT_VISIBLE = ['select','expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
-const FIXED_COLS = ['select','expand','smazat'];
+const DEFAULT_VISIBLE = ['select','expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','prevest','smazat'];
+const FIXED_COLS = ['select','expand','prevest','smazat'];
 
 function loadPref(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
 function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -617,6 +628,7 @@ function cellValue(d, colId) {
         case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
         case 'nahral': return d.nahral || '-';
         case 'soubor': return d.nazev_souboru || '-';
+        case 'prevest': return d.lze_prevest ? '<button type="button" class="btn-prevest-sm" title="Převést k jinému účtu" onclick="prevestDoklad('+d.id+', this)">' + IKONA_PREVOD + '</button>' : '';
         case 'smazat': return permMazat ? '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escAttr(d.cislo_dokladu||d.nazev_souboru)+'\',\''+d.destroy_url+'\')">&times;</button>' : '';
         default: return '-';
     }
@@ -1017,7 +1029,7 @@ function updateTableRow(d) {
     tds.forEach((td, i) => {
         if (i < cols.length) {
             const colId = cols[i];
-            if (colId !== 'expand' && colId !== 'smazat' && colId !== 'select') {
+            if (colId !== 'expand' && colId !== 'smazat' && colId !== 'prevest' && colId !== 'select') {
                 td.innerHTML = cellValue(d, colId);
             }
         }
@@ -1614,6 +1626,76 @@ function nakresliNalez(b, vrstva) {
     el.style.width = ((right - left) * 100) + '%';
     el.style.height = ((bottom - top) * 100) + '%';
     vrstva.appendChild(el);
+}
+
+// ===== Převod dokladu k jinému účtu =====
+// Vytěžená data zůstávají — přepočítá se jen to, co záviselo na firmě
+// (adresát, kategorie, duplicita, záloha na Disk). AI se znovu nevolá.
+function prevestDoklad(id, tlacitko) {
+    const d = dokladyData.find(x => x.id === id);
+    if (!d) return;
+
+    zavriNabidkuPrevodu();
+
+    const cile = CILE_PREVODU.filter(c => c.ico !== aktivniFirmaIco);
+
+    if (!cile.length) {
+        alert('Nemáte žádný jiný účet, kam doklad převést.');
+        return;
+    }
+
+    const nabidka = document.createElement('div');
+    nabidka.className = 'prevod-nabidka';
+    nabidka.innerHTML = '<div class="prevod-nadpis">Převést na</div>' +
+        cile.map(c => '<button type="button" data-ico="' + escAttr(c.ico) + '">' + escapeHtml(c.nazev) + '</button>').join('');
+
+    document.body.appendChild(nabidka);
+
+    const misto = tlacitko.getBoundingClientRect();
+    nabidka.style.top = (window.scrollY + misto.bottom + 4) + 'px';
+    // Zarovnání doprava, ať nabídka nevyjede z okna — tlačítko je u pravého kraje.
+    nabidka.style.left = (window.scrollX + Math.max(8, misto.right - nabidka.offsetWidth)) + 'px';
+
+    nabidka.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', () => {
+            zavriNabidkuPrevodu();
+            odesliPrevod(d, b.dataset.ico);
+        });
+    });
+
+    setTimeout(() => document.addEventListener('click', zavriNabidkuPrevodu, { once: true }), 0);
+}
+
+function zavriNabidkuPrevodu() {
+    document.querySelectorAll('.prevod-nabidka').forEach(el => el.remove());
+}
+
+function odesliPrevod(d, cilIco) {
+    fetch(d.prevest_url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ firma_ico: cilIco }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) { alert(data.error || 'Převod se nepodařil.'); return; }
+
+        let zprava = 'Doklad převeden na ' + data.firma + '.';
+        if (data.zmeny && data.zmeny.length) {
+            zprava += '\n\n' + data.zmeny.join('\n');
+        }
+        alert(zprava);
+
+        // Doklad už do tohohle seznamu nepatří.
+        dokladyData = dokladyData.filter(x => x.id !== d.id);
+        renderTable();
+    })
+    .catch(() => alert('Převod se nepodařil — zkuste to prosím znovu.'));
 }
 
 // ===== Bbox highlight =====

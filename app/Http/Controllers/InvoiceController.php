@@ -6,6 +6,7 @@ use App\Models\Doklad;
 use App\Support\AktivniFirma;
 use App\Models\Firma;
 use App\Services\DokladProcessor;
+use App\Services\PrevodDokladu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -180,6 +181,9 @@ class InvoiceController extends Controller
             'lze_vytezit' => $d->lzeVytezit(),
             'vytezit_url' => route('doklady.vytezit', $d),
             'slova_url' => route('doklady.slova', $d),
+            // Převádět smí jen ten, kdo doklad nahrál.
+            'lze_prevest' => $d->nahral !== null && $d->nahral === auth()->user()?->email,
+            'prevest_url' => route('doklady.prevest', $d),
             'typ_dokladu' => $d->typ_dokladu,
             'kvalita' => $d->kvalita,
             'kvalita_poznamka' => $d->kvalita_poznamka,
@@ -247,6 +251,7 @@ class InvoiceController extends Controller
         }
 
         $kategorieList = $firma->kategorie()->orderBy('poradi')->pluck('nazev')->toArray();
+        $cilePrevodu = $this->cileProPrevod();
 
         $user = auth()->user();
         $prohlizimKlienta = $user->prohlizimKlienta();
@@ -261,7 +266,7 @@ class InvoiceController extends Controller
             $permMazat = $vazba ? $vazba->perm_mazat : false;
         }
 
-        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q', 'dokladyJson', 'kategorieList', 'prohlizimKlienta', 'permVkladat', 'permUpravovat', 'permMazat'));
+        return view('invoices.index', compact('doklady', 'firma', 'sort', 'dir', 'q', 'dokladyJson', 'kategorieList', 'cilePrevodu', 'prohlizimKlienta', 'permVkladat', 'permUpravovat', 'permMazat'));
     }
 
     public function show(Doklad $doklad)
@@ -645,6 +650,71 @@ class InvoiceController extends Controller
         // podle knihoven systému a na Windows diakritiku místo převodu zahazuje.
         return mb_strtolower(Str::ascii($text));
     }
+    /**
+     * Přesune doklad k jinému účtu téhož člověka.
+     *
+     * Převádět smí jen ten, kdo doklad nahrál — u cizího dokladu nemá jak
+     * poznat, jestli u té firmy nemá zůstat. Cílem může být jen účet, ke
+     * kterému má přístup, tedy některá z jeho firem nebo jeho osobní doklady.
+     *
+     * Vytěžená data se nezahazují; přepočítá se jen to, co záviselo na firmě
+     * (viz PrevodDokladu).
+     */
+    public function prevest(Request $request, Doklad $doklad)
+    {
+        $this->autorizujDoklad($doklad);
+
+        $request->validate(['firma_ico' => 'required|string|max:20']);
+
+        $user = auth()->user();
+
+        if (!$doklad->nahral || $doklad->nahral !== $user->email) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Převést jde jen doklad, který jste nahrál vy.',
+            ], 403);
+        }
+
+        $cilIco = $request->input('firma_ico');
+
+        if (!in_array($cilIco, $user->dostupneIco(), true)) {
+            return response()->json(['ok' => false, 'error' => 'K cílovému účtu nemáte přístup.'], 403);
+        }
+
+        // U cizí firmy platí oprávnění účetní vazby — na obou stranách.
+        $this->overOpravaUcetni('mazat', $doklad->firma_ico);
+        $this->overOpravaUcetni('vkladat', $cilIco);
+
+        $cil = Firma::findOrFail($cilIco);
+
+        try {
+            $vysledek = (new PrevodDokladu())->prevedNa($doklad, $cil);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            Log::error('Převod dokladu selhal', ['doklad_id' => $doklad->id, 'chyba' => $e->getMessage()]);
+
+            return response()->json(['ok' => false, 'error' => 'Převod se nepodařil.'], 500);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'firma' => $cil->nazev,
+            'zmeny' => $vysledek['zmeny'],
+        ]);
+    }
+
+    /** Účty, na které smí uživatel doklad převést. */
+    private function cileProPrevod(): array
+    {
+        return Firma::whereIn('ico', auth()->user()->dostupneIco())
+            ->orderBy('je_osobni')
+            ->orderBy('nazev')
+            ->get()
+            ->map(fn (Firma $f) => ['ico' => $f->ico, 'nazev' => $f->nazev])
+            ->all();
+    }
+
     public function downloadSelected(Request $request)
     {
         $request->validate([

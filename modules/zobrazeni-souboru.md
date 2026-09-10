@@ -159,3 +159,34 @@ obyčejné hledání neumí a umět nebude.
 Stojí ~4 haléře za dotaz (kredity firmy se ho netýkají). Hlavní pole je proto
 obyčejné hledání: **je zadarmo a hlavně předvídatelné.** Když se AI nepovede,
 spadne se automaticky na obyčejné hledání.
+
+## Převod dokladu k jinému účtu
+
+Šipka ve sloupci vedle křížku. Přesune doklad k jiné firmě téhož člověka nebo
+do jeho osobních dokladů.
+
+**Převádět smí jen ten, kdo doklad nahrál** (`nahral` = jeho e-mail). U cizího
+dokladu nemá jak poznat, jestli u té firmy nemá zůstat. Doklad, který přišel
+e-mailem od někoho jiného, tím pádem převést nejde — a doklady z doby, kdy se
+`nahral` ještě neplnilo, taky ne.
+
+**Vytěžená data se nezahazují.** Dodavatel, částky, data i položky popisují
+samotný doklad, ne firmu, takže po přesunu platí dál a není důvod platit za
+další čtení AI. Znovu se posoudí jen to, co na firmě záviselo
+(`App\Services\PrevodDokladu`):
+
+| Co | Proč |
+|----|------|
+| **Adresát** | Doklad vystavený jedné firmě nesmí u druhé zůstat jako ověřený |
+| **Kategorie** | Každá firma má vlastní seznam; co v cílové není, se zahodí |
+| **Duplicita** | Hlídá se v rámci firmy, vazba přes hranici ztrácí smysl |
+| **Záloha na Disk** | Razítko se smaže, aby se doklad nahrál do složky nové firmy |
+
+Soubor i odložené souřadnice slov se v úložišti přesunou pod cílovou firmu.
+Nejdřív se kopíruje, pak přepíše záznam a teprve nakonec maže originál — kdyby
+kopie selhala, převod se neprovede vůbec a nevznikne záznam ukazující do
+prázdna.
+
+**Na Disku zůstane kopie u původní firmy.** Smazat ji by znamenalo sáhnout na
+cizí Disk s jeho vlastními přihlašovacími údaji; uživatel se to dozví z hlášky
+po převodu.

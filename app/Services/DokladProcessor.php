@@ -819,19 +819,8 @@ class DokladProcessor
         $odberatelIco = $docData['odberatel_ico'] ?? null;
         $odberatelNazev = $docData['odberatel_nazev'] ?? null;
 
-        $adresni = !empty($odberatelIco) || !empty($odberatelNazev);
-        $overenoAdresat = false;
-        if ($adresni) {
-            // Porovnání IČO (normalizované — bez mezer a vedoucích nul)
-            $normalizeIco = fn($v) => ltrim(preg_replace('/\s+/', '', $v ?? ''), '0');
-            if (!empty($odberatelIco) && $normalizeIco($odberatelIco) === $normalizeIco($firma->ico)) {
-                $overenoAdresat = true;
-            }
-            // Fallback: porovnání názvu (i když IČO je vyplněné ale nesedí)
-            if (!$overenoAdresat && !empty($odberatelNazev) && !empty($firma->nazev)) {
-                $overenoAdresat = $this->matchFirmName($odberatelNazev, $firma->nazev);
-            }
-        }
+        ['adresni' => $adresni, 'overeno' => $overenoAdresat] =
+            $this->overAdresata($odberatelIco, $odberatelNazev, $firma);
 
         // Přesné souřadnice z Textract (nahrazují nepřesné z Vision API)
         if ($textractBlocks) {
@@ -900,6 +889,38 @@ class DokladProcessor
         }
 
         return $doklad->fresh();
+    }
+
+    /**
+     * Je doklad adresovaný, a sedí adresát na danou firmu?
+     *
+     * Veřejné schválně: totéž se počítá i při převodu dokladu mezi účty, kde se
+     * adresát musí posoudit znovu proti nové firmě. Jinak by doklad vystavený
+     * jedné firmě zůstal po přesunu u druhé označený jako ověřený.
+     *
+     * @return array{adresni: bool, overeno: bool}
+     */
+    public function overAdresata(?string $odberatelIco, ?string $odberatelNazev, Firma $firma): array
+    {
+        $adresni = !empty($odberatelIco) || !empty($odberatelNazev);
+
+        if (!$adresni) {
+            return ['adresni' => false, 'overeno' => false];
+        }
+
+        // Porovnání IČO (normalizované — bez mezer a vedoucích nul)
+        $normalizuj = fn ($v) => ltrim(preg_replace('/\s+/', '', $v ?? ''), '0');
+
+        if (!empty($odberatelIco) && $normalizuj($odberatelIco) === $normalizuj($firma->ico)) {
+            return ['adresni' => true, 'overeno' => true];
+        }
+
+        // Záloha: porovnání názvu (i když je IČO vyplněné, ale nesedí)
+        $podleNazvu = !empty($odberatelNazev)
+            && !empty($firma->nazev)
+            && $this->matchFirmName($odberatelNazev, $firma->nazev);
+
+        return ['adresni' => true, 'overeno' => $podleNazvu];
     }
 
     private function matchFirmName(string $documentName, string $firmName): bool
