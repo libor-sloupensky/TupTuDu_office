@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,6 +22,7 @@ class Firma extends Model
         'email_vlastni_sifrovani', 'email_vlastni_uzivatel', 'email_vlastni_heslo',
         'google_drive_aktivni', 'google_refresh_token', 'google_folder_id', 'google_drive_sablona',
         'uroven_zpracovani', 'kredity',
+        'je_osobni', 'vlastnik_user_id', 'osobni_aktivni',
     ];
 
     protected $casts = [
@@ -30,7 +32,28 @@ class Firma extends Model
         'email_vlastni_port' => 'integer',
         'google_drive_aktivni' => 'boolean',
         'kredity' => 'integer',
+        'je_osobni' => 'boolean',
+        'osobni_aktivni' => 'boolean',
     ];
+
+    /** Osobní prostor pro soukromé doklady, ne skutečná firma. */
+    public function jeOsobni(): bool
+    {
+        return (bool) $this->je_osobni;
+    }
+
+    /**
+     * Vynechá osobní prostor, který má vlastník vypnutý.
+     *
+     * Doklady v něm zůstávají; jen se nenabízí ve výběru a nedá se k nim dostat,
+     * dokud si ho vlastník zase nezapne.
+     */
+    public function scopeViditelne(Builder $dotaz): Builder
+    {
+        return $dotaz->where(function (Builder $sub) {
+            $sub->where('je_osobni', false)->orWhere('osobni_aktivni', true);
+        });
+    }
 
     public function doklady(): HasMany
     {

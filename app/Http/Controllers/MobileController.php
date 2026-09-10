@@ -93,7 +93,11 @@ class MobileController extends Controller
      */
     private function dostupneFirmy(User $user)
     {
-        $vlastni = $user->firmy;
+        // Osobní prostor se zakládá při prvním zobrazení výběru; vypnutý
+        // se do nabídky nedostane.
+        \App\Support\OsobniProstor::zajisti($user);
+
+        $vlastni = $user->firmy()->viditelne()->get();
 
         $ucetniIcos = $user->firmy()->wherePivot('role', 'ucetni')->pluck('ico')->toArray();
         if (empty($ucetniIcos)) {

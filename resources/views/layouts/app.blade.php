@@ -48,13 +48,21 @@
                 @endphp
                 @if ($__user->firmy()->count() > 0)
                     <a href="{{ route('doklady.index') }}">Doklady</a>
+                    <a href="{{ route('ucet.nastaveni') }}">Můj účet</a>
+                    @if ($__user->firmy()->where('je_osobni', false)->count() === 0)
+                        <a href="{{ route('firma.zadna') }}">Založit firmu</a>
+                    @endif
                     @if (!$__prohlizimKlienta)
                         <a href="{{ route('firma.nastaveni') }}">Nastavení</a>
                     @endif
                 @endif
 
                 @php
-                    $userFirmy = $__user->firmy;
+                    // Osobní prostor se zakládá až tady — při prvním zobrazení výběru,
+                    // ne dávkově pro celou databázi.
+                    \App\Support\OsobniProstor::zajisti($__user);
+
+                    $userFirmy = $__user->firmy()->viditelne()->get();
                     $aktivniIco = \App\Support\AktivniFirma::ico();
 
                     // Klientské firmy (pro účetní)

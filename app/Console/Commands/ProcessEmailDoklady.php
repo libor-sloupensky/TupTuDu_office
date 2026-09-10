@@ -719,7 +719,7 @@ class ProcessEmailDoklady extends Command
 
     private function extractIcoFromRecipients($message): ?string
     {
-        // Hledá v To/CC adresy {8 číslic}@tuptudu.cz
+        // Hledá v To/CC adresy {8 číslic}@tuptudu.cz nebo {kód osobního prostoru}@…
         // (plus historickou variantu na subdoméně doklady.tuptudu.cz)
         $recipients = [];
 
@@ -745,13 +745,16 @@ class ProcessEmailDoklady extends Command
             'tuptudu.cz',
             'doklady.tuptudu.cz',
         ]));
-        $pattern = '/^(\d{8})@('
+        // Osmimístné IČO firmy, nebo kód osobního prostoru (OS + 8 znaků).
+        $pattern = '/^(\d{8}|OS[A-Z0-9]{8})@('
             . implode('|', array_map(fn ($d) => preg_quote($d, '/'), $domains))
             . ')$/i';
 
         foreach ($recipients as $email) {
             if (preg_match($pattern, trim($email), $m)) {
-                return $m[1];
+                // Kód osobního prostoru je v databázi velkými písmeny, ale
+                // v adrese ho může kdokoli napsat malými.
+                return ctype_digit($m[1]) ? $m[1] : strtoupper($m[1]);
             }
         }
 

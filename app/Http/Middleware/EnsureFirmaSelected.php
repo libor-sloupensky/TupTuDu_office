@@ -35,7 +35,10 @@ class EnsureFirmaSelected
         }
 
         if ($aktivniIco === null) {
-            $aktivniIco = $user->firmy()->first()->ico;
+            // Přednost má skutečná firma. Osobní prostor je záloha pro
+            // toho, kdo žádnou firmu nemá — jinak by po přihlášení skončil
+            // ve svých soukromých dokladech místo ve firemních.
+            $aktivniIco = $user->firmy()->viditelne()->orderBy('je_osobni')->first()->ico;
         }
 
         if ($aktivniIco !== AktivniFirma::ico()) {

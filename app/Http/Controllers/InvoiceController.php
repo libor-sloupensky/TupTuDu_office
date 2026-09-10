@@ -340,7 +340,8 @@ class InvoiceController extends Controller
                 // chová se nahrávání jako dřív — tedy jako doklad.
                 'druh' => 'nullable|in:doklad,dokument',
                 // Firma, kterou měl uživatel na obrazovce v okamžiku nahrávání.
-                'firma_ico' => 'nullable|string|regex:/^\d{8}$/',
+                // IČO firmy nebo kód osobního prostoru
+                'firma_ico' => 'nullable|string|max:20',
             ]);
 
             $firma = $this->firmaZPozadavku($request);

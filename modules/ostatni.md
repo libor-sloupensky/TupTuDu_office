@@ -222,6 +222,42 @@ Pozor: `EnsureFirmaSelected` při chybějící aktivní firmě tiše vybere prvn
 firmu uživatele. Pro nahrávání to už nevadí (viz výše), ale jinde na to spoléhat
 nelze.
 
+## Osobní doklady
+
+Každý uživatel má vlastní místo na soukromé doklady, oddělené od firemních.
+Uvnitř je to **řádek v `sys_firmy`** s příznakem `je_osobni` a vlastním kódem
+místo IČO — díky tomu funguje beze změny všechno, co na firmu navazuje:
+nahrávání, hledání, mobilní aplikace, e-mailový příjem i záloha na Disk.
+
+**Kód má tvar `OS` + 8 znaků, tedy deset míst** (`OSU8ZXCB9A`). IČO má osm
+číslic, takže se ty dva zápisy nemůžou potkat ani teď, ani až někdo takové IČO
+dostane. Abeceda vynechává znaky, které si lze splést při čtení: 0/O, 1/I/L,
+5/S. Vzor pro ověření se odvozuje z téže abecedy jako generátor
+(`OsobniProstor::vzor()`), aby se nemohly rozejít.
+
+**Ven se nedostane.** Partnerské API i přidávání klientů účetní firmě přijímají
+jen osmimístné IČO, takže osobní prostor nejde napojit ani nikomu zpřístupnit —
+ta kontrola tam byla dřív a teď plní i tuhle roli. Vidí ho jen vlastník.
+
+Zakládá se **až při prvním zobrazení výběru firem** (`OsobniProstor::zajisti()`
+v layoutu a v mobilním skeneru), ne dávkově pro celou databázi.
+
+Jede na úrovni *Vyčtení*, tedy zdarma — text se vyčte Textractem, AI se nevolá.
+
+Vypnutí v *Můj účet* prostor jen přestane nabízet; **doklady zůstávají** a po
+zapnutí jsou zase k dispozici. Hlídá to `Firma::scopeViditelne()`, kterým
+prochází `dostupneIco()` i oba výběry firem.
+
+Když má uživatel firmu i osobní prostor, middleware po přihlášení sáhne po
+firmě — jinak by skončil ve svých soukromých dokladech. A protože osobní prostor
+počítá jako firma, zůstává v navigaci odkaz *Založit firmu* pro toho, kdo
+skutečnou firmu zatím nemá.
+
+### Nastavení účtu
+`/ucet` — jméno, e-mail, přepínač osobních dokladů a adresa pro jejich zasílání.
+Je to jediná stránka nastavení, která **nevyžaduje firmu**, protože se týká
+člověka.
+
 ## Testy
 
 `php artisan test`. Jedou proti **MariaDB**, ne SQLite: schéma používá FULLTEXT

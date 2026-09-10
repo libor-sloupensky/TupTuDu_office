@@ -119,7 +119,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function dostupneIco(): array
     {
-        $icos = $this->firmy()->pluck('ico')->toArray();
+        // Vypnutý osobní prostor se nenabízí ani nezpřístupňuje — doklady
+        // v něm zůstávají a vrátí se, až si ho vlastník zapne.
+        $icos = $this->firmy()->viditelne()->pluck('ico')->toArray();
 
         $ucetniIcos = $this->firmy()->wherePivot('role', 'ucetni')->pluck('ico')->toArray();
         foreach ($ucetniIcos as $uIco) {

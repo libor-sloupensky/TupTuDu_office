@@ -11,6 +11,7 @@ use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KlientiController;
 use App\Http\Controllers\MobileController;
+use App\Http\Controllers\UcetController;
 use App\Http\Controllers\VazbyController;
 use App\Support\ServisniToken;
 use Illuminate\Support\Facades\Route;
@@ -139,6 +140,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/firma/lookup-pristup', [FirmaController::class, 'lookupPristup'])->name('firma.lookupPristup');
     Route::post('/firma/vytvorit', [FirmaController::class, 'vytvorFirmu'])->name('firma.vytvorFirmu');
     Route::post('/firma/prepnout/{ico}', [FirmaController::class, 'prepnout'])->name('firma.prepnout');
+
+    // Nastavení účtu (člověka, ne firmy)
+    Route::get('/ucet', [UcetController::class, 'nastaveni'])->name('ucet.nastaveni');
+    Route::post('/ucet/osobni', [UcetController::class, 'prepnoutOsobni'])->name('ucet.prepnoutOsobni');
 });
 
 // --- Google Drive OAuth ---

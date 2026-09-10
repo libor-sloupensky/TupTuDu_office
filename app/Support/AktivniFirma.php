@@ -39,7 +39,10 @@ final class AktivniFirma
         }
 
         $zCookie = $request?->cookie(self::COOKIE);
-        if (is_string($zCookie) && preg_match('/^\d{8}$/', $zCookie)) {
+        // Osmimístné IČO, nebo kód osobního prostoru. Oprávnění se stejně
+        // ověřuje až v místě použití, tohle je jen kontrola tvaru.
+        if (is_string($zCookie)
+            && (preg_match('/^\d{8}$/', $zCookie) || OsobniProstor::jeKod($zCookie))) {
             return $zCookie;
         }
 
