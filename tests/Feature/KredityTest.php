@@ -26,7 +26,7 @@ class KredityTest extends TestCase
         $this->kredity = new Kredity();
     }
 
-    private function firma(?int $kredity = null, string $uroven = 'vycteni'): Firma
+    private function firma(?int $kredity = null, string $uroven = 'rozpoznani'): Firma
     {
         return Firma::create([
             'ico' => '10000001',
@@ -42,8 +42,8 @@ class KredityTest extends TestCase
         $firma = $this->firma(kredity: null);
 
         $this->assertNull($firma->kredity);
-        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 1));
-        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 500));
+        $this->assertSame('rozpoznani', $this->kredity->urovenProZpracovani($firma, 1));
+        $this->assertSame('rozpoznani', $this->kredity->urovenProZpracovani($firma, 500));
 
         $this->kredity->odecti($firma, 10);
         $this->assertNull($firma->fresh()->kredity);
@@ -57,23 +57,23 @@ class KredityTest extends TestCase
         $this->assertSame('ulozeni', $this->kredity->urovenProZpracovani($firma, 1));
     }
 
-    public function test_prepis_jede_i_bez_kreditu(): void
+    public function test_vycteni_jede_i_bez_kreditu(): void
     {
-        // Přepis stojí jen Textract, kredity se za něj zatím nestrhávají —
+        // Vyčtení stojí jen Textract, kredity se za něj zatím nestrhávají —
         // právě proto ho jde nabídnout zdarma.
-        $firma = $this->firma(kredity: 0, uroven: 'prepis');
+        $firma = $this->firma(kredity: 0, uroven: 'vycteni');
 
-        $this->assertSame('prepis', $this->kredity->urovenProZpracovani($firma, 1));
-        $this->assertSame('prepis', $this->kredity->urovenProZpracovani($firma, 50));
-        $this->assertSame(0, $this->kredity->cenaZaStranku('prepis'));
+        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 1));
+        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 50));
+        $this->assertSame(0, $this->kredity->cenaZaStranku('vycteni'));
     }
 
-    public function test_neznama_uroven_spadne_na_vycteni(): void
+    public function test_neznama_uroven_spadne_na_rozpoznani(): void
     {
         $firma = $this->firma();
         $firma->setAttribute('uroven_zpracovani', 'nesmysl');
 
-        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 1));
+        $this->assertSame('rozpoznani', $this->kredity->urovenProZpracovani($firma, 1));
     }
 
     public function test_kredity_se_odecitaji_za_stranku(): void
@@ -87,14 +87,14 @@ class KredityTest extends TestCase
         $pohyb = DB::table('sys_kredity_pohyby')->first();
         $this->assertSame(-3, $pohyb->zmena);
         $this->assertSame(7, $pohyb->zustatek_po);
-        $this->assertSame('vycteni', $pohyb->duvod);
+        $this->assertSame('rozpoznani', $pohyb->duvod);
     }
 
     public function test_pri_nedostatku_kreditu_se_nevytezuje(): void
     {
         $firma = $this->firma(kredity: 2);
 
-        $this->assertSame('vycteni', $this->kredity->urovenProZpracovani($firma, 2));
+        $this->assertSame('rozpoznani', $this->kredity->urovenProZpracovani($firma, 2));
         $this->assertSame('ulozeni', $this->kredity->urovenProZpracovani($firma, 3));
     }
 

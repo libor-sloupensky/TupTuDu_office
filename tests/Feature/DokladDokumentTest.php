@@ -152,9 +152,9 @@ class DokladDokumentTest extends TestCase
         $this->assertSame(0, \App\Models\AiVolani::count());
     }
 
-    public function test_uroven_prepis_nevola_claude(): void
+    public function test_uroven_vycteni_nevola_claude(): void
     {
-        $this->firma->update(['uroven_zpracovani' => 'prepis']);
+        $this->firma->update(['uroven_zpracovani' => 'vycteni']);
 
         $this->prihlasen()
             ->postJson('/upload', [

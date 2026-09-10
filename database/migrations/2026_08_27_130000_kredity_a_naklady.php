@@ -22,13 +22,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sys_firmy', function (Blueprint $table) {
+            // Bez `after()`. Původně tu bylo `after('pravidla_zpracovani')`,
+            // jenže ten sloupec na produkci nikdy nevznikl a celá migrace tam
+            // kvůli tomu padala — a s ní i všechny následující. Pořadí sloupců
+            // stejně nic neřeší.
             if (!Schema::hasColumn('sys_firmy', 'uroven_zpracovani')) {
-                $table->enum('uroven_zpracovani', ['ulozeni', 'vycteni'])
-                    ->default('vycteni')
-                    ->after('pravidla_zpracovani');
+                $table->enum('uroven_zpracovani', ['ulozeni', 'vycteni'])->default('vycteni');
             }
             if (!Schema::hasColumn('sys_firmy', 'kredity')) {
-                $table->integer('kredity')->nullable()->after('uroven_zpracovani');
+                $table->integer('kredity')->nullable();
             }
         });
 

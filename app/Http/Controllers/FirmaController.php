@@ -439,7 +439,7 @@ class FirmaController extends Controller
             return response()->json(['ok' => false, 'error' => 'Žádná aktivní firma.'], 400);
         }
 
-        $request->validate(['uroven' => 'required|in:ulozeni,prepis,vycteni']);
+        $request->validate(['uroven' => 'required|in:ulozeni,vycteni,rozpoznani']);
 
         $firma->update(['uroven_zpracovani' => $request->uroven]);
 

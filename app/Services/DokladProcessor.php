@@ -130,12 +130,12 @@ class DokladProcessor
             return [$this->ulozBezVytezeni($filePath, $originalName, $firma, $fileHash, $zdroj, 'doklad')];
         }
 
-        if ($uroven === 'prepis') {
+        if ($uroven === 'vycteni') {
             $this->zahajMereni($firma);
             $doklad = null;
 
             try {
-                $doklad = $this->ulozSPrepisem(
+                $doklad = $this->ulozSVyctenim(
                     $pages ?? [$fileBytes], $filePath, $originalName, $firma, $fileHash, $zdroj, $existujici
                 );
             } finally {
@@ -221,7 +221,7 @@ class DokladProcessor
      *
      * @param  array<int, string>  $stranky  Obsah jednotlivých stránek
      */
-    private function ulozSPrepisem(
+    private function ulozSVyctenim(
         array $stranky,
         string $filePath,
         string $originalName,
@@ -319,6 +319,67 @@ class DokladProcessor
     public static function cestaSlov(string $cestaSouboru): string
     {
         return $cestaSouboru . '.slova.json';
+    }
+
+    /**
+     * Doplní souřadnice slov k dokladu, který je ještě nemá.
+     *
+     * Používá se při zpětném doplňování archivu. Soubor se bere z úložiště
+     * a projde Textractem — tedy to stojí peníze, ~3 haléře za stránku.
+     * Přepis se doplní jen tehdy, když u dokladu žádný není; u dokladů, které
+     * prošly rozpoznáním, už tam Textractí text je a nemá se přepisovat.
+     *
+     * @return int Počet uložených slov
+     */
+    public function doplnSlova(Doklad $doklad): int
+    {
+        $disk = Storage::disk('s3');
+
+        if (!$doklad->cesta_souboru || !$disk->exists($doklad->cesta_souboru)) {
+            throw new \RuntimeException('Soubor se v úložišti nenašel.');
+        }
+
+        $obsah = (string) $disk->get($doklad->cesta_souboru);
+        $stranky = $this->splitPdfPages($obsah) ?: [$obsah];
+
+        $this->zahajMereni($doklad->firma);
+
+        $slova = [];
+        $prepisy = [];
+        $cislo = 0;
+
+        try {
+            foreach ($stranky as $stranka) {
+                $cislo++;
+                $bloky = $this->callTextract($stranka);
+
+                $text = $this->extractTextractText($bloky);
+                if ($text) {
+                    $prepisy[] = $text;
+                }
+
+                foreach ($this->slovaZBloku($bloky, $cislo) as $slovo) {
+                    $slova[] = $slovo;
+                }
+            }
+        } finally {
+            $this->zapisNaklady($doklad->id);
+        }
+
+        $this->ulozSlova($doklad, $slova);
+
+        if (!$doklad->raw_text && $prepisy) {
+            $doklad->update(['raw_text' => implode("\n--- stránka ---\n", $prepisy)]);
+        }
+
+        return count($slova);
+    }
+
+    /** Má doklad uložené souřadnice slov? */
+    public function maSlova(Doklad $doklad): bool
+    {
+        return $doklad->cesta_souboru
+            && Storage::disk('s3')->exists(self::cestaSlov($doklad->cesta_souboru));
     }
 
     /**

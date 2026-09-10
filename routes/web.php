@@ -73,8 +73,18 @@ Route::get('/deploy-migrace/{token}', function (string $token) {
     if (!ServisniToken::plati($token)) {
         abort(404);
     }
-    Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    $output = Illuminate\Support\Facades\Artisan::output();
+    // Chybu migrace je potřeba vrátit jako chybový kód, ne jako HTML stránku —
+    // deploy podle toho pozná, že se nasazení nepovedlo.
+    try {
+        Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $output = Illuminate\Support\Facades\Artisan::output();
+    } catch (\Throwable $e) {
+        return response(
+            "Migrace selhaly:\n" . $e->getMessage(),
+            500,
+        )->header('Content-Type', 'text/plain');
+    }
+
     return response($output, 200)->header('Content-Type', 'text/plain');
 })->middleware('throttle:6,1');
 
@@ -87,6 +97,29 @@ Route::get('/cron/{token}', function (string $token) {
     $output = Illuminate\Support\Facades\Artisan::output();
     return response($output, 200)->header('Content-Type', 'text/plain');
 })->middleware('throttle:6,1');
+
+// --- Zpětné doplnění souřadnic slov (tajný token) ---
+// Stojí peníze (~3 haléře za stránku), proto se pouští ručně z workflow
+// "Doplnit souřadnice slov", ne z cronu.
+Route::get('/doplnit-slova/{token}', function (string $token) {
+    if (!ServisniToken::plati($token)) {
+        abort(404);
+    }
+
+    $parametry = ['--limit' => (int) request()->query('limit', 25)];
+
+    if (request()->boolean('doopravdy')) {
+        $parametry['--doopravdy'] = true;
+    }
+    if (request()->query('firma')) {
+        $parametry['--firma'] = request()->query('firma');
+    }
+
+    Illuminate\Support\Facades\Artisan::call('doklady:doplnit-slova', $parametry);
+
+    return response(Illuminate\Support\Facades\Artisan::output(), 200)
+        ->header('Content-Type', 'text/plain');
+})->middleware('throttle:20,1');
 
 // --- Žádost o přístup k firmě (bez auth, throttle) ---
 Route::post('/zadost-o-pristup', [FirmaController::class, 'zadostOPristup'])->middleware('throttle:3,60')->name('firma.zadostOPristup');

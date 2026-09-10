@@ -47,10 +47,10 @@ class HledaniTest extends TestCase
         ], $navic));
     }
 
-    private function najdi(string $vyraz): array
+    private function najdi(string $vyraz, bool $iUprostred = false): array
     {
         return Doklad::where('firma_ico', $this->firma->ico)
-            ->hledej($vyraz)
+            ->hledej($vyraz, $iUprostred)
             ->pluck('id')
             ->all();
     }
@@ -91,6 +91,18 @@ class HledaniTest extends TestCase
         $hledany = $this->doklad('nic zajímavého', ['cislo_dokladu' => 'FV-2026-00123']);
 
         $this->assertSame([$hledany->id], $this->najdi('00123'));
+    }
+
+    public function test_uprostred_slova_najde_az_druhy_pruchod(): void
+    {
+        $hledany = $this->doklad('Pneuservis Brno, výměna pneumatik');
+
+        // Fulltextový index hledá od začátku slova — sám o sobě nenajde nic.
+        $this->assertSame([], $this->najdi('servis'));
+
+        // Druhý průchod přes LIKE už ano; tak to dělá i seznam dokladů, když
+        // rychlé hledání skončí naprázdno.
+        $this->assertSame([$hledany->id], $this->najdi('servis', iUprostred: true));
     }
 
     public function test_co_tam_neni_se_nenajde(): void

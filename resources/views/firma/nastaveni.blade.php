@@ -336,19 +336,19 @@
         <div class="kat-body" id="zpracovaniBody">
             <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem;">
                 <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.9rem; cursor: pointer;">
-                    <input type="radio" name="uroven" value="vycteni" style="margin-top: 0.25rem;"
-                           {{ ($firma->uroven_zpracovani ?: 'vycteni') === 'vycteni' ? 'checked' : '' }}>
+                    <input type="radio" name="uroven" value="rozpoznani" style="margin-top: 0.25rem;"
+                           {{ ($firma->uroven_zpracovani ?: 'rozpoznani') === 'rozpoznani' ? 'checked' : '' }}>
                     <span>
-                        <strong>Vyčtení</strong><br>
+                        <strong>Rozpoznání</strong><br>
                         <span style="font-size: 0.82rem; color: #888;">Doklad se přečte a pole se vyplní sama.</span>
                     </span>
                 </label>
                 <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.9rem; cursor: pointer;">
-                    <input type="radio" name="uroven" value="prepis" style="margin-top: 0.25rem;"
-                           {{ $firma->uroven_zpracovani === 'prepis' ? 'checked' : '' }}>
+                    <input type="radio" name="uroven" value="vycteni" style="margin-top: 0.25rem;"
+                           {{ $firma->uroven_zpracovani === 'vycteni' ? 'checked' : '' }}>
                     <span>
-                        <strong>Přepis</strong><br>
-                        <span style="font-size: 0.82rem; color: #888;">Přečte se text, ale pole se nevyplní. Doklad se dá najít podle libovolného slova, které je na něm napsané.</span>
+                        <strong>Vyčtení</strong><br>
+                        <span style="font-size: 0.82rem; color: #888;">Pole se nevyplní, doklad ale půjde najít fulltextově.</span>
                     </span>
                 </label>
                 <label style="display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer;">
@@ -356,7 +356,7 @@
                            {{ $firma->uroven_zpracovani === 'ulozeni' ? 'checked' : '' }}>
                     <span>
                         <strong>Uložení</strong><br>
-                        <span style="font-size: 0.82rem; color: #888;">Doklad se jen uloží. Vyčíst ho jde kdykoli později tlačítkem na detailu.</span>
+                        <span style="font-size: 0.82rem; color: #888;">Doklad se jen uloží. Rozpoznat ho jde kdykoli později tlačítkem na detailu.</span>
                     </span>
                 </label>
 
@@ -365,7 +365,7 @@
                     @if ($firma->kredity === null)
                         <strong>bez omezení</strong>
                     @elseif ($firma->kredity > 0)
-                        <strong>{{ $firma->kredity }}</strong> (1 kredit = 1 stránka vyčtení)
+                        <strong>{{ $firma->kredity }}</strong> (1 kredit = 1 stránka rozpoznání)
                     @else
                         <strong style="color: #c0392b;">vyčerpáno</strong> — doklady se zatím jen ukládají
                     @endif

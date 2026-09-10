@@ -76,19 +76,19 @@ Modul je plně funkční — dynamická tabulka, inline editace, AI search, prev
 | Úroveň | Co proběhne | Náklad |
 |--------|-------------|--------|
 | `ulozeni` | Soubor se uloží, nic se nečte | jen úložiště |
-| `prepis` | Textract — přesný přepis textu, pole zůstanou prázdná | ~3 haléře/stránku |
-| `vycteni` | Textract + Claude — vyplní se pole | ~0,22 Kč/stránku |
+| `vycteni` | Textract — vyčte text ze stránky, pole zůstanou prázdná | ~3 haléře/stránku |
+| `rozpoznani` | Textract + Claude — rozpozná, co které číslo znamená | ~0,22 Kč/stránku |
 
 **Textract účtuje za stránku**, ne za plochu ani množství textu: malý paragon
 stojí tolik co hustá A4. Vícestránkové PDF se násobí, protože se každá stránka
 posílá zvlášť.
 
-Přepis je proto ta úroveň, kterou jde nabídnout zdarma — doklad je plnotextově
+Vyčtení je proto ta úroveň, kterou jde nabídnout zdarma — doklad je plnotextově
 dohledatelný podle libovolného slova, které na něm stojí, jen systém neví, co
-které číslo znamená. Kredity za něj zatím neúčtuje (`Kredity::CENIK`); až se
+které číslo znamená. Kredity za ně zatím neúčtuje (`Kredity::CENIK`); až se
 bude dělat ceník, je to tam jediné místo, kde se to rozhodne.
 
-Vytěžený stav: přepsaný doklad zůstává ve stavu `ulozeno`, takže se dá kdykoli
+Vyčtený doklad zůstává ve stavu `ulozeno`, takže se dá kdykoli
 dotáhnout tlačítkem *Vytěžit*.
 
 ## Hledání v dokladech
@@ -109,7 +109,7 @@ index až při commitu, takže by MATCH nezacommitované řádky neviděl.
 
 ## Zvýraznění nalezeného výrazu
 
-Při přepisu se vedle souboru v S3 ukládá `<cesta>.slova.json` — slova i s jejich
+Při vyčtení se vedle souboru v S3 ukládá `<cesta>.slova.json` — slova i s jejich
 pozicí na stránce. Do databáze by se to rozumně nevešlo (hustá A4 má kolem pěti
 set slov). Načítá se až při rozbalení dokladu, přes
 `GET /doklady/{doklad}/slova?q=výraz`.
@@ -118,3 +118,21 @@ V náhledu se nálezy podbarví žlutě (`.bbox-nalez`) a pod náhledem se vypí
 kolikrát je výraz na dokladu. Vlastní třída je schválně: `clearBboxHighlight()`
 maže `.bbox-highlight` při odhoveru z pole a nálezy mají zůstat. Kreslí se jen
 nálezy z první stránky, protože náhled ukazuje ji.
+
+### Doplnění souřadnic zpětně
+
+Starší doklady souřadnice slov nemají — zvýraznit v nich nejde a uživatel to
+pozná z hlášky, ne z tichého nic. Doplnit je jde workflow **Doplnit souřadnice
+slov** (`workflow_dispatch`), který volá `doklady:doplnit-slova`.
+
+Každý doklad projde znovu Textractem, takže to **stojí peníze**. Bez
+zaškrtnutého „doopravdy" se jen spočítá odhad ceny a nic se nezpracuje.
+Doklady, které souřadnice už mají, se přeskakují, takže opakované spuštění nic
+neplatí dvakrát.
+
+### Hledání uprostřed slova
+
+Fulltextový index hledá od začátku slova, takže „servis" sám o sobě nenajde
+„pneuservis". Seznam dokladů proto při prázdném výsledku zkusí ještě druhý
+průchod přes `LIKE '%…%'` (`hledej($vyraz, iUprostred: true)`). Ten čte celou
+tabulku, ale doběhne jen u dotazů, které jinak skončily naprázdno.

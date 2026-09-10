@@ -301,10 +301,24 @@ jobs:
         echo "Spouštím migrace na $APP_URL ..."
         HTTP_CODE=$(curl -sS --max-time 300 -o /tmp/migrace.txt -w "%{http_code}" \
           "$APP_URL/deploy-migrace/$CRON_TOKEN" || echo "000")
-        cat /tmp/migrace.txt
+
+        # Výstup může být obří chybová stránka, tak z něj bereme jen začátek.
+        head -c 4000 /tmp/migrace.txt
         echo ""
         echo "HTTP status: $HTTP_CODE"
-        [ "$HTTP_CODE" = "200" ]
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "::error::Migrace selhaly (HTTP $HTTP_CODE)"
+          exit 1
+        fi
+
+        # Samotný kód 200 nestačí. Migrace na produkci padaly celé týdny a deploy
+        # to hlásil jako úspěch — proto se kontroluje i obsah odpovědi. Routa
+        # vrací výstup artisanu, takže tam nemá co dělat výjimka ani HTML.
+        if grep -qiE "Exception|Fatal error|SQLSTATE|<!DOCTYPE" /tmp/migrace.txt; then
+          echo "::error::Migrace skončily chybou — viz výpis výše"
+          exit 1
+        fi
 
     - name: Verify deployment
       run: |

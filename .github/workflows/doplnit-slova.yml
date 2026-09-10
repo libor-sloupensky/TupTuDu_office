@@ -1,0 +1,46 @@
+name: Doplnit souřadnice slov
+
+# Zpětné doplnění pozic slov ke starším dokladům, aby v nich šlo zvýrazňovat
+# hledaný výraz. Každý doklad projde znovu Textractem, takže to stojí peníze —
+# proto se to pouští ručně a po dávkách, ne z cronu.
+#
+# Bez zaškrtnutého "doopravdy" se jen spočítá, kolik by to stálo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Kolik dokladů zpracovat'
+        required: true
+        default: '25'
+      doopravdy:
+        description: 'Opravdu zpracovat (jinak jen odhad ceny)'
+        type: boolean
+        default: false
+      firma:
+        description: 'Omezit na jedno IČO (nepovinné)'
+        required: false
+        default: ''
+
+jobs:
+  doplnit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Spustit doplnění
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://office.tuptudu.cz' }}
+          TOKEN: ${{ secrets.SERVISNI_TOKEN }}
+        run: |
+          URL="$APP_URL/doplnit-slova/$TOKEN?limit=${{ inputs.limit }}"
+          if [ "${{ inputs.doopravdy }}" = "true" ]; then
+            URL="$URL&doopravdy=1"
+          fi
+          if [ -n "${{ inputs.firma }}" ]; then
+            URL="$URL&firma=${{ inputs.firma }}"
+          fi
+
+          HTTP_CODE=$(curl -sS --max-time 600 -o /tmp/vysledek.txt -w "%{http_code}" "$URL" || echo "000")
+          head -c 8000 /tmp/vysledek.txt
+          echo ""
+          echo "HTTP status: $HTTP_CODE"
+          [ "$HTTP_CODE" = "200" ]

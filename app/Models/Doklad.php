@@ -61,7 +61,7 @@ class Doklad extends Model
      * „pneuservis". U výrazů kratších než tři znaky, které se do indexu vůbec
      * nedostanou, se proto i na přepis použije LIKE.
      */
-    public function scopeHledej(Builder $dotaz, string $vyraz): Builder
+    public function scopeHledej(Builder $dotaz, string $vyraz, bool $iUprostred = false): Builder
     {
         $vyraz = trim($vyraz);
 
@@ -69,12 +69,12 @@ class Doklad extends Model
             return $dotaz;
         }
 
-        return $dotaz->where(function (Builder $sub) use ($vyraz) {
+        return $dotaz->where(function (Builder $sub) use ($vyraz, $iUprostred) {
             foreach (self::SLOUPCE_HLEDANI as $sloupec) {
                 $sub->orWhere($sloupec, 'like', '%' . $vyraz . '%');
             }
 
-            $fulltext = self::vyrazProFulltext($vyraz);
+            $fulltext = $iUprostred ? null : self::vyrazProFulltext($vyraz);
 
             if ($fulltext === null) {
                 $sub->orWhere('raw_text', 'like', '%' . $vyraz . '%');

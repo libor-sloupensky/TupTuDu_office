@@ -226,13 +226,20 @@ class InvoiceController extends Controller
         $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
         $q = trim($request->query('q', ''));
 
-        $query = Doklad::where('firma_ico', $firma->ico);
+        $sestav = fn (bool $iUprostred) => Doklad::where('firma_ico', $firma->ico)
+            ->when($q !== '', fn ($dotaz) => $dotaz->hledej($q, $iUprostred))
+            ->with(['polozky', 'dodavatel'])
+            ->orderBy($sort, $dir);
 
-        if ($q !== '') {
-            $query->hledej($q);
+        $doklady = $sestav(false)->get();
+
+        // Fulltextový index hledá od začátku slova, takže „servis" sám o sobě
+        // nenajde „pneuservis". Když rychlé hledání nic nevrátí, zkusí se ještě
+        // jednou i uprostřed slov. Ten průchod čte celou tabulku, ale doběhne
+        // jen u dotazů, které jinak skončily naprázdno.
+        if ($q !== '' && $doklady->isEmpty()) {
+            $doklady = $sestav(true)->get();
         }
-
-        $doklady = $query->with(['polozky', 'dodavatel'])->orderBy($sort, $dir)->get();
         $dokladyJson = $doklady->map(fn($d) => $this->dokladToArray($d))->values();
 
         if ($request->ajax()) {

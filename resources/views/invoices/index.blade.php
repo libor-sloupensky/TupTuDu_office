@@ -250,7 +250,7 @@
         var dokladyData = {!! json_encode($dokladyJson, JSON_UNESCAPED_UNICODE) !!};
         var sortCol = '{{ $sort }}';
         var sortDir = '{{ $dir }}';
-        var searchQ = '{{ $q }}';
+        var searchQ = '{{ $q }}'; // mění se i po AI hledání
         var kategorieData = {!! json_encode($kategorieList ?? [], JSON_UNESCAPED_UNICODE) !!};
     </script>
 
@@ -1367,6 +1367,10 @@ function doAiSearch() {
         const countLabel = count === 1 ? '1 doklad' : (count < 5 ? count + ' doklady' : count + ' dokladů');
         descEl.textContent = (data.description || 'Výsledky') + ' (' + countLabel + ')';
         resultBar.style.display = 'flex';
+
+        // Ať zvýrazňování ví, co se hledalo. Bez toho se po AI hledání
+        // nespustilo vůbec — a právě přes tenhle řádek uživatel hledá.
+        searchQ = q;
 
         dokladyData = data.data || [];
         renderTable();

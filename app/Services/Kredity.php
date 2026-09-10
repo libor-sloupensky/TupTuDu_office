@@ -11,17 +11,17 @@ use Illuminate\Support\Facades\DB;
  * `kredity = NULL` znamená bez omezení. To je výchozí stav, takže firma, které
  * nikdo kredity nepřidělil, funguje jako dosud. Jakmile se zůstatek nastaví,
  * začne se odečítat a po vyčerpání firma spadne na úroveň *Uložení* — doklady
- * se dál ukládají, jen se nevytěžují a dají se vytěžit později.
+ * se dál ukládají, jen se nerozpoznávají a dají se rozpoznat později.
  */
 class Kredity
 {
     /** Kolik kreditů stojí jedna stránka na dané úrovni. */
     private const CENIK = [
         'ulozeni' => 0,
-        // Přepis stojí jen Textract, tedy ~3 haléře za stránku. Zatím je zdarma;
+        // Vyčtení stojí jen Textract, tedy ~3 haléře za stránku. Zatím je zdarma;
         // až se bude dělat ceník, je tohle místo, kde se to rozhodne.
-        'prepis' => 0,
-        'vycteni' => 1,
+        'vycteni' => 0,
+        'rozpoznani' => 1,
     ];
 
     public function cenaZaStranku(string $uroven): int
@@ -38,10 +38,10 @@ class Kredity
      */
     public function urovenProZpracovani(Firma $firma, int $stranky): string
     {
-        $uroven = $firma->uroven_zpracovani ?: 'vycteni';
+        $uroven = $firma->uroven_zpracovani ?: 'rozpoznani';
 
         if (!array_key_exists($uroven, self::CENIK)) {
-            $uroven = 'vycteni';
+            $uroven = 'rozpoznani';
         }
 
         $cena = $this->cenaZaStranku($uroven) * max($stranky, 1);
@@ -50,9 +50,9 @@ class Kredity
             return $uroven;
         }
 
-        // Kredity došly. Doklad se nezahodí — jen se uloží a vytěžit ho půjde
-        // později tlačítkem. Že se nespadne rovnou na Přepis, je zatím záměr:
-        // i ten něco stojí a patří to do rozhodnutí o ceníku.
+        // Kredity došly. Doklad se nezahodí — jen se uloží a rozpoznat ho půjde
+        // později tlačítkem. Že se nespadne rovnou na Vyčtení, je zatím záměr:
+        // i to něco stojí a patří to do rozhodnutí o ceníku.
         return 'ulozeni';
     }
 
@@ -69,12 +69,16 @@ class Kredity
             return; // bez omezení — není co odečítat
         }
 
-        $cena = $this->cenaZaStranku($firma->uroven_zpracovani ?: 'vycteni') * max($stranky, 1);
+        // Do pohybu se zapisuje úroveň, která kredity spotřebovala — ať je
+        // v historii vidět, za co se platilo.
+        $uroven = $firma->uroven_zpracovani ?: 'rozpoznani';
+        $cena = $this->cenaZaStranku($uroven) * max($stranky, 1);
+
         if ($cena === 0) {
             return;
         }
 
-        DB::transaction(function () use ($firma, $cena, $dokladId) {
+        DB::transaction(function () use ($firma, $cena, $dokladId, $uroven) {
             Firma::where('ico', $firma->ico)->update([
                 'kredity' => DB::raw('GREATEST(kredity - ' . (int) $cena . ', 0)'),
             ]);
@@ -85,7 +89,7 @@ class Kredity
                 'firma_ico' => $firma->ico,
                 'zmena' => -$cena,
                 'zustatek_po' => $zustatek,
-                'duvod' => 'vycteni',
+                'duvod' => $uroven,
                 'doklad_id' => $dokladId,
                 'vytvoreno' => now(),
             ]);
