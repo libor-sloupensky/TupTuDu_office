@@ -40,6 +40,13 @@ class Doklad extends Model
     private const SLOUPCE_HLEDANI = [
         'cislo_dokladu', 'dodavatel_nazev', 'nazev_souboru',
         'dodavatel_ico', 'nahral', 'odberatel_nazev',
+        'kategorie', 'poznamka', 'variabilni_symbol',
+        'cislo_uctu', 'iban', 'mena',
+    ];
+
+    /** Datumová pole, ve kterých se hledá, když výraz vypadá jako datum. */
+    private const SLOUPCE_DATUMU = [
+        'datum_vystaveni', 'duzp', 'datum_splatnosti', 'datum_prijeti',
     ];
 
     /** Nejkratší slovo, které se dostane do fulltextového indexu (InnoDB výchozí). */
@@ -72,6 +79,21 @@ class Doklad extends Model
         return $dotaz->where(function (Builder $sub) use ($vyraz, $iUprostred) {
             foreach (self::SLOUPCE_HLEDANI as $sloupec) {
                 $sub->orWhere($sloupec, 'like', '%' . $vyraz . '%');
+            }
+
+            // Číslo se hledá i v částce — „454" najde doklad na 454 Kč.
+            $castka = self::castkaZVyrazu($vyraz);
+            if ($castka !== null) {
+                $sub->orWhere('castka_celkem', $castka);
+            }
+
+            // Datum se hledá ve všech datumových polích naráz; uživatel většinou
+            // neřeší, jestli hledá podle vystavení nebo DUZP.
+            $datum = self::datumZVyrazu($vyraz);
+            if ($datum !== null) {
+                foreach (self::SLOUPCE_DATUMU as $sloupec) {
+                    $sub->orWhereDate($sloupec, $datum);
+                }
             }
 
             $fulltext = $iUprostred ? null : self::vyrazProFulltext($vyraz);
@@ -111,6 +133,50 @@ class Doklad extends Model
         }
 
         return $slova ? implode(' ', $slova) : null;
+    }
+
+    /**
+     * Částka z hledaného výrazu, nebo null.
+     *
+     * Bere „454" i „454,00" — desetinná čárka je to, co člověk v Česku napíše.
+     * Osmimístné IČO tímhle projde taky, ale nevadí to: podmínka na částku pak
+     * prostě nic nenajde a IČO se dohledá v dodavatelských polích.
+     */
+    public static function castkaZVyrazu(string $vyraz): ?string
+    {
+        $ocisteny = str_replace([' ', ','], ['', '.'], trim($vyraz));
+
+        if (!preg_match('/^\d{1,9}(\.\d{1,2})?$/', $ocisteny)) {
+            return null;
+        }
+
+        return number_format((float) $ocisteny, 2, '.', '');
+    }
+
+    /**
+     * Datum z hledaného výrazu, nebo null.
+     *
+     * Rozumí zápisu „1.9.2026", „1. 9. 26" i „2026-09-01". Dvojciferný rok se
+     * bere jako 20xx — starší doklady systém stejně neobsahuje.
+     */
+    public static function datumZVyrazu(string $vyraz): ?string
+    {
+        $vyraz = trim($vyraz);
+
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $vyraz, $m)) {
+            [, $rok, $mesic, $den] = $m;
+        } elseif (preg_match('/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{2,4})$/u', $vyraz, $m)) {
+            [, $den, $mesic, $rok] = $m;
+            $rok = strlen($rok) === 2 ? '20' . $rok : $rok;
+        } else {
+            return null;
+        }
+
+        if (!checkdate((int) $mesic, (int) $den, (int) $rok)) {
+            return null;
+        }
+
+        return sprintf('%04d-%02d-%02d', $rok, $mesic, $den);
     }
 
     /** Záznam se uložil, ale nikdy se nevytěžil. */

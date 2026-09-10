@@ -112,6 +112,54 @@ class HledaniTest extends TestCase
         $this->assertSame([], $this->najdi('kancelářské potřeby'));
     }
 
+    public function test_najde_podle_kategorie_i_poznamky(): void
+    {
+        $podleKategorie = $this->doklad('nic', ['kategorie' => 'Kancelář']);
+        $podlePoznamky = $this->doklad('nic', ['poznamka' => 'reklamace u dodavatele']);
+
+        $this->assertSame([$podleKategorie->id], $this->najdi('Kancelář'));
+        $this->assertSame([$podlePoznamky->id], $this->najdi('reklamace'));
+    }
+
+    public function test_najde_podle_variabilniho_symbolu_a_uctu(): void
+    {
+        $vs = $this->doklad('nic', ['variabilni_symbol' => '2026000123']);
+        $ucet = $this->doklad('nic', ['cislo_uctu' => '19-2000145399/0800']);
+
+        $this->assertSame([$vs->id], $this->najdi('2026000123'));
+        $this->assertSame([$ucet->id], $this->najdi('2000145399'));
+    }
+
+    public function test_najde_podle_castky(): void
+    {
+        $hledany = $this->doklad('nic', ['castka_celkem' => 454.00]);
+        $this->doklad('nic', ['castka_celkem' => 455.00]);
+
+        $this->assertSame([$hledany->id], $this->najdi('454'));
+        $this->assertSame([$hledany->id], $this->najdi('454,00'));
+    }
+
+    public function test_najde_podle_data(): void
+    {
+        $hledany = $this->doklad('nic', ['datum_vystaveni' => '2026-09-01']);
+        $podleSplatnosti = $this->doklad('nic', ['datum_splatnosti' => '2026-09-01']);
+        $this->doklad('nic', ['datum_vystaveni' => '2026-09-02']);
+
+        // Hledá se ve všech datumových polích naráz.
+        $nalezene = $this->najdi('1.9.2026');
+        sort($nalezene);
+
+        $this->assertSame([$hledany->id, $podleSplatnosti->id], $nalezene);
+        $this->assertSame($nalezene, $this->najdi('2026-09-01'));
+    }
+
+    public function test_nesmyslne_datum_se_nebere_jako_datum(): void
+    {
+        $this->doklad('nic', ['datum_vystaveni' => '2026-09-01']);
+
+        $this->assertSame([], $this->najdi('31.2.2026'));
+    }
+
     public function test_operatory_ve_vyrazu_dotaz_nerozbiji(): void
     {
         $this->doklad('Pneuservis Brno');

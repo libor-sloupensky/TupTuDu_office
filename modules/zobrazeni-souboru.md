@@ -136,3 +136,26 @@ Fulltextový index hledá od začátku slova, takže „servis" sám o sobě nen
 „pneuservis". Seznam dokladů proto při prázdném výsledku zkusí ještě druhý
 průchod přes `LIKE '%…%'` (`hledej($vyraz, iUprostred: true)`). Ten čte celou
 tabulku, ale doběhne jen u dotazů, které jinak skončily naprázdno.
+
+### Co hledání prochází
+
+Obyčejné hledání (`Doklad::scopeHledej()`) je hlavní akce v liště a nic nestojí:
+
+- **Textová pole přes LIKE** (i uprostřed slova): číslo dokladu, dodavatel,
+  IČO dodavatele, název souboru, odběratel, kdo nahrál, kategorie, poznámka,
+  variabilní symbol, číslo účtu, IBAN, měna.
+- **Částka**, když výraz vypadá jako číslo — „454" i „454,00".
+- **Datum**, když výraz vypadá jako datum — „1.9.2026", „1. 9. 26", „2026-09-01".
+  Hledá se ve vystavení, DUZP, splatnosti i přijetí naráz; uživatel většinou
+  neřeší, ve kterém poli to je.
+- **Text na dokladu** přes fulltextový index.
+
+### Chytré hledání (AI)
+
+Zůstává za samostatným tlačítkem. Pošle větu na Claude Haiku, který ji převede
+na databázové filtry — umí rozsahy („nad 5000", „za červenec") a řazení, což
+obyčejné hledání neumí a umět nebude.
+
+Stojí ~4 haléře za dotaz (kredity firmy se ho netýkají). Hlavní pole je proto
+obyčejné hledání: **je zadarmo a hlavně předvídatelné.** Když se AI nepovede,
+spadne se automaticky na obyčejné hledání.

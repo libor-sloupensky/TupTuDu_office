@@ -64,6 +64,9 @@
     .ai-search-input-wrap { flex: 1; display: flex; }
     .ai-search-input { flex: 1; padding: 0.45rem 0.75rem; border: 1px solid #d0d8e0; border-radius: 6px 0 0 6px; font-size: 0.85rem; outline: none; }
     .ai-search-input:focus { border-color: #3498db; }
+    .chytre-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.45rem 0.7rem; background: white; color: #5b6b7c; border: 1px solid #d0d8e0; border-radius: 6px; cursor: pointer; font-size: 0.8rem; white-space: nowrap; }
+    .chytre-btn:hover { background: #e8f0f7; color: #2c3e50; }
+    .chytre-btn:disabled { color: #95a5a6; cursor: wait; }
     .ai-search-btn { padding: 0.45rem 0.75rem; background: #3498db; color: white; border: 1px solid #2980b9; border-left: none; border-radius: 0 6px 6px 0; cursor: pointer; font-size: 0.9rem; }
     .ai-search-btn:hover { background: #2980b9; }
     .ai-search-btn:disabled { background: #95a5a6; cursor: wait; }
@@ -255,15 +258,19 @@
     </script>
 
     <div class="ai-search-bar">
-        <span class="ai-search-label">AI hledání</span>
+        <span class="ai-search-label">Hledání</span>
         <div class="ai-search-input-wrap">
             <input type="text" id="aiSearchInput" class="ai-search-input"
-                   placeholder="Napište co hledáte, např: pohonné hmoty, květen 2025..."
+                   placeholder="Dodavatel, číslo dokladu, částka, datum nebo text z dokladu…"
                    value="{{ $q }}">
             <button type="button" id="aiSearchBtn" class="ai-search-btn"
-                    title="Hledat">&#128269;</button>
+                    title="Hledat"><x-ikona name="search" :size="16" /></button>
         </div>
-        <span class="ai-search-help" title="Pište přirozeně česky:&#10;&#8226; 'pohonné hmoty za květen 2025'&#10;&#8226; 'faktury od Alza nad 5000 Kč'&#10;&#8226; 'doklady s chybou'&#10;&#8226; 'účtenky z minulého měsíce'&#10;AI převede dotaz na filtry automaticky.">?</span>
+        <button type="button" id="chytreBtn" class="chytre-btn"
+                title="Převede větu na filtry — zvládne i „nad 5000&quot; nebo „za červenec&quot;. Volá AI, takže chvíli trvá.">
+            <x-ikona name="filter" :size="14" /> Chytré hledání
+        </button>
+        <span class="ai-search-help" title="Obyčejné hledání projde dodavatele, čísla, částky, data, kategorii, poznámku i text na dokladu.&#10;&#10;Chytré hledání navíc rozumí větám:&#10;&#8226; 'faktury od Alza nad 5000 Kč'&#10;&#8226; 'pohonné hmoty za květen 2025'&#10;&#8226; 'účtenky z minulého měsíce'">?</span>
     </div>
     <div id="aiSearchResult" class="ai-search-result" style="display:none;">
         <span id="aiSearchDesc"></span>
@@ -1339,14 +1346,17 @@ function deleteDoklad(id, nazev, url) {
 // ===== AI Search =====
 function doAiSearch() {
     const input = document.getElementById('aiSearchInput');
-    const btn = document.getElementById('aiSearchBtn');
+    const btn = document.getElementById('chytreBtn');
     const resultBar = document.getElementById('aiSearchResult');
     const descEl = document.getElementById('aiSearchDesc');
     const q = (input ? input.value.trim() : '');
     if (!q) return;
 
+    // Původní obsah tlačítka se schová a po doběhnutí vrátí — jinak by se
+    // popisek „Chytré hledání" nahradil ikonou a už se nevrátil.
+    const puvodniObsah = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-sm" style="width:12px;height:12px;border-width:1.5px;vertical-align:middle;"></span>';
+    btn.innerHTML = '<span class="spinner-sm" style="width:12px;height:12px;border-width:1.5px;vertical-align:middle;"></span> Hledám…';
 
     fetch(aiSearchUrl, {
         method: 'POST',
@@ -1361,7 +1371,7 @@ function doAiSearch() {
     .then(r => r.json())
     .then(data => {
         btn.disabled = false;
-        btn.innerHTML = '&#128269;';
+        btn.innerHTML = puvodniObsah;
 
         const count = data.count || 0;
         const countLabel = count === 1 ? '1 doklad' : (count < 5 ? count + ' doklady' : count + ' dokladů');
@@ -1377,18 +1387,63 @@ function doAiSearch() {
     })
     .catch(err => {
         btn.disabled = false;
-        btn.innerHTML = '&#128269;';
+        btn.innerHTML = puvodniObsah;
         console.error('AI search error:', err);
     });
 }
 
-document.getElementById('aiSearchBtn')?.addEventListener('click', doAiSearch);
+// Obyčejné hledání — projde databázová pole i text na dokladu. Nic nestojí,
+// takže je to hlavní akce; AI se pouští až tlačítkem vedle.
+function doHledani() {
+    const input = document.getElementById('aiSearchInput');
+    const btn = document.getElementById('aiSearchBtn');
+    const resultBar = document.getElementById('aiSearchResult');
+    const descEl = document.getElementById('aiSearchDesc');
+    const q = (input ? input.value.trim() : '');
+
+    if (!q) {
+        resultBar.style.display = 'none';
+        searchQ = '';
+        refreshTableData();
+        return;
+    }
+
+    btn.disabled = true;
+
+    const params = new URLSearchParams({ q: q, firma_ico: aktivniFirmaIco });
+
+    fetch('{{ route("doklady.index") }}?' + params.toString(), {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+
+        searchQ = q;
+        dokladyData = Array.isArray(data) ? data : (data.data || []);
+        renderTable();
+
+        const pocet = dokladyData.length;
+        const popis = pocet === 1 ? '1 doklad' : (pocet < 5 ? pocet + ' doklady' : pocet + ' dokladů');
+        descEl.textContent = 'Hledání „' + q + '" (' + popis + ')';
+        resultBar.style.display = 'flex';
+    })
+    .catch(() => {
+        btn.disabled = false;
+        descEl.textContent = 'Hledání se nepodařilo — zkuste to prosím znovu.';
+        resultBar.style.display = 'flex';
+    });
+}
+
+document.getElementById('aiSearchBtn')?.addEventListener('click', doHledani);
+document.getElementById('chytreBtn')?.addEventListener('click', doAiSearch);
 document.getElementById('aiSearchInput')?.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); doAiSearch(); }
+    if (e.key === 'Enter') { e.preventDefault(); doHledani(); }
 });
 document.getElementById('aiSearchClear')?.addEventListener('click', function() {
     document.getElementById('aiSearchResult').style.display = 'none';
     document.getElementById('aiSearchInput').value = '';
+    searchQ = ''; // ať se přestane zvýrazňovat
     refreshTableData();
 });
 
