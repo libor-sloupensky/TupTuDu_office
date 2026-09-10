@@ -50,33 +50,39 @@ class DoplnitSlova extends Command
             return 0;
         }
 
-        $doklady = $dotaz->limit((int) $this->option('limit') * 4)->get();
-
         $hotovo = 0;
         $preskoceno = 0;
         $chyb = 0;
         $limit = (int) $this->option('limit');
 
-        foreach ($doklady as $doklad) {
-            if ($hotovo >= $limit) {
-                break;
+        // Prochází se celá tabulka po částech, ne jen prvních pár set dokladů.
+        // Jestli doklad souřadnice má, se pozná až podle úložiště, takže se to
+        // nedá odfiltrovat dotazem — a s okénkem od začátku by se na konec
+        // archivu nikdy nedošlo.
+        $dotaz->chunkById(200, function ($davka) use ($processor, $limit, &$hotovo, &$preskoceno, &$chyb) {
+            foreach ($davka as $doklad) {
+                if ($hotovo >= $limit) {
+                    return false; // dost pro tentokrát
+                }
+
+                if ($processor->maSlova($doklad)) {
+                    $preskoceno++;
+                    continue;
+                }
+
+                try {
+                    $pocet = $processor->doplnSlova($doklad);
+                    $hotovo++;
+                    $this->line("  #{$doklad->id} — {$pocet} slov");
+                } catch (\Throwable $e) {
+                    $chyb++;
+                    Log::warning("Doplnění slov selhalo u dokladu {$doklad->id}: {$e->getMessage()}");
+                    $this->line("  #{$doklad->id} — chyba: {$e->getMessage()}");
+                }
             }
 
-            if ($processor->maSlova($doklad)) {
-                $preskoceno++;
-                continue;
-            }
-
-            try {
-                $pocet = $processor->doplnSlova($doklad);
-                $hotovo++;
-                $this->line("  #{$doklad->id} — {$pocet} slov");
-            } catch (\Throwable $e) {
-                $chyb++;
-                Log::warning("Doplnění slov selhalo u dokladu {$doklad->id}: {$e->getMessage()}");
-                $this->line("  #{$doklad->id} — chyba: {$e->getMessage()}");
-            }
-        }
+            return true;
+        });
 
         $this->info("Doplněno {$hotovo}, přeskočeno {$preskoceno} (už měly), chyb {$chyb}.");
 
