@@ -300,8 +300,16 @@ class DokladProcessor
      */
     private function ulozSlova(Doklad $doklad, array $slova): void
     {
-        if (!$slova || !$doklad->cesta_souboru) {
+        if (!$doklad->cesta_souboru) {
             return;
+        }
+
+        // Zapisuje se i prázdný seznam. Je to záznam „zkusili jsme, nic tam
+        // nebylo" — bez něj by se doklad, ze kterého Textract nic nepřečte
+        // (zašifrované PDF, prázdná stránka), zkoušel při každém průchodu
+        // znovu a pokaždé by stál peníze.
+        if (!$slova) {
+            Log::info("Textract nenašel na dokladu žádná slova", ['doklad_id' => $doklad->id]);
         }
 
         try {
