@@ -29,21 +29,27 @@ concurrency:
 jobs:
   cron:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Strop běhu u GitHubu je 6 hodin; 5,5 hodiny nechává rezervu.
+    timeout-minutes: 350
     if: ${{ vars.CRON_ENABLED == '1' }}
 
     steps:
-    # Běh pokrývá celou hodinu, plánuje se po 15 minutách a nový běh ten starý
-    # ukončí. Schránka je tak kontrolovaná souvisle, i když GitHub většinu
-    # naplánovaných spuštění odloží nebo přeskočí — stačí, aby se za hodinu
-    # spustil aspoň jeden.
-    # Drive sync se volá uvnitř smyčky, ne až za ní: nový naplánovaný běh ten
-    # předchozí ukončí (cancel-in-progress), takže na krok za smyčkou by řada
+    # Jeden běh pokrývá 5,5 hodiny. Původně to byla hodina s tím, že se za ni
+    # aspoň jedno z naplánovaných spuštění chytí — jenže GitHub jich přeskakuje
+    # mnohem víc, než se čekalo: reálně startuje jeden běh za 2 až 5 hodin.
+    # Schránka se pak kontrolovala necelou hodinu z každých několika a doklad
+    # poslaný do té mezery čekal i hodiny.
+    #
+    # Repozitář je veřejný, takže minuty Actions nic nestojí a delší běh je
+    # zadarmo. Nový naplánovaný běh ten starý ukončí (cancel-in-progress),
+    # takže se smyčky nehromadí.
+    #
+    # Drive sync se volá uvnitř smyčky, ne až za ní: na krok za smyčkou by řada
     # skoro nikdy nedošla a zálohování by stálo.
     - name: Zpracování dokladů (schránka po minutě, Drive po deseti)
       run: |
-        for i in $(seq 1 55); do
-          echo "--- kontrola schránky $i/55 ($(date '+%H:%M:%S')) ---"
+        for i in $(seq 1 330); do
+          echo "--- kontrola schránky $i/330 ($(date '+%H:%M:%S')) ---"
           curl -sS --max-time 240 "$APP_URL/cron/$CRON_TOKEN" || echo "cron/email selhal"
 
           # Drive nahrává po 50 dokladech, každou minutu by to bylo zbytečné
@@ -54,5 +60,5 @@ jobs:
 
           # Ne `[ … ] && sleep` — při poslední iteraci vrátí nepravdu a protože
           # je to poslední příkaz kroku, celý krok by skončil chybou.
-          if [ "$i" -lt 55 ]; then sleep 60; fi
+          if [ "$i" -lt 330 ]; then sleep 60; fi
         done

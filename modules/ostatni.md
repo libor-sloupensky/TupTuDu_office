@@ -138,6 +138,15 @@ Repozitář je veřejný, proto token nesmí být v kódu — routy ho čtou př
 | `.github/workflows/deploy.yml` | push na main + ručně | Deploy |
 | `.github/workflows/cron.yml` | každých 15 min (jen při `CRON_ENABLED=1`) | Náhrada cronu hostingu |
 
+**Pozor na plánování u GitHubu.** `*/15` je zbožné přání — reálně startuje
+jeden běh za 2 až 5 hodin, zbytek GitHub přeskočí. Proto jeden běh pokrývá
+5,5 hodiny (330 průchodů po minutě, strop úlohy je 6 hodin). Dřív to byla
+hodina a doklad poslaný mailem do mezery mezi běhy čekal i hodiny.
+
+Repozitář je veřejný, takže minuty Actions nic nestojí. Spolehlivější by
+stejně byl cron přímo na hostingu — tohle je náhrada, ne cíl.
+
+
 ### Rozložení na serveru
 ```
 /office.tuptudu.cz/          kořen Laravelu (.env, app/, vendor/) — mimo dosah webu
