@@ -1665,7 +1665,7 @@ function prevestDoklad(id, tlacitko) {
     const nabidka = document.createElement('div');
     nabidka.className = 'prevod-nabidka';
     nabidka.innerHTML = '<div class="prevod-nadpis">Převést na</div>' +
-        cile.map(c => '<button type="button" data-ico="' + escAttr(c.ico) + '">' + escapeHtml(c.nazev) + '</button>').join('');
+        cile.map(c => '<button type="button" data-ico="' + escAttr(c.ico) + '">' + escHtml(c.nazev) + '</button>').join('');
 
     document.body.appendChild(nabidka);
 
