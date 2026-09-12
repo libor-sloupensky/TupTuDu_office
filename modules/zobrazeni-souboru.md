@@ -162,8 +162,16 @@ spadne se automaticky na obyčejné hledání.
 
 ## Převod dokladu k jinému účtu
 
-Šipka ve sloupci vedle křížku. Přesune doklad k jiné firmě téhož člověka nebo
-do jeho osobních dokladů.
+Šipka **ve stejné buňce jako křížek** — obojí jsou akce nad dokladem a
+samostatný sloupec by jen ubíral místo. Přesune doklad k jiné firmě téhož
+člověka nebo do jeho osobních dokladů.
+
+Šipka se ukazuje vždycky. Když doklad převést nejde, je zašedlá a po najetí
+řekne proč — prázdná buňka, která „nic nedělá", mate. Popis je v bublině
+u šipky, ne v otazníku v hlavičce.
+
+Potvrzovací dialog tu není: výběr cílového účtu sám o sobě stačí jako
+potvrzení a druhé kliknutí by jen otravovalo.
 
 **Převádět smí jen ten, kdo doklad nahrál** (`nahral` = jeho e-mail). U cizího
 dokladu nemá jak poznat, jestli u té firmy nemá zůstat. Doklad, který přišel

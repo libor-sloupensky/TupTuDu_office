@@ -135,6 +135,7 @@
        maže .bbox-highlight při odhoveru z pole a nálezy mají zůstat. */
     .btn-prevest-sm { background: none; border: none; cursor: pointer; color: #95a5a6; padding: 0 0.2rem; line-height: 1; vertical-align: middle; }
     .btn-prevest-sm:hover { color: #16a085; }
+    .btn-prevest-sm.nelze { color: #dde3e8; cursor: help; display: inline-block; }
     .prevod-nabidka { position: absolute; z-index: 60; background: white; border: 1px solid #d0d8e0; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); padding: 0.3rem; min-width: 170px; }
     .prevod-nadpis { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px; color: #95a5a6; padding: 0.25rem 0.5rem; }
     .prevod-nabidka button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0.4rem 0.5rem; font-size: 0.85rem; cursor: pointer; border-radius: 4px; color: #2c3e50; }
@@ -511,12 +512,11 @@ const COLUMNS = [
     { id: 'zdroj',     label: 'Zdroj',      tip: 'Způsob vložení (ruční/email)', sortable: false, editable: false, fixed: false, field: null },
     { id: 'nahral',    label: 'Nahrál',     tip: 'Email uživatele, který doklad nahrál', sortable: false, editable: false, fixed: false, field: null },
     { id: 'soubor',    label: 'Soubor',     tip: 'Název nahraného souboru', sortable: false, editable: false, fixed: false, field: null },
-    { id: 'prevest',   label: '',            tip: 'Přesunout doklad k jinému vašemu účtu', sortable: false, editable: false, fixed: true,  field: null },
     { id: 'smazat',    label: '',            tip: null, sortable: false, editable: false, fixed: true,  field: null },
 ];
 
-const DEFAULT_VISIBLE = ['select','expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','prevest','smazat'];
-const FIXED_COLS = ['select','expand','prevest','smazat'];
+const DEFAULT_VISIBLE = ['select','expand','nahrano','vystaveni','dodavatel','ico','castka','mena','stav','smazat'];
+const FIXED_COLS = ['select','expand','smazat'];
 
 function loadPref(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
 function savePref(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
@@ -628,8 +628,26 @@ function cellValue(d, colId) {
         case 'zdroj': return d.zdroj === 'email' ? 'Email' : 'Ruční';
         case 'nahral': return d.nahral || '-';
         case 'soubor': return d.nazev_souboru || '-';
-        case 'prevest': return d.lze_prevest ? '<button type="button" class="btn-prevest-sm" title="Převést k jinému účtu" onclick="prevestDoklad('+d.id+', this)">' + IKONA_PREVOD + '</button>' : '';
-        case 'smazat': return permMazat ? '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escAttr(d.cislo_dokladu||d.nazev_souboru)+'\',\''+d.destroy_url+'\')">&times;</button>' : '';
+        case 'smazat': {
+            // Šipka i křížek sdílejí jednu buňku — obojí jsou akce nad dokladem
+            // a samostatný sloupec by jen ubíral místo.
+            let akce = '';
+
+            // Šipka se ukazuje vždycky. Když doklad převést nejde, je zašedlá
+            // a po najetí řekne proč — prázdná buňka, která „nic nedělá", je
+            // horší než jasné vysvětlení.
+            if (d.lze_prevest) {
+                akce += '<button type="button" class="btn-prevest-sm" title="Přesunout doklad k jinému vašemu účtu — vaší jiné firmě nebo do osobních dokladů" onclick="prevestDoklad('+d.id+', this)">' + IKONA_PREVOD + '</button>';
+            } else {
+                akce += '<span class="btn-prevest-sm nelze" title="Přesunout jinam může jen ten, kdo doklad nahrál' + (d.nahral ? ' (' + escAttr(d.nahral) + ')' : '') + '">' + IKONA_PREVOD + '</span>';
+            }
+
+            if (permMazat) {
+                akce += '<button type="button" class="btn-del-sm" title="Smazat" onclick="deleteDoklad('+d.id+',\''+escAttr(d.cislo_dokladu||d.nazev_souboru)+'\',\''+d.destroy_url+'\')">&times;</button>';
+            }
+
+            return akce;
+        }
         default: return '-';
     }
 }
@@ -1029,7 +1047,7 @@ function updateTableRow(d) {
     tds.forEach((td, i) => {
         if (i < cols.length) {
             const colId = cols[i];
-            if (colId !== 'expand' && colId !== 'smazat' && colId !== 'prevest' && colId !== 'select') {
+            if (colId !== 'expand' && colId !== 'smazat' && colId !== 'select') {
                 td.innerHTML = cellValue(d, colId);
             }
         }
