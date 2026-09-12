@@ -1648,7 +1648,7 @@ function nakresliNalez(b, vrstva) {
 
 // ===== Převod dokladu k jinému účtu =====
 // Vytěžená data zůstávají — přepočítá se jen to, co záviselo na firmě
-// (adresát, kategorie, duplicita, záloha na Disk). AI se znovu nevolá.
+// (adresát, kategorie, duplicita, záloha na Google Disk). AI se znovu nevolá.
 function prevestDoklad(id, tlacitko) {
     const d = dokladyData.find(x => x.id === id);
     if (!d) return;

@@ -22,8 +22,8 @@ use Illuminate\Support\Facades\Storage;
  *     zahodí, aby tam nezůstal cizí název,
  *   - **duplicita** — hlídá se v rámci firmy, takže vazba na doklad té staré
  *     ztrácí smysl,
- *   - **záloha na Disk** — razítko se smaže, aby se doklad nahrál do složky
- *     nové firmy.
+ *   - **záloha na Google Disk** — razítko se smaže, aby se doklad nahrál
+ *     do složky nové firmy.
  *
  * Soubor se v úložišti přesune pod cílovou firmu. Kdyby se to nepovedlo,
  * převod se neprovede vůbec — lepší než záznam ukazující do prázdna.
@@ -72,7 +72,7 @@ class PrevodDokladu
 
         // Ať se doklad zálohuje do složky nové firmy.
         if ($doklad->google_drive_nahrano_at) {
-            $zmeny[] = 'Na Disku zůstala kopie u původní firmy; do nové se nahraje znovu.';
+            $zmeny[] = 'Na Google Disku zůstala kopie ve složce původní firmy; do složky nové firmy se doklad nahraje znovu.';
         }
         $data['google_drive_nahrano_at'] = null;
         $data['google_drive_file_id'] = null;

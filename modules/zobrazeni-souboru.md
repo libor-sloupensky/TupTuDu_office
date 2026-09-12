@@ -188,13 +188,13 @@ další čtení AI. Znovu se posoudí jen to, co na firmě záviselo
 | **Adresát** | Doklad vystavený jedné firmě nesmí u druhé zůstat jako ověřený |
 | **Kategorie** | Každá firma má vlastní seznam; co v cílové není, se zahodí |
 | **Duplicita** | Hlídá se v rámci firmy, vazba přes hranici ztrácí smysl |
-| **Záloha na Disk** | Razítko se smaže, aby se doklad nahrál do složky nové firmy |
+| **Záloha na Google Disk** | Razítko se smaže, aby se doklad nahrál do složky nové firmy |
 
 Soubor i odložené souřadnice slov se v úložišti přesunou pod cílovou firmu.
 Nejdřív se kopíruje, pak přepíše záznam a teprve nakonec maže originál — kdyby
 kopie selhala, převod se neprovede vůbec a nevznikne záznam ukazující do
 prázdna.
 
-**Na Disku zůstane kopie u původní firmy.** Smazat ji by znamenalo sáhnout na
+**Na Google Disku zůstane kopie ve složce původní firmy.** Smazat ji by znamenalo sáhnout na
 cizí Disk s jeho vlastními přihlašovacími údaji; uživatel se to dozví z hlášky
 po převodu.
