@@ -103,3 +103,26 @@ doklad_id, poradi, text, mnozstvi, jednotka, cena_za_jednotku, zaklad_dane, sazb
 
 ---
 *Aktualizováno: 2026-08-27*
+
+## Chyby zpracování
+
+Uživatel nikdy nevidí odpověď API ani hlášku knihovny —
+`App\Support\ChybaZpracovani::popis()` je převede na větu, která říká i to,
+co s tím zmůže. Syrový text zůstává v logu, kde je k užitku tomu, kdo chybu řeší.
+
+Když je příčina na naší straně (vyčerpaný kredit, neplatný přístup), věta
+neradí „zkuste znovu", ale říká, že doklad je v bezpečí.
+
+**Přepis z Textractu se při selhání AI neztrácí.** Textract běží první, takže
+když spadne teprve Claude, přepis už máme a je zaplacený — uloží se proto
+i k chybovému dokladu i se souřadnicemi slov. Doklad pak sice nemá vyplněná
+pole, ale je plnotextově dohledatelný a jde v něm zvýrazňovat, tedy přesně to,
+co by dala úroveň *Vyčtení*. Zahodit to by znamenalo platit dvakrát za totéž.
+
+### Akce u dokladu
+V řádku jsou tři ikony ve společné buňce: **kolečko** (spustit zpracování
+znovu), **šipka** (přesun k jinému účtu) a **křížek** (smazat). Co zrovna nejde,
+je zašedlé a po najetí řekne proč — prázdné místo, které „nic nedělá", mate.
+
+Zpracování se znovu spouští jen u dokladů ve stavu `ulozeno` nebo `chyba`.
+U hotového dokladu by přepsalo i ruční opravy, a stálo by to znovu peníze.

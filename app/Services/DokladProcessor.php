@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Dodavatel;
 use App\Models\Doklad;
 use App\Models\Firma;
+use App\Support\ChybaZpracovani;
 use Aws\Textract\TextractClient;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -424,6 +425,12 @@ class DokladProcessor
 
     /**
      * Zapíše chybu — buď do už existujícího záznamu, nebo do nového.
+     *
+     * Textract běží před AI, takže když selže teprve AI, přepis textu už máme
+     * a je zaplacený. Ukládá se proto i sem: doklad sice nemá vyplněná pole,
+     * ale je aspoň plnotextově dohledatelný a jde v něm zvýrazňovat — tedy
+     * přesně to, co by dala úroveň Vyčtení. Zahodit to by znamenalo platit
+     * dvakrát za totéž.
      */
     private function zaznamChyby(
         ?Doklad $existujici,
@@ -433,7 +440,9 @@ class DokladProcessor
         string $fileHash,
         string $zdroj,
         string $zprava,
-        ?string $rawAiOdpoved = null
+        ?string $rawAiOdpoved = null,
+        ?string $textractOcr = null,
+        ?array $textractBloky = null
     ): Doklad {
         $data = [
             'stav' => 'chyba',
@@ -444,21 +453,30 @@ class DokladProcessor
             $data['raw_ai_odpoved'] = $rawAiOdpoved;
         }
 
+        if ($textractOcr) {
+            $data['raw_text'] = $textractOcr;
+        }
+
         if ($existujici) {
             // Cestu k souboru necháváme být — soubor je na svém místě, jen se
             // ho nepodařilo přečíst.
             $existujici->update($data);
-
-            return $existujici->fresh();
+            $doklad = $existujici->fresh();
+        } else {
+            $doklad = Doklad::create($data + [
+                'firma_ico' => $firma->ico,
+                'nazev_souboru' => $nazev,
+                'cesta_souboru' => $cesta,
+                'hash_souboru' => $fileHash,
+                'zdroj' => $zdroj,
+            ]);
         }
 
-        return Doklad::create($data + [
-            'firma_ico' => $firma->ico,
-            'nazev_souboru' => $nazev,
-            'cesta_souboru' => $cesta,
-            'hash_souboru' => $fileHash,
-            'zdroj' => $zdroj,
-        ]);
+        if ($textractBloky) {
+            $this->ulozSlova($doklad, $this->slovaZBloku($textractBloky, 1));
+        }
+
+        return $doklad;
     }
 
     /**
@@ -557,16 +575,21 @@ class DokladProcessor
         $tempPath = "doklady/{$firma->ico}/_tmp/" . time() . "_{$fileHash}.pdf";
         Storage::disk('s3')->put($tempPath, $originalFileBytes);
 
+        // Přepis ze všech stránek dohromady. Počítá se tady, aby ho měla
+        // i chybová větev — Textract doběhl a je zaplacený, ať se neztratí.
+        $combinedOcr = implode("\n--- stránka ---\n", $allTextractOcr) ?: null;
+
         if ($firstDocData === null) {
             // Žádný doklad nenalezen na žádné stránce
             $errMsg = $lastError
-                ? 'Chyba AI zpracování: ' . $lastError->getMessage()
+                ? ChybaZpracovani::popis($lastError)
                 : 'AI nerozpoznalo žádný doklad v souboru (' . count($pages) . ' stránek).';
             if ($lastError) {
                 $this->logFailedFile($originalName, $firma->ico, $lastError->getMessage(), $originalFileBytes);
             }
             $doklad = $this->zaznamChyby(
                 $existujici, $firma, $originalName, $tempPath, $fileHash, $zdroj, $errMsg,
+                null, $combinedOcr, $firstTextractBlocks,
             );
             return [$doklad];
         }
@@ -580,7 +603,6 @@ class DokladProcessor
         }
 
         try {
-            $combinedOcr = implode("\n--- stránka ---\n", $allTextractOcr) ?: null;
             $doklad = $this->createDokladFromPage(
                 $firstDocData, $firma, $originalName, $fileHash,
                 $zdroj, $tempPath, $originalFileBytes, 1,
@@ -592,7 +614,8 @@ class DokladProcessor
                 'file' => $originalName,
             ]);
             $doklad = $this->zaznamChyby(
-                $existujici, $firma, $originalName, $tempPath, $fileHash, $zdroj, $e->getMessage(),
+                $existujici, $firma, $originalName, $tempPath, $fileHash, $zdroj, ChybaZpracovani::popis($e),
+                null, $combinedOcr, $firstTextractBlocks,
             );
         }
 
@@ -667,7 +690,8 @@ class DokladProcessor
 
             $doklad = $this->zaznamChyby(
                 $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj,
-                'Chyba AI zpracování: ' . $lastError->getMessage(),
+                ChybaZpracovani::popis($lastError),
+                null, $textractOcr, $textractBlocks,
             );
             return [$doklad];
         }
@@ -679,7 +703,7 @@ class DokladProcessor
             $doklad = $this->zaznamChyby(
                 $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj,
                 'AI nerozpoznalo žádný doklad v souboru.' . $ocrInfo,
-                json_encode($visionResult, JSON_UNESCAPED_UNICODE),
+                json_encode($visionResult, JSON_UNESCAPED_UNICODE), $textractOcr, $textractBlocks,
             );
             return [$doklad];
         }
@@ -708,7 +732,8 @@ class DokladProcessor
                 'file' => $originalName,
             ]);
             $doklad = $this->zaznamChyby(
-                $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj, $e->getMessage(),
+                $existujici, $firma, $originalName, $tempS3Path, $fileHash, $zdroj, ChybaZpracovani::popis($e),
+                null, $textractOcr, $textractBlocks,
             );
         }
 

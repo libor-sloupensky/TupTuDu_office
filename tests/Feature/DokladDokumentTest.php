@@ -174,6 +174,37 @@ class DokladDokumentTest extends TestCase
         $this->assertSame(0, \App\Models\AiVolani::where('sluzba', 'claude')->count());
     }
 
+    public function test_pri_selhani_ai_zustane_prepis_z_textractu(): void
+    {
+        // Textract běží před AI, takže když selže teprve AI, přepis už máme
+        // a je zaplacený. Doklad tím pádem zůstane aspoň dohledatelný.
+        $this->firma->update(['uroven_zpracovani' => 'rozpoznani']);
+
+        $doklad = Doklad::create([
+            'firma_ico' => $this->firma->ico,
+            'nazev_souboru' => 'faktura.pdf',
+            'cesta_souboru' => 'doklady/10000001/faktura.pdf',
+            'hash_souboru' => hash('sha256', 'ocr'),
+            'stav' => 'chyba',
+        ]);
+
+        $metoda = new \ReflectionMethod(\App\Services\DokladProcessor::class, 'zaznamChyby');
+        $metoda->setAccessible(true);
+        $metoda->invoke(
+            new \App\Services\DokladProcessor(),
+            $doklad, $this->firma, 'faktura.pdf', $doklad->cesta_souboru,
+            $doklad->hash_souboru, 'upload',
+            'Rozpoznávání je pozastavené.', null,
+            "Pneuservis Brno\nCelkem 4200 Kč", null,
+        );
+
+        $po = $doklad->fresh();
+
+        $this->assertSame('chyba', $po->stav);
+        $this->assertStringContainsString('Pneuservis', $po->raw_text);
+        $this->assertTrue($po->lzeVytezit(), 'Po chybě musí jít zpracování spustit znovu.');
+    }
+
     public function test_doklad_se_ulozi_k_poslane_firme_ne_k_te_v_session(): void
     {
         $druha = Firma::create(['ico' => '20000002', 'nazev' => 'Druha s.r.o.', 'uroven_zpracovani' => 'ulozeni']);

@@ -133,6 +133,10 @@
     .preview-bbox-layer { position: relative; display: inline-block; width: 100%; }
     /* Nález hledaného výrazu. Vlastní třída schválně: clearBboxHighlight()
        maže .bbox-highlight při odhoveru z pole a nálezy mají zůstat. */
+    .btn-akce-sm { background: none; border: none; cursor: pointer; color: #95a5a6; padding: 0 0.2rem; line-height: 1; vertical-align: middle; display: inline-block; }
+    .btn-akce-sm:hover { color: #16a085; }
+    .btn-akce-sm.nelze { color: #dde3e8; cursor: help; }
+    .btn-vytezit-sm:hover { color: #2980b9; }
     .btn-prevest-sm { background: none; border: none; cursor: pointer; color: #95a5a6; padding: 0 0.2rem; line-height: 1; vertical-align: middle; }
     .btn-prevest-sm:hover { color: #16a085; }
     .btn-prevest-sm.nelze { color: #dde3e8; cursor: help; display: inline-block; }
@@ -225,6 +229,7 @@
             var CILE_PREVODU = @json($cilePrevodu ?? []);
             // Ikonu vkládá JavaScript, kde Blade komponentu použít nejde.
             var IKONA_PREVOD = @json(\App\Support\Lucide::svg('arrow-right', 15));
+            var IKONA_VYTEZIT = @json(\App\Support\Lucide::svg('refresh-cw', 14));
             var permVkladat = {{ $permVkladat ? 'true' : 'false' }};
             var permUpravovat = {{ $permUpravovat ? 'true' : 'false' }};
             var permMazat = {{ $permMazat ? 'true' : 'false' }};
@@ -629,17 +634,22 @@ function cellValue(d, colId) {
         case 'nahral': return d.nahral || '-';
         case 'soubor': return d.nazev_souboru || '-';
         case 'smazat': {
-            // Šipka i křížek sdílejí jednu buňku — obojí jsou akce nad dokladem
-            // a samostatný sloupec by jen ubíral místo.
+            // Kolečko, šipka i křížek sdílejí jednu buňku — všechno jsou akce
+            // nad dokladem a samostatné sloupce by jen ubíraly místo.
             let akce = '';
 
-            // Šipka se ukazuje vždycky. Když doklad převést nejde, je zašedlá
-            // a po najetí řekne proč — prázdná buňka, která „nic nedělá", je
-            // horší než jasné vysvětlení.
-            if (d.lze_prevest) {
-                akce += '<button type="button" class="btn-prevest-sm" title="Přesunout doklad k jinému vašemu účtu — vaší jiné firmě nebo do osobních dokladů" onclick="prevestDoklad('+d.id+', this)">' + IKONA_PREVOD + '</button>';
+            // Každá akce se ukazuje vždycky. Když nejde, je zašedlá a po najetí
+            // řekne proč — prázdná buňka, která „nic nedělá", mate.
+            if (d.lze_vytezit) {
+                akce += '<button type="button" class="btn-akce-sm btn-vytezit-sm" title="Spustit zpracování znovu — doklad projde rozpoznáním ještě jednou" onclick="vytezitDoklad('+d.id+', this)">' + IKONA_VYTEZIT + '</button>';
             } else {
-                akce += '<span class="btn-prevest-sm nelze" title="Přesunout jinam může jen ten, kdo doklad nahrál' + (d.nahral ? ' (' + escAttr(d.nahral) + ')' : '') + '">' + IKONA_PREVOD + '</span>';
+                akce += '<span class="btn-akce-sm nelze" title="Doklad je už zpracovaný. Znovu se spouští jen u dokladů uložených nebo skončených chybou.">' + IKONA_VYTEZIT + '</span>';
+            }
+
+            if (d.lze_prevest) {
+                akce += '<button type="button" class="btn-akce-sm btn-prevest-sm" title="Přesunout doklad k jinému vašemu účtu — vaší jiné firmě nebo do osobních dokladů" onclick="prevestDoklad('+d.id+', this)">' + IKONA_PREVOD + '</button>';
+            } else {
+                akce += '<span class="btn-akce-sm nelze" title="Přesunout jinam může jen ten, kdo doklad nahrál' + (d.nahral ? ' (' + escAttr(d.nahral) + ')' : '') + '">' + IKONA_PREVOD + '</span>';
             }
 
             if (permMazat) {
@@ -1644,6 +1654,44 @@ function nakresliNalez(b, vrstva) {
     el.style.width = ((right - left) * 100) + '%';
     el.style.height = ((bottom - top) * 100) + '%';
     vrstva.appendChild(el);
+}
+
+// ===== Znovu spustit zpracování =====
+// Doklad projde rozpoznáním ještě jednou. Hodí se hlavně po chybě — třeba
+// když byla služba přetížená nebo bez kreditu.
+function vytezitDoklad(id, tlacitko) {
+    const d = dokladyData.find(x => x.id === id);
+    if (!d) return;
+
+    const puvodni = tlacitko.innerHTML;
+    tlacitko.disabled = true;
+    tlacitko.innerHTML = '<span class="spinner-sm" style="width:12px;height:12px;border-width:1.5px;"></span>';
+
+    fetch(d.vytezit_url, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        tlacitko.disabled = false;
+        tlacitko.innerHTML = puvodni;
+
+        if (!data.ok) {
+            alert(data.error || 'Zpracování se nepodařilo.');
+        }
+
+        // Ať už to dopadlo jakkoli, doklad vypadá jinak než před chvílí.
+        refreshTableData();
+    })
+    .catch(() => {
+        tlacitko.disabled = false;
+        tlacitko.innerHTML = puvodni;
+        alert('Zpracování se nepodařilo — zkuste to prosím znovu.');
+    });
 }
 
 // ===== Převod dokladu k jinému účtu =====
