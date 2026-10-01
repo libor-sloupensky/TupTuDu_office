@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Services\SmazaniUctu;
 use App\Support\AktivniFirma;
 use App\Support\OsobniProstor;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 /**
@@ -26,10 +25,11 @@ class UcetController extends Controller
     }
 
     /**
-     * Smaže účet i s daty, která k němu patří.
+     * Uzavře účet a naplánuje jeho smazání.
      *
-     * Potvrzuje se opsáním e-mailu — je to nevratné a dělá se hned. Co přesně
-     * zmizí, popisuje SmazaniUctu.
+     * Nemaže se hned — běží lhůta na rozmyšlenou a do té doby jde účet obnovit.
+     * Potvrzuje se opsáním e-mailu; co přesně nakonec zmizí, popisuje
+     * SmazaniUctu.
      */
     public function smazat(Request $request)
     {
@@ -44,14 +44,61 @@ class UcetController extends Controller
             ], 422);
         }
 
-        (new SmazaniUctu())->smaz($user);
+        (new SmazaniUctu())->pozadej($user);
 
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        // Odhlašovat ho nebudeme — rovnou uvidí, dokdy to jde vzít zpět.
         AktivniFirma::zapomen();
 
-        return response()->json(['ok' => true, 'presmerovat' => route('login')]);
+        return response()->json(['ok' => true, 'presmerovat' => route('ucet.obnoveni')]);
+    }
+
+    /** Nabídka obnovení pro účet, který čeká na smazání. */
+    public function obnoveni()
+    {
+        $user = auth()->user();
+
+        if (!$user->cekaNaSmazani()) {
+            return redirect()->route('ucet.nastaveni');
+        }
+
+        return view('ucet.obnoveni', ['user' => $user]);
+    }
+
+    public function obnovit()
+    {
+        $user = auth()->user();
+
+        if ($user->cekaNaSmazani()) {
+            (new SmazaniUctu())->obnov($user);
+        }
+
+        return redirect()->route('ucet.nastaveni')->with('flash', 'Účet je zase v pořádku.');
+    }
+
+    /**
+     * Obnovení odkazem z e-mailu, bez přihlášení.
+     *
+     * O smazání mohl požádat někdo jiný — majitel účtu se musí bránit, i když
+     * se zrovna přihlásit nemůže.
+     */
+    public function obnovitTokenem(string $token)
+    {
+        $sluzba = new SmazaniUctu();
+        $user = $sluzba->podleTokenu($token);
+
+        if (!$user) {
+            return view('ucet.obnoveni-vysledek', [
+                'povedlo' => false,
+                'zprava' => 'Odkaz už neplatí. Účet byl buď obnovený, nebo smazaný.',
+            ]);
+        }
+
+        $sluzba->obnov($user);
+
+        return view('ucet.obnoveni-vysledek', [
+            'povedlo' => true,
+            'zprava' => 'Účet je obnovený. Můžete se přihlásit jako dřív.',
+        ]);
     }
 
     /**

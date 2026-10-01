@@ -33,6 +33,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'smazani_k' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -47,6 +48,12 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getCeleJmenoAttribute(): string
     {
         return "{$this->jmeno} {$this->prijmeni}";
+    }
+
+    /** Účet je uzavřený a čeká na nenávratné smazání. */
+    public function cekaNaSmazani(): bool
+    {
+        return $this->smazani_k !== null;
     }
 
     public function aktivniFirma(): ?Firma

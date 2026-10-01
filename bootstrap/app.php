@@ -19,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'firma' => \App\Http\Middleware\EnsureFirmaSelected::class,
             'role' => \App\Http\Middleware\CheckRole::class,
             'partner' => \App\Http\Middleware\AuthenticatePartner::class,
+            'ucet-ke-smazani' => \App\Http\Middleware\UcetKeSmazani::class,
+        ]);
+
+        // Platí pro celý web, ne jen pro vybrané skupiny — uzavřený účet se
+        // nesmí dostat nikam, a vyjmenovávat skupiny by znamenalo na nějakou
+        // časem zapomenout. Pro nepřihlášené middleware hned propustí dál.
+        $middleware->appendToGroup('web', [
+            \App\Http\Middleware\UcetKeSmazani::class,
         ]);
 
         // Partnerské API si limit řeší samo v routes/api.php, výchozí skupina

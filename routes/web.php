@@ -100,6 +100,15 @@ Route::get('/cron/{token}', function (string $token) {
     }
     Illuminate\Support\Facades\Artisan::call('doklady:process-email');
     $output = Illuminate\Support\Facades\Artisan::output();
+
+    // Při té příležitosti se dokončí smazání účtů, kterým uplynula lhůta.
+    // Vlastní plánovač kvůli tomu zavádět nemá smysl — tahle routa běží
+    // každou minutu.
+    $smazano = (new App\Services\SmazaniUctu())->dokonciSplatne();
+    if ($smazano > 0) {
+        $output .= "Dokončeno smazání účtů: {$smazano}\n";
+    }
+
     return response($output, 200)->header('Content-Type', 'text/plain');
 })->middleware('throttle:6,1');
 
@@ -149,7 +158,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/ucet', [UcetController::class, 'nastaveni'])->name('ucet.nastaveni');
     Route::post('/ucet/osobni', [UcetController::class, 'prepnoutOsobni'])->name('ucet.prepnoutOsobni');
     Route::post('/ucet/smazat', [UcetController::class, 'smazat'])->name('ucet.smazat');
+
+    // Obnovení uzavřeného účtu. Musí projít i uživateli, kterého middleware
+    // jinam nepouští — jinak by neměl jak se z toho stavu dostat.
+    Route::get('/ucet/obnoveni', [UcetController::class, 'obnoveni'])->name('ucet.obnoveni');
+    Route::post('/ucet/obnoveni', [UcetController::class, 'obnovit'])->name('ucet.obnovit');
 });
+
+// Obnovení odkazem z e-mailu. Bez přihlášení schválně: o smazání mohl požádat
+// někdo jiný a majitel účtu se musí bránit, i když se zrovna přihlásit nemůže.
+Route::get('/ucet/obnovit/{token}', [UcetController::class, 'obnovitTokenem'])
+    ->middleware('throttle:10,1')
+    ->name('ucet.obnovitTokenem');
 
 // --- Google Drive OAuth ---
 Route::middleware(['auth', 'verified'])->group(function () {

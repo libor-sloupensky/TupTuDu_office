@@ -293,8 +293,34 @@ potom už by nebylo podle čeho je najít. Osobní prostor by sice zmizel kaská
 přes `sys_firmy.vlastnik_user_id`, ale maže se adresně právě proto, aby byl úklid
 souborů jistý.
 
-Potvrzuje se opsáním e-mailu a je to okamžité. Dialog předem vypíše, které firmy
-zmizí, kolik v nich je dokladů a jestli tím přijde o přístup účetní firma.
+Potvrzuje se opsáním e-mailu. Dialog předem vypíše, které firmy zmizí, kolik
+v nich je dokladů a jestli tím přijde o přístup účetní firma.
+
+### Lhůta na rozmyšlenou
+
+Nemaže se hned. Po potvrzení se účet **uzavře**: do `sys_users.smazani_k` se
+zapíše datum za `SmazaniUctu::DNI_LHUTY` (7) dní a vygeneruje se
+`obnoveni_token`. Uživateli odejde e-mail s odkazem na obnovení.
+
+Mezitím:
+
+- `UcetKeSmazani` middleware je přidaný do celé skupiny `web` (ne do vybraných
+  skupin — na nějakou by se časem zapomnělo) a uzavřený účet pustí jen na
+  `ucet.obnoveni`, `ucet.obnovit` a `logout`; na JSON odpoví 403.
+- Obnovit jde dvěma cestami: tlačítkem po přihlášení, nebo odkazem z e-mailu
+  (`/ucet/obnovit/{token}`, veřejné, `throttle:10,1`). Druhá cesta je tam
+  proto, že o smazání mohl požádat někdo cizí a majitel se musí bránit, i když
+  se zrovna přihlásit nemůže.
+- Příjem dokladů e-mailem firmu s uzavřeným vlastníkem přeskočí. Firmy **bez
+  uživatelů** (založené partnerem) poštu dostávají dál — nemají koho uzavřít.
+
+Po uplynutí lhůty účet smaže `SmazaniUctu::dokonciSplatne()`, volané z cronu,
+který stejně běží každou minutu. Jeden zaseknutý účet ostatní neblokuje; vrací
+se počet skutečně smazaných.
+
+Lhůta je popsaná v zásadách i na veřejné stránce, a to včetně věty, že na
+požádání na info@ smažeme okamžitě — právo na výmaz bez zbytečného odkladu
+lhůtou obejít nejde.
 
 ## Testy
 

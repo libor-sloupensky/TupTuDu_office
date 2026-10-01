@@ -55,7 +55,7 @@
     <p>Soubory dokladů jsou uloženy na Amazon S3 (EU). Databáze běží na serveru v ČR. Veškerá komunikace probíhá přes šifrované spojení (HTTPS/TLS). Citlivé údaje (hesla, tokeny) jsou uloženy v hashované nebo šifrované podobě.</p>
 
     <h2>7. Doba uchování</h2>
-    <p>Údaje uchováváme po dobu trvání účtu. Po smazání účtu nebo firmy jsou veškeré související doklady a data smazány.</p>
+    <p>Údaje uchováváme po dobu trvání účtu. Po smazání účtu nebo firmy jsou veškeré související doklady a data smazány. U smazání účtu předchází výmazu {{ \App\Services\SmazaniUctu::DNI_LHUTY }}denní lhůta, ve které jde požadavek odvolat — podrobně v bodu 11.</p>
 
     <h2>8. Vaše práva</h2>
     <p>Máte právo na přístup ke svým údajům, jejich opravu, výmaz, omezení zpracování a přenositelnost. Pro uplatnění těchto práv nás kontaktujte na <a href="mailto:info@tuptudu.cz">info@tuptudu.cz</a>.</p>
@@ -67,7 +67,8 @@
     <p>Používáme pouze technicky nezbytné cookies pro přihlášení a CSRF ochranu. Nepoužíváme analytické ani reklamní cookies.</p>
 
     <h2>11. Smazání účtu</h2>
-    <p>Účet i data, která k němu patří, si můžete kdykoli smazat sami — v aplikaci v sekci <strong>Můj účet</strong>. Co přesně zmizí a co zůstane, popisuje stránka <a href="{{ route('smazaniUctu') }}">Smazání účtu</a>. Smazání je okamžité a nevratné; zálohy se přepisují do 30 dnů.</p>
+    <p>Účet i data, která k němu patří, si můžete kdykoli smazat sami — v aplikaci v sekci <strong>Můj účet</strong>. Co přesně zmizí a co zůstane, popisuje stránka <a href="{{ route('smazaniUctu') }}">Smazání účtu</a>.</p>
+    <p>Po potvrzení se účet nejdřív uzavře a běží <strong>{{ \App\Services\SmazaniUctu::DNI_LHUTY }}denní lhůta</strong>, ve které jde smazání vzít zpět — o uzavření vám přijde e-mail s odkazem na obnovení. Lhůta je tu proto, aby omylem nebo cizím zásahem nezmizely doklady, které potřebujete. Po jejím uplynutí se účet i data smažou nenávratně; zálohy se přepisují do 30 dnů. Chcete-li výmaz provést ihned, bez čekání, napište nám na <a href="mailto:info@tuptudu.cz">info@tuptudu.cz</a>.</p>
 
     <h2>12. Skenování dokladů</h2>
     <p>Mobilní aplikace používá fotoaparát výhradně k naskenování dokladu, který sami pořídíte. Snímek se odesílá ke zpracování a uloží mezi vaše doklady; aplikace nemá přístup k vaší fotogalerii.</p>

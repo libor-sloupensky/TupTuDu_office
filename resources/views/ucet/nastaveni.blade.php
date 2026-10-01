@@ -70,7 +70,9 @@
     <div class="karta nebezpeci">
         <h3><x-ikona name="triangle-alert" :size="18" /> Smazání účtu</h3>
         <p class="popis">
-            Smazání je okamžité a nevratné. Než se k němu odhodláte, přečtěte si, co zmizí.
+            Účet se hned uzavře a po {{ \App\Services\SmazaniUctu::DNI_LHUTY }} dnech se tohle
+            všechno nenávratně smaže. Do té doby jde smazání vzít zpět — odkaz vám přijde
+            e-mailem. Než se k tomu odhodláte, přečtěte si, co zmizí.
         </p>
 
         <ul class="seznam-dopadu">
@@ -138,7 +140,7 @@ document.getElementById('prepinacOsobni').addEventListener('change', function ()
     });
 });
 
-// Tlačítko se odemkne, teprve když e-mail sedí — mazání je nevratné.
+// Tlačítko se odemkne, teprve když e-mail sedí — i uzavření účtu je nepříjemné omylem.
 const poleSmazani = document.getElementById('potvrzeniSmazani');
 const btnSmazani = document.getElementById('btnSmazatUcet');
 const mujEmail = @json($user->email);
@@ -148,11 +150,11 @@ poleSmazani.addEventListener('input', function () {
 });
 
 btnSmazani.addEventListener('click', function () {
-    if (!confirm('Opravdu smazat účet? Tohle se nedá vrátit zpět.')) return;
+    if (!confirm('Opravdu smazat účet? Účet se uzavře a po {{ \App\Services\SmazaniUctu::DNI_LHUTY }} dnech se smaže nenávratně.')) return;
 
     const stav = document.getElementById('stavSmazani');
     btnSmazani.disabled = true;
-    stav.textContent = 'Mažu…';
+    stav.textContent = 'Zavírám účet…';
     stav.style.color = '#7f8c8d';
 
     fetch('{{ route('ucet.smazat') }}', {

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\UcetKeSmazani;
 use App\Models\Doklad;
 use App\Models\Firma;
 use App\Models\Pozvani;
@@ -10,14 +11,16 @@ use App\Services\SmazaniUctu;
 use App\Support\OsobniProstor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * Smazání účtu — vyžaduje ho Google Play u aplikací se zakládáním účtu.
+ * Smazání účtu — právo na výmaz podle GDPR, čl. 17.
  *
- * Testy hlídají hranici: co zmizet má, a hlavně co zmizet nesmí. Operace je
- * nevratná, takže chyba na téhle straně je nejdražší, jaká v aplikaci může být.
+ * Testy hlídají dvě hranice: co zmizet má a co zmizet nesmí, a vedle toho
+ * lhůtu na rozmyšlenou — smazání je nevratné, takže chyba na téhle straně je
+ * nejdražší, jaká v aplikaci může být.
  */
 class SmazaniUctuTest extends TestCase
 {
@@ -189,8 +192,10 @@ class SmazaniUctuTest extends TestCase
         $this->assertNotNull(User::find($user->id));
     }
 
-    public function test_pres_aplikaci_smazani_projde_a_odhlasi(): void
+    public function test_pres_aplikaci_se_ucet_uzavre_a_nemaze_hned(): void
     {
+        Mail::fake();
+
         $user = $this->uzivatel('jan@example.com');
 
         $this->actingAs($user)
@@ -198,8 +203,81 @@ class SmazaniUctuTest extends TestCase
             ->assertOk()
             ->assertJsonPath('ok', true);
 
-        $this->assertNull(User::find($user->id));
+        $po = User::find($user->id);
+
+        $this->assertNotNull($po, 'Účet se nesmí smazat hned — běží lhůta na rozmyšlenou.');
+        $this->assertTrue($po->cekaNaSmazani());
+        $this->assertEqualsWithDelta(
+            SmazaniUctu::DNI_LHUTY,
+            now()->diffInDays($po->smazani_k, absolute: true),
+            1,
+        );
+
+        Mail::assertSent(UcetKeSmazani::class);
+    }
+
+    public function test_uzavreny_ucet_se_do_aplikace_nedostane(): void
+    {
+        $user = $this->uzivatel('jan@example.com');
+        (new SmazaniUctu())->pozadej($user);
+
+        $this->actingAs($user->fresh())
+            ->get('/doklady')
+            ->assertRedirect(route('ucet.obnoveni'));
+    }
+
+    public function test_obnoveni_vrati_ucet_do_poradku(): void
+    {
+        $user = $this->uzivatel('jan@example.com');
+        (new SmazaniUctu())->pozadej($user);
+
+        $this->actingAs($user->fresh())
+            ->post('/ucet/obnoveni')
+            ->assertRedirect(route('ucet.nastaveni'));
+
+        $this->assertFalse(User::find($user->id)->cekaNaSmazani());
+    }
+
+    public function test_obnoveni_odkazem_z_emailu_jde_bez_prihlaseni(): void
+    {
+        $user = $this->uzivatel('jan@example.com');
+        (new SmazaniUctu())->pozadej($user);
+        $token = $user->fresh()->obnoveni_token;
+
+        // O smazání mohl požádat někdo jiný — majitel se musí bránit, i když
+        // se zrovna přihlásit nemůže.
+        $this->get('/ucet/obnovit/' . $token)->assertOk()->assertSee('obnovený', false);
+
+        $this->assertFalse(User::find($user->id)->cekaNaSmazani());
         $this->assertGuest();
+    }
+
+    public function test_neplatny_odkaz_nic_neobnovi(): void
+    {
+        $user = $this->uzivatel('jan@example.com');
+        (new SmazaniUctu())->pozadej($user);
+
+        $this->get('/ucet/obnovit/' . str_repeat('x', 64))->assertOk()->assertSee('neplatí', false);
+
+        $this->assertTrue(User::find($user->id)->cekaNaSmazani());
+    }
+
+    public function test_pred_lhutou_se_nic_nesmaze_po_lhute_ano(): void
+    {
+        Mail::fake();
+        Storage::fake('s3');
+
+        $user = $this->uzivatel('jan@example.com');
+        (new SmazaniUctu())->pozadej($user);
+
+        $this->assertSame(0, (new SmazaniUctu())->dokonciSplatne());
+        $this->assertNotNull(User::find($user->id));
+
+        // Lhůta uplynula
+        User::where('id', $user->id)->update(['smazani_k' => now()->subMinute()]);
+
+        $this->assertSame(1, (new SmazaniUctu())->dokonciSplatne());
+        $this->assertNull(User::find($user->id));
     }
 
     public function test_verejna_stranka_je_dostupna_bez_prihlaseni(): void

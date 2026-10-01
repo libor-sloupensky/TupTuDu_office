@@ -156,7 +156,19 @@ class ProcessEmailDoklady extends Command
         }
 
         // 2. Find firma
-        $firma = Firma::where('ico', $ico)->where('email_system_aktivni', true)->first();
+        $firma = Firma::where('ico', $ico)
+            ->where('email_system_aktivni', true)
+            // Firma, jejíž všichni uživatelé mají uzavřený účet, čeká na
+            // smazání. Zpracovávat jí doklady by znamenalo platit za něco,
+            // co za pár dní zmizí.
+            //
+            // Firma úplně bez uživatelů se ale vynechat nesmí — takovou zakládá
+            // partner dopředu a doklady jí chodit mají, než se v ní někdo
+            // zaregistruje.
+            ->where(fn ($q) => $q
+                ->whereDoesntHave('users')
+                ->orWhereHas('users', fn ($u) => $u->whereNull('smazani_k')))
+            ->first();
 
         if (!$firma) {
             $this->line("  Přeskakuji IČO {$ico} — firma nemá aktivní systémový email.");

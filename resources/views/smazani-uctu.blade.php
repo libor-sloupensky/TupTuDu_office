@@ -46,8 +46,19 @@
 
     <h2>Kdy se to stane</h2>
     <p>
-        Smazání proběhne <strong>okamžitě a nevratně</strong>. Zálohy, ve kterých se data mohou ještě
-        krátce vyskytovat, se přepisují do 30 dnů.
+        Po potvrzení se účet hned uzavře — přihlásit se do něj už nejde — a běží
+        <strong>{{ \App\Services\SmazaniUctu::DNI_LHUTY }}denní lhůta na rozmyšlenou</strong>.
+        O uzavření vám přijde e-mail s odkazem, kterým účet i doklady vrátíte zpátky.
+        Lhůta je tu proto, aby o doklady nikdo nepřišel omylem nebo cizím zásahem.
+    </p>
+    <p>
+        Po {{ \App\Services\SmazaniUctu::DNI_LHUTY }} dnech se všechno výše uvedené smaže
+        <strong>nenávratně</strong>. Zálohy, ve kterých se data mohou ještě krátce vyskytovat,
+        se přepisují do 30 dnů.
+    </p>
+    <p>
+        Nechcete čekat? Napište na <a href="mailto:info@tuptudu.cz">info@tuptudu.cz</a> a účet
+        smažeme ihned.
     </p>
 
     <h2>Nemůžete se přihlásit?</h2>

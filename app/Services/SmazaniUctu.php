@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\UcetKeSmazani;
 use App\Models\Doklad;
 use App\Models\Firma;
 use App\Models\Pozvani;
@@ -9,16 +10,24 @@ use App\Models\UcetniVazba;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Smazání uživatelského účtu i s daty, která k němu patří.
  *
- * Vyžaduje to Google Play u každé aplikace, kde si člověk zakládá účet: musí
- * jít smazat přímo v aplikaci a zároveň musí existovat veřejná adresa, kde o to
- * lze požádat.
+ * Právo na výmaz plyne z GDPR (čl. 17) a Google Play totéž vyžaduje u aplikací,
+ * kde si člověk zakládá účet — musí jít smazat přímo v aplikaci a zároveň musí
+ * existovat veřejná adresa, kde o to lze požádat.
  *
- * Co se smaže:
+ * **Nemaže se hned.** Účet se uzavře a teprve po uplynutí lhůty se nenávratně
+ * smaže; do té doby ho jde obnovit. Je to ochrana proti omylu, kterou dělají
+ * i velké služby, a GDPR ji připouští, protože je popsaná v zásadách a data se
+ * mezitím k ničemu nepoužívají. Kdo chce smazat okamžitě, napíše nám — právo na
+ * výmaz bez odkladu lhůtou obejít nejde.
+ *
+ * Co se nakonec smaže:
  *   - samotný účet (jméno, e-mail, telefon, heslo, napojení na Google),
  *   - osobní doklady i se soubory v úložišti,
  *   - firmy, ve kterých byl posledním členem — nikdo jiný by se k nim nedostal,
@@ -30,12 +39,79 @@ use Illuminate\Support\Facades\Storage;
  *     firma nezůstala bez správy.
  *   - záznamy o nákladech na zpracování (`sys_ai_volani`) — nejsou osobní údaj
  *     a zpětně by se bez nich rozpadla čísla za uzavřené měsíce.
- *
- * Mazání je nevratné a dělá se hned. Proto se před ním ukazuje přehled toho, co
- * zmizí, a potvrzuje se opsáním e-mailu.
  */
 class SmazaniUctu
 {
+    /** Kolik dní má uživatel na rozmyšlenou. */
+    public const DNI_LHUTY = 7;
+
+    /**
+     * Uzavře účet a naplánuje jeho smazání.
+     *
+     * Rovnou se nemaže nic — jen se nastaví datum a odejde e-mail s odkazem na
+     * obnovení. Které firmy nakonec zmizí, se počítá až při dokončení: členství
+     * se do té doby může změnit a tehdejší odhad by už nemusel platit.
+     */
+    public function pozadej(User $user): User
+    {
+        $user->forceFill([
+            'smazani_k' => now()->addDays(self::DNI_LHUTY),
+            'obnoveni_token' => Str::random(64),
+        ])->save();
+
+        try {
+            Mail::to($user->email)->send(new UcetKeSmazani($user));
+        } catch (\Throwable $e) {
+            // E-mail je služba navíc; obnovit účet jde i po přihlášení.
+            Log::warning("Zpráva o uzavření účtu neodešla: {$e->getMessage()}", ['user_id' => $user->id]);
+        }
+
+        return $user;
+    }
+
+    /** Vrátí uzavřený účet do běžného stavu. */
+    public function obnov(User $user): User
+    {
+        $user->forceFill(['smazani_k' => null, 'obnoveni_token' => null])->save();
+
+        return $user;
+    }
+
+    /** Účet podle obnovovacího odkazu z e-mailu, nebo null. */
+    public function podleTokenu(string $token): ?User
+    {
+        if ($token === '') {
+            return null;
+        }
+
+        return User::whereNotNull('smazani_k')->where('obnoveni_token', $token)->first();
+    }
+
+    /**
+     * Dokončí smazání u účtů, kterým lhůta uplynula.
+     *
+     * Volá se z cronu, který stejně běží každou minutu.
+     *
+     * @return int Počet smazaných účtů
+     */
+    public function dokonciSplatne(): int
+    {
+        $splatne = User::whereNotNull('smazani_k')->where('smazani_k', '<=', now())->get();
+        $hotovo = 0;
+
+        foreach ($splatne as $user) {
+            try {
+                $this->smaz($user);
+                $hotovo++;
+            } catch (\Throwable $e) {
+                // Jeden zaseknutý účet nesmí zablokovat ostatní; příště se zkusí znovu.
+                Log::error("Smazání účtu selhalo: {$e->getMessage()}", ['user_id' => $user->id]);
+            }
+        }
+
+        return $hotovo;
+    }
+
     /**
      * Co se při smazání účtu stane — podklad pro rozhodnutí uživatele.
      *
@@ -48,7 +124,7 @@ class SmazaniUctu
         $zmizi = [];
         $zustanou = [];
 
-        foreach ($this->firmyUzivatele($user) as $firma) {
+        foreach ($user->firmy()->get() as $firma) {
             if ($firma->jeOsobni()) {
                 continue;
             }
@@ -75,16 +151,21 @@ class SmazaniUctu
         ];
     }
 
+    /** Nenávratné smazání. Volá se až po uplynutí lhůty. */
     public function smaz(User $user): void
     {
         $osobni = Firma::where('je_osobni', true)->where('vlastnik_user_id', $user->id)->first();
 
         // Firmy, které po odchodu zůstanou prázdné, mizí i s doklady.
         $keSmazani = [];
-        foreach ($this->firmyUzivatele($user) as $firma) {
-            if (!$firma->jeOsobni() && $this->jePoslednimClenem($user, $firma)) {
+        foreach ($user->firmy()->get() as $firma) {
+            if ($firma->jeOsobni()) {
+                continue;
+            }
+
+            if ($this->jePoslednimClenem($user, $firma)) {
                 $keSmazani[] = $firma;
-            } elseif (!$firma->jeOsobni()) {
+            } else {
                 $this->predejSpravu($user, $firma);
             }
         }
@@ -108,16 +189,8 @@ class SmazaniUctu
                 $firma->delete();
             }
 
-            // Osobní prostor by sice zmizel kaskádou přes vlastnik_user_id, ale
-            // výše je smazaný adresně, ať je pořadí úklidu souborů jisté.
             $user->delete();
         });
-    }
-
-    /** @return \Illuminate\Support\Collection<int, Firma> */
-    private function firmyUzivatele(User $user)
-    {
-        return $user->firmy()->get();
     }
 
     private function jePoslednimClenem(User $user, Firma $firma): bool
