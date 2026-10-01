@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\Route;
 // --- Public pages ---
 Route::get('/privacy', fn() => view('privacy'))->name('privacy');
 
+// Veřejná stránka o smazání účtu. Google Play vyžaduje adresu, která je
+// dostupná bez přihlášení — proto stojí mimo skupinu s auth.
+Route::get('/smazani-uctu', fn() => view('smazani-uctu'))->name('smazaniUctu');
+
 // Stažení APK mobilní aplikace (sideload, appka není v Google Play).
 // Pozor: NE /app — pod public/app/ leží samotné APK a Apache by routu
 // přebil přesměrováním na výpis adresáře.
@@ -144,6 +148,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Nastavení účtu (člověka, ne firmy)
     Route::get('/ucet', [UcetController::class, 'nastaveni'])->name('ucet.nastaveni');
     Route::post('/ucet/osobni', [UcetController::class, 'prepnoutOsobni'])->name('ucet.prepnoutOsobni');
+    Route::post('/ucet/smazat', [UcetController::class, 'smazat'])->name('ucet.smazat');
 });
 
 // --- Google Drive OAuth ---

@@ -66,7 +66,13 @@
     <h2>10. Cookies</h2>
     <p>Používáme pouze technicky nezbytné cookies pro přihlášení a CSRF ochranu. Nepoužíváme analytické ani reklamní cookies.</p>
 
-    <h2>11. Změny</h2>
+    <h2>11. Smazání účtu</h2>
+    <p>Účet i data, která k němu patří, si můžete kdykoli smazat sami — v aplikaci v sekci <strong>Můj účet</strong>. Co přesně zmizí a co zůstane, popisuje stránka <a href="{{ route('smazaniUctu') }}">Smazání účtu</a>. Smazání je okamžité a nevratné; zálohy se přepisují do 30 dnů.</p>
+
+    <h2>12. Skenování dokladů</h2>
+    <p>Mobilní aplikace používá fotoaparát výhradně k naskenování dokladu, který sami pořídíte. Snímek se odesílá ke zpracování a uloží mezi vaše doklady; aplikace nemá přístup k vaší fotogalerii.</p>
+
+    <h2>13. Změny</h2>
     <p>Tyto zásady můžeme aktualizovat. O podstatných změnách budeme informovat e-mailem nebo oznámením v aplikaci.</p>
 </div>
 </body>

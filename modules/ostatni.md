@@ -267,6 +267,35 @@ skutečnou firmu zatím nemá.
 Je to jediná stránka nastavení, která **nevyžaduje firmu**, protože se týká
 člověka.
 
+## Smazání účtu
+
+Vyžaduje to Google Play u každé aplikace, kde si člověk zakládá účet: musí jít
+smazat **přímo v aplikaci** a zároveň musí existovat **veřejná adresa**, kde o to
+lze požádat bez přihlášení.
+
+| | |
+|---|---|
+| V aplikaci | `/ucet` → sekce *Smazání účtu* |
+| Veřejná adresa pro Play | `https://office.tuptudu.cz/smazani-uctu` |
+| Logika | `App\Services\SmazaniUctu` |
+
+**Co zmizí:** účet (jméno, e-mail, telefon, heslo, napojení na Google), osobní
+doklady i se soubory v úložišti, firmy, kde byl uživatel posledním členem
+(včetně jejich dokladů), a pozvánky na jeho e-mail.
+
+**Co zůstává:** firmy, kde jsou další lidé — nejsou jeho, jen z nich odejde.
+Když byl jediným správcem, povýší se nejdéle přiřazený člen, aby firma nezůstala
+bez správy. Zůstávají i záznamy v `sys_ai_volani`: nejsou osobní údaj a bez nich
+by se rozpadla čísla za uzavřené měsíce.
+
+**Pozor na pořadí.** Soubory v S3 se musí smazat *dřív* než záznamy v databázi —
+potom už by nebylo podle čeho je najít. Osobní prostor by sice zmizel kaskádou
+přes `sys_firmy.vlastnik_user_id`, ale maže se adresně právě proto, aby byl úklid
+souborů jistý.
+
+Potvrzuje se opsáním e-mailu a je to okamžité. Dialog předem vypíše, které firmy
+zmizí, kolik v nich je dokladů a jestli tím přijde o přístup účetní firma.
+
 ## Testy
 
 `php artisan test`. Jedou proti **MariaDB**, ne SQLite: schéma používá FULLTEXT
